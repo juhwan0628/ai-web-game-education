@@ -1,0 +1,2103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>그래비티 젤리 (Gravity Jelly)</title>
+  <script src="./assets/js/matter.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --panel-bg: rgba(22, 28, 45, 0.6);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text-color: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-color: #38bdf8;
+      
+      /* Neon gravity glow colors */
+      --glow-up: 0 -8px 20px rgba(56, 189, 248, 0.6);
+      --glow-down: 0 8px 20px rgba(139, 92, 246, 0.6);
+      --glow-left: -8px 0 20px rgba(244, 63, 94, 0.6);
+      --glow-right: 8px 0 20px rgba(16, 185, 129, 0.6);
+      
+      --glow-current: var(--glow-down);
+      --border-color-current: #8b5cf6;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg-color);
+      background-image: 
+        radial-gradient(at 10% 20%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+        radial-gradient(at 90% 80%, rgba(56, 189, 248, 0.15) 0px, transparent 50%);
+      color: var(--text-color);
+      font-family: 'Outfit', 'Noto Sans KR', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+      padding: 16px;
+    }
+
+    /* Header Styling */
+    header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0 20px 0;
+      border-bottom: 1px solid var(--panel-border);
+      margin-bottom: 20px;
+    }
+
+    .logo-container h1 {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-container h1 span {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-muted);
+      border: 1px solid var(--panel-border);
+      padding: 2px 6px;
+      border-radius: 6px;
+      margin-left: 5px;
+      vertical-align: middle;
+      -webkit-text-fill-color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text-color);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.05);
+      border-color: var(--accent-color);
+    }
+
+    .btn-icon:active {
+      transform: scale(0.95);
+    }
+
+    /* Main Content Layout */
+    main {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      main {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      header {
+        padding: 8px 0 12px 0;
+        margin-bottom: 12px;
+      }
+    }
+
+    /* Side Panels Styling */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .glass-panel {
+        padding: 12px;
+      }
+    }
+
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-color);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value.danger {
+      color: #f43f5e;
+      animation: pulse-red 1s infinite alternate;
+    }
+
+    @keyframes pulse-red {
+      0% { opacity: 0.6; }
+      100% { opacity: 1; transform: scale(1.03); }
+    }
+
+    /* Next Jelly Preview */
+    .next-preview-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 90px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      margin-top: 8px;
+      position: relative;
+      border: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+
+    /* Achievement Records */
+    .records-panel h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 6px;
+    }
+
+    .record-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .record-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .record-name {
+      color: var(--text-muted);
+    }
+
+    .record-time {
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+
+    /* Game Play Area */
+    .game-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    #game-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      aspect-ratio: 1 / 1;
+      background: #111827;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--glow-current);
+      border: 3px solid var(--border-color-current);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    #game-canvas-wrapper.danger-border {
+      animation: danger-pulse-border 0.5s infinite alternate !important;
+    }
+
+    @keyframes danger-pulse-border {
+      0% {
+        border-color: #f43f5e;
+        box-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
+      }
+      100% {
+        border-color: #be123c;
+        box-shadow: 0 0 30px rgba(244, 63, 94, 0.9);
+      }
+    }
+
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: transparent;
+      touch-action: none; /* Disable browser pinch-to-zoom and scrolling on canvas */
+    }
+
+    /* Overlays (Start & Game Over Screens) */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 24px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .overlay h2 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .overlay p {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 24px;
+      max-width: 320px;
+      line-height: 1.5;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+      color: #fff;
+      border: none;
+      padding: 12px 32px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .controls-guide {
+      margin-top: 24px;
+      text-align: left;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 12px;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .controls-guide div {
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .controls-guide div:last-child {
+      margin-bottom: 0;
+    }
+
+    .key-badge {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    /* Score Summary on Game Over */
+    .gameover-summary {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      width: 100%;
+      max-width: 320px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .summary-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .summary-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-color);
+      margin-top: 4px;
+    }
+
+    /* Mobile Controls Hints overlay on-screen (optional, we use swipe) */
+    .mobile-controls-tip {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+      text-align: center;
+      opacity: 0.8;
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-controls-tip {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Game Header -->
+  <header>
+    <div class="logo-container">
+      <h1>그래비티 젤리 <span>v1.0</span></h1>
+    </div>
+    <div class="header-actions">
+      <!-- Mute button -->
+      <button class="btn-icon" id="btn-sound" title="소리 켜기/끄기">🔊</button>
+      <!-- Restart button -->
+      <button class="btn-icon" id="btn-reset" title="게임 재시작">🔄</button>
+    </div>
+  </header>
+
+  <!-- Game Body -->
+  <main>
+    
+    <!-- Sidebar (Stats & Info) -->
+    <div class="sidebar">
+      
+      <!-- Stats Glass Panel -->
+      <div class="glass-panel stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">SCORE (점수)</span>
+          <span class="stat-value" id="ui-score">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">MOVES (중력 변경)</span>
+          <span class="stat-value" id="ui-moves">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">ZONE (경고)</span>
+          <span class="stat-value" id="ui-zone">SAFE</span>
+        </div>
+      </div>
+
+      <!-- Next Jelly Preview Glass Panel -->
+      <div class="glass-panel">
+        <span class="stat-label">NEXT JELLY (다음 젤리)</span>
+        <div class="next-preview-container">
+          <canvas id="next-canvas" width="120" height="90"></canvas>
+        </div>
+      </div>
+
+      <!-- Records Glass Panel -->
+      <div class="glass-panel records-panel">
+        <h3>RECORDS (업적 기록)</h3>
+        <div class="record-item">
+          <span class="record-name">최고 점수</span>
+          <span class="record-time" id="rec-highscore">0</span>
+        </div>
+        <div class="record-item">
+          <span class="record-name">무지개 젤리</span>
+          <span class="record-time" id="rec-rainbow">-</span>
+        </div>
+        <div class="record-item">
+          <span class="record-name">빅딱딱젤리</span>
+          <span class="record-time" id="rec-bigstone">-</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Central Game Play Area -->
+    <div class="game-area">
+      <div id="game-canvas-wrapper">
+        <canvas id="game-canvas" width="500" height="500"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div class="overlay" id="overlay-start">
+          <h2>GRAVITY JELLY</h2>
+          <p>중앙 궤도를 도는 젤리를 떨어뜨리고, 중력을 변경하여 같은 색 젤리를 합치세요!</p>
+          <button class="btn-primary" id="btn-start">게임 시작</button>
+          
+          <div class="controls-guide">
+            <div><span class="key-badge">Space</span> / <span class="key-badge">Enter</span> <span>젤리 떨어뜨리기 (모바일: 터치)</span></div>
+            <div><span class="key-badge">▲▼◀▶</span> / <span class="key-badge">WASD</span> <span>중력 바꾸기 (모바일: 스와이프)</span></div>
+            <div><span class="key-badge">중력 변경 시</span> <span>방해물 돌멩이가 추가로 소환됩니다!</span></div>
+          </div>
+        </div>
+
+        <!-- Game Over Screen Overlay -->
+        <div class="overlay hidden" id="overlay-gameover">
+          <h2>GAME OVER</h2>
+          <p id="gameover-message">중앙 스폰 존이 오랫동안 막혀 게임이 종료되었습니다.</p>
+          
+          <div class="gameover-summary">
+            <div class="summary-box">
+              <span class="summary-label">최종 점수</span>
+              <span class="summary-value" id="summary-score">0</span>
+            </div>
+            <div class="summary-box">
+              <span class="summary-label">중력 조작</span>
+              <span class="summary-value" id="summary-moves">0</span>
+            </div>
+          </div>
+          
+          <button class="btn-primary" id="btn-restart">다시 시작</button>
+        </div>
+
+      </div>
+
+      <div class="mobile-controls-tip">
+        💡 탭: 젤리 떨어뜨리기 | 스와이프: 해당 방향으로 중력 변경
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Game JavaScript Engine -->
+  <script>
+    // --- 1. WEB AUDIO API SYNTHESIZER ---
+    class AudioSynth {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.bgmInterval = null;
+        this.bgmBeat = 0;
+        this.isPlaying = false;
+        
+        // HTML5 Audio for the user's MP3 BGM
+        this.bgmAudio = new Audio('./stableaudio_060426.mp3');
+        this.bgmAudio.loop = true;
+        this.bgmAudio.volume = 0.35; // Appropriate background volume
+        this.bgmAudioFailed = false;
+        
+        this.bgmAudio.addEventListener('error', (e) => {
+          console.warn("MP3 BGM failed to load. Falling back to synthetic BGM.", e);
+          this.bgmAudioFailed = true;
+          // If we are currently supposed to be playing and not muted, start synthetic BGM
+          if (this.isPlaying && !this.isMuted && !this.bgmInterval) {
+            this.startSynthBGM();
+          }
+        });
+      }
+      
+      init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.isMuted) {
+          if (this.bgmAudio) {
+            this.bgmAudio.pause();
+          }
+          this.stopSynthBGM();
+        } else {
+          this.init();
+          if (this.isPlaying) {
+            this.startBGM();
+          }
+        }
+        return this.isMuted;
+      }
+      
+      playDrop() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          const now = this.ctx.currentTime;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.15);
+          
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } catch (e) {
+          console.warn("Audio drop failed:", e);
+        }
+      }
+      
+      playMerge() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          const now = this.ctx.currentTime;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(580, now + 0.18);
+          
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } catch (e) {
+          console.warn("Audio merge failed:", e);
+        }
+      }
+      
+      playShatter() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        try {
+          // White noise buffer
+          const bufferSize = this.ctx.sampleRate * 0.12;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 900;
+          filter.Q.value = 3.0;
+          
+          const gain = this.ctx.createGain();
+          
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          const now = this.ctx.currentTime;
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          
+          noise.start(now);
+          noise.stop(now + 0.12);
+        } catch (e) {
+          console.warn("Audio shatter failed:", e);
+        }
+      }
+ 
+      playBigShatter() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        try {
+          const now = this.ctx.currentTime;
+          
+          // Sub-bass thump + noise
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(100, now);
+          osc.frequency.linearRampToValueAtTime(40, now + 0.25);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+          
+          // Noise crackle
+          const bufferSize = this.ctx.sampleRate * 0.25;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = 500;
+          
+          const gainNoise = this.ctx.createGain();
+          noise.connect(filter);
+          filter.connect(gainNoise);
+          gainNoise.connect(this.ctx.destination);
+          
+          gainNoise.gain.setValueAtTime(0.25, now);
+          gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          
+          noise.start(now);
+          noise.stop(now + 0.25);
+        } catch (e) {
+          console.warn("Audio big shatter failed:", e);
+        }
+      }
+ 
+      playGameOver() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        try {
+          const now = this.ctx.currentTime;
+          const chords = [160, 120, 80];
+          chords.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+            gain.gain.setValueAtTime(0.12, now + idx * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.35);
+            osc.start(now + idx * 0.15);
+            osc.stop(now + idx * 0.15 + 0.35);
+          });
+        } catch (e) {
+          console.warn("Audio gameover failed:", e);
+        }
+      }
+ 
+      playGravity() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          const now = this.ctx.currentTime;
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(120, now);
+          osc.frequency.exponentialRampToValueAtTime(280, now + 0.2);
+          
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          
+          osc.start(now);
+          osc.stop(now + 0.2);
+        } catch (e) {
+          console.warn("Audio gravity failed:", e);
+        }
+      }
+      
+      startBGM() {
+        this.isPlaying = true;
+        if (this.isMuted) return;
+        this.init();
+        
+        if (!this.bgmAudioFailed) {
+          this.bgmAudio.currentTime = 0; // Reset track to beginning
+          this.bgmAudio.muted = false;
+          this.bgmAudio.play().catch(err => {
+            console.warn("MP3 autoplay blocked. Trying synthetic fallback.", err);
+            this.startSynthBGM();
+          });
+        } else {
+          this.startSynthBGM();
+        }
+      }
+      
+      startSynthBGM() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        
+        this.stopSynthBGM();
+        
+        const chords = [
+          [130.81, 164.81, 196.00, 246.94], // Cmaj7 (C3, E3, G3, B3)
+          [110.00, 130.81, 164.81, 196.00], // Am7 (A2, C3, E3, G3)
+          [87.31, 130.81, 174.61, 220.00],  // Fmaj7 (F2, C3, F3, A3)
+          [98.00, 123.47, 146.83, 196.00]   // G7 (G2, B2, D3, G3)
+        ];
+        
+        const playStep = () => {
+          if (this.isMuted || !this.ctx) return;
+          try {
+            const chordIndex = Math.floor(this.bgmBeat / 4) % chords.length;
+            const chord = chords[chordIndex];
+            const now = this.ctx.currentTime;
+            
+            // 1. Gentle Sub-Bass on 1st beat of bar
+            if (this.bgmBeat % 4 === 0) {
+              const bassOsc = this.ctx.createOscillator();
+              const bassGain = this.ctx.createGain();
+              bassOsc.connect(bassGain);
+              bassGain.connect(this.ctx.destination);
+              
+              bassOsc.type = 'triangle';
+              bassOsc.frequency.setValueAtTime(chord[0] / 2, now); // Octave down
+              bassGain.gain.setValueAtTime(0.06, now);
+              bassGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+              
+              bassOsc.start(now);
+              bassOsc.stop(now + 1.4);
+            }
+            
+            // 2. Slow soft melody/arpeggio note
+            const noteIndex = this.bgmBeat % 4;
+            const noteFreq = chord[noteIndex];
+            
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            
+            osc.connect(gain);
+            gain.connect(filter);
+            filter.connect(this.ctx.destination);
+            
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(550, now);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(noteFreq, now);
+            
+            gain.gain.setValueAtTime(0.03, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+            
+            osc.start(now);
+            osc.stop(now + 0.7);
+            
+            this.bgmBeat++;
+          } catch (err) {
+            console.warn("BGM scheduler failed:", err);
+          }
+        };
+        
+        // Beat every 0.65s (approx. 92 BPM)
+        this.bgmInterval = setInterval(playStep, 650);
+      }
+      
+      stopBGM() {
+        this.isPlaying = false;
+        if (this.bgmAudio) {
+          this.bgmAudio.pause();
+        }
+        this.stopSynthBGM();
+      }
+      
+      stopSynthBGM() {
+        if (this.bgmInterval) {
+          clearInterval(this.bgmInterval);
+          this.bgmInterval = null;
+        }
+      }
+    }
+
+    const synth = new AudioSynth();
+
+
+    // --- 2. JELLY DEFINITION & TYPES ---
+    const JELLY_TYPES = [
+      { tier: 1, name: "빨간 젤리", radius: 16, score: 1, color: "#ff4b5c" },
+      { tier: 2, name: "주황 젤리", radius: 21, score: 3, color: "#ff8c32" },
+      { tier: 3, name: "노란 젤리", radius: 27, score: 8, color: "#ffd369" },
+      { tier: 4, name: "초록 젤리", radius: 34, score: 20, color: "#4ecc71" },
+      { tier: 5, name: "파란 젤리", radius: 42, score: 50, color: "#3498db" },
+      { tier: 6, name: "남색 젤리", radius: 51, score: 120, color: "#3f51b5" },
+      { tier: 7, name: "보라 젤리", radius: 61, score: 280, color: "#9b59b6" },
+      { tier: 8, name: "무지개 젤리", radius: 72, score: 650, color: "rainbow" },
+      { tier: 9, name: "빅딱딱젤리", radius: 85, score: 2000, color: "#7f8c8d", isBigStone: true }
+    ];
+
+    // Get JELLY config by tier
+    function getJellyConfig(tier) {
+      return JELLY_TYPES[tier - 1];
+    }
+
+
+    // --- 3. PARTICLE & TEXT EFFECTS ---
+    class Particle {
+      constructor(x, y, color, isStone = false, sizeFactor = 1) {
+        this.x = x;
+        this.y = y;
+        const speed = isStone ? 6 * sizeFactor : 5;
+        this.vx = (Math.random() - 0.5) * speed;
+        this.vy = (Math.random() - 0.5) * speed - 1.5;
+        this.color = color;
+        this.radius = isStone 
+          ? (Math.random() * 5 + 4) * sizeFactor 
+          : Math.random() * 4 + 3;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.02 + 0.015;
+        this.isStone = isStone;
+        this.angle = Math.random() * Math.PI * 2;
+        this.vAngle = (Math.random() - 0.5) * 0.2;
+      }
+      
+      update(gx, gy) {
+        this.vx += gx * 0.12;
+        this.vy += gy * 0.12;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.angle += this.vAngle;
+        this.alpha -= this.decay;
+      }
+      
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        if (this.isStone) {
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.angle);
+          ctx.fillStyle = this.color;
+          ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+          
+          // Draw subtle outline
+          ctx.strokeStyle = "rgba(0,0,0,0.15)";
+          ctx.strokeRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+        } else {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          
+          // Glowing look for jelly particles
+          ctx.shadowColor = this.color;
+          ctx.shadowBlur = 8;
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    class FloatingText {
+      constructor(x, y, text, color) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.color = color;
+        this.vy = -1.2;
+        this.alpha = 1;
+        this.decay = 0.018;
+      }
+      
+      update() {
+        this.y += this.vy;
+        this.alpha -= this.decay;
+      }
+      
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.font = "800 20px 'Outfit', system-ui, sans-serif";
+        ctx.fillStyle = this.color;
+        ctx.textAlign = "center";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+        ctx.shadowBlur = 4;
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+
+    // --- 4. GAME STATE VARIABLES ---
+    let engine, world;
+    let particles = [];
+    let floatingTexts = [];
+    
+    // Core game stats
+    let score = 0;
+    let moves = 0;
+    let highscore = parseInt(localStorage.getItem("gj_highscore") || "0");
+    let recordRainbowTime = localStorage.getItem("gj_rainbow_time") || "-";
+    let recordBigStoneTime = localStorage.getItem("gj_bigstone_time") || "-";
+    
+    // Gameplay states
+    let currentGravity = "down"; // "down", "up", "left", "right"
+    let orbitAngle = 0;
+    let orbitSpeed = 0.038; // radians per frame (~2.28 rad/sec at 60fps)
+    const orbitRadius = 65;
+    const centerPoint = { x: 250, y: 250 };
+    const spawnZoneRadius = 45;
+    
+    // Spawning controls
+    let nextJellyTier = 1;
+    let currentOrbitingJelly = null; // { tier, x, y }
+    let isSpawnReady = true;
+    let spawnCooldownTimer = 0;
+    const spawnCooldownMax = 40; // frames
+    
+    // Danger monitoring (Center block)
+    let dangerTimeAccumulator = 0; // seconds
+    let isZoneBlocked = false;
+    let gameStartTime = 0;
+    let isPlaying = false;
+    let isGameOver = false;
+
+    // Wobble/Squish trackers for each body
+    let bodySquishMap = new Map(); // id -> { sx, sy }
+
+    // Canvas setup
+    const canvas = document.getElementById("game-canvas");
+    const ctx = canvas.getContext("2d");
+    const nextCanvas = document.getElementById("next-canvas");
+    const nextCtx = nextCanvas.getContext("2d");
+
+    // UI elements
+    const uiScore = document.getElementById("ui-score");
+    const uiMoves = document.getElementById("ui-moves");
+    const uiZone = document.getElementById("ui-zone");
+    const canvasWrapper = document.getElementById("game-canvas-wrapper");
+    
+    const recHighscore = document.getElementById("rec-highscore");
+    const recRainbow = document.getElementById("rec-rainbow");
+    const recBigstone = document.getElementById("rec-bigstone");
+
+    const overlayStart = document.getElementById("overlay-start");
+    const overlayGameOver = document.getElementById("overlay-gameover");
+    const summaryScore = document.getElementById("summary-score");
+    const summaryMoves = document.getElementById("summary-moves");
+
+    // Sync records UI initially
+    recHighscore.innerText = highscore;
+    recRainbow.innerText = recordRainbowTime;
+    recBigstone.innerText = recordBigStoneTime;
+
+
+    // --- 5. INITIALIZE PHYSICS (Matter.js) ---
+    function initPhysics() {
+      // Create Engine
+      engine = Matter.Engine.create({
+        constraintIterations: 3,
+        positionIterations: 6,
+        velocityIterations: 4
+      });
+      world = engine.world;
+      
+      // Set default gravity (DOWN)
+      engine.gravity.x = 0;
+      engine.gravity.y = 1.2;
+      engine.gravity.scale = 0.0012;
+
+      // Outer boundaries (Square board bounds: 0 to 500)
+      const wallThickness = 100;
+      const walls = [
+        // Top Wall (static)
+        Matter.Bodies.rectangle(250, -wallThickness / 2, 600, wallThickness, { 
+          isStatic: true, 
+          label: "boundary",
+          friction: 0.15,
+          restitution: 0.15 
+        }),
+        // Bottom Wall (static)
+        Matter.Bodies.rectangle(250, 500 + wallThickness / 2, 600, wallThickness, { 
+          isStatic: true, 
+          label: "boundary",
+          friction: 0.15,
+          restitution: 0.15 
+        }),
+        // Left Wall (static)
+        Matter.Bodies.rectangle(-wallThickness / 2, 250, wallThickness, 600, { 
+          isStatic: true, 
+          label: "boundary",
+          friction: 0.15,
+          restitution: 0.15 
+        }),
+        // Right Wall (static)
+        Matter.Bodies.rectangle(500 + wallThickness / 2, 250, wallThickness, 600, { 
+          isStatic: true, 
+          label: "boundary",
+          friction: 0.15,
+          restitution: 0.15 
+        })
+      ];
+      
+      Matter.Composite.add(world, walls);
+
+      // Listen for collisions to handle Merging
+      Matter.Events.on(engine, 'collisionStart', handleCollisions);
+    }
+
+
+    // --- 6. MERGING & COLLISION HANDLER ---
+    let pendingMerges = [];
+    let pendingStoneShatters = [];
+
+    function handleCollisions(event) {
+      if (!isPlaying || isGameOver) return;
+      
+      const pairs = event.pairs;
+      for (let i = 0; i < pairs.length; i++) {
+        const pair = pairs[i];
+        const bodyA = pair.bodyA;
+        const bodyB = pair.bodyB;
+        
+        // Trigger impact wobbles on both colliding bodies
+        triggerWobble(bodyA);
+        triggerWobble(bodyB);
+
+        // Filter out boundaries
+        if (bodyA.isStatic || bodyB.isStatic) continue;
+
+        const infoA = bodyA.gameInfo;
+        const infoB = bodyB.gameInfo;
+
+        if (!infoA || !infoB) continue;
+        if (infoA.isRemoved || infoB.isRemoved) continue;
+
+        // Case A: 2 Regular Jellies of the SAME TIER merge (tiers 1-8)
+        if (infoA.tier && infoB.tier && infoA.tier === infoB.tier && infoA.tier < 9) {
+          infoA.isRemoved = true;
+          infoB.isRemoved = true;
+          
+          pendingMerges.push({
+            bodyA: bodyA,
+            bodyB: bodyB,
+            tier: infoA.tier,
+            x: (bodyA.position.x + bodyB.position.x) / 2,
+            y: (bodyA.position.y + bodyB.position.y) / 2
+          });
+        }
+        // Case B: 2 Normal Stones (딱딱젤리) touch -> shatter
+        else if (infoA.isStone && infoB.isStone) {
+          infoA.isRemoved = true;
+          infoB.isRemoved = true;
+          
+          pendingStoneShatters.push({
+            bodyA: bodyA,
+            bodyB: bodyB,
+            x: (bodyA.position.x + bodyB.position.x) / 2,
+            y: (bodyA.position.y + bodyB.position.y) / 2,
+            isBig: false
+          });
+        }
+        // Case C: 2 Big Stones (빅딱딱젤리, Tier 9) touch -> massive shatter
+        else if (infoA.tier === 9 && infoB.tier === 9) {
+          infoA.isRemoved = true;
+          infoB.isRemoved = true;
+          
+          pendingStoneShatters.push({
+            bodyA: bodyA,
+            bodyB: bodyB,
+            x: (bodyA.position.x + bodyB.position.x) / 2,
+            y: (bodyA.position.y + bodyB.position.y) / 2,
+            isBig: true
+          });
+        }
+      }
+    }
+
+    // Trigger squash and stretch animation
+    function triggerWobble(body) {
+      if (body.isStatic) return;
+      const val = bodySquishMap.get(body.id);
+      if (val) {
+        val.sx = 0.78; // squish x
+        val.sy = 1.22; // stretch y
+      }
+    }
+
+    function processPendingMergeAndShatters() {
+      // Process JELLY merges
+      for (let i = 0; i < pendingMerges.length; i++) {
+        const merge = pendingMerges[i];
+        
+        // Double check they are in world
+        Matter.Composite.remove(world, [merge.bodyA, merge.bodyB]);
+        bodySquishMap.delete(merge.bodyA.id);
+        bodySquishMap.delete(merge.bodyB.id);
+
+        const newTier = merge.tier + 1;
+        const config = getJellyConfig(newTier);
+
+        // Spawn Merged Jelly at midpoint
+        const mergedBody = Matter.Bodies.circle(merge.x, merge.y, config.radius, {
+          restitution: 0.32,
+          friction: 0.08,
+          density: 0.001
+        });
+        
+        mergedBody.gameInfo = {
+          tier: newTier,
+          isDropped: true,
+          isRemoved: false
+        };
+        
+        // Store squish details
+        bodySquishMap.set(mergedBody.id, { sx: 1.3, sy: 0.7 }); // squash visually initially
+        Matter.Composite.add(world, mergedBody);
+
+        // Scored!
+        addScore(config.score, merge.x, merge.y, config.color);
+        synth.playMerge();
+
+        // Spawn splash particles
+        const particleColor = config.color === "rainbow" ? "#e0f2fe" : config.color;
+        for (let p = 0; p < 12; p++) {
+          particles.push(new Particle(merge.x, merge.y, particleColor, false));
+        }
+
+        // Check milestones
+        const elapsed = (Date.now() - gameStartTime) / 1000;
+        const minStr = Math.floor(elapsed / 60) + "분 " + Math.floor(elapsed % 60) + "초";
+        
+        if (newTier === 8 && recordRainbowTime === "-") {
+          recordRainbowTime = minStr;
+          localStorage.setItem("gj_rainbow_time", minStr);
+          recRainbow.innerText = minStr;
+        } else if (newTier === 9 && recordBigStoneTime === "-") {
+          recordBigStoneTime = minStr;
+          localStorage.setItem("gj_bigstone_time", minStr);
+          recBigstone.innerText = minStr;
+        }
+      }
+      pendingMerges = [];
+
+      // Process STONE shatters
+      for (let i = 0; i < pendingStoneShatters.length; i++) {
+        const sh = pendingStoneShatters[i];
+        
+        Matter.Composite.remove(world, [sh.bodyA, sh.bodyB]);
+        bodySquishMap.delete(sh.bodyA.id);
+        bodySquishMap.delete(sh.bodyB.id);
+
+        const numParticles = sh.isBig ? 24 : 12;
+        const sizeFactor = sh.isBig ? 1.6 : 1.0;
+        const color = sh.isBig ? "#7f8c8d" : "#475569";
+        
+        // Spawn stone particles
+        for (let p = 0; p < numParticles; p++) {
+          particles.push(new Particle(sh.x, sh.y, color, true, sizeFactor));
+        }
+
+        if (sh.isBig) {
+          synth.playBigShatter();
+          // Add floating splash text for Big Stone
+          floatingTexts.push(new FloatingText(sh.x, sh.y, "CRASH!", "#f1f5f9"));
+        } else {
+          synth.playShatter();
+        }
+      }
+      pendingStoneShatters = [];
+    }
+
+    function addScore(points, x, y, color) {
+      score += points;
+      uiScore.innerText = score;
+      
+      const textColor = color === "rainbow" ? "#a855f7" : color;
+      floatingTexts.push(new FloatingText(x, y - 10, `+${points}`, textColor));
+
+      if (score > highscore) {
+        highscore = score;
+        localStorage.setItem("gj_highscore", highscore);
+        recHighscore.innerText = highscore;
+      }
+    }
+
+
+    // --- 7. SPAWNING & ORBIT SYSTEM ---
+    function generateNextJelly() {
+      // Only spawn tiers 1 to 4 to player
+      nextJellyTier = Math.floor(Math.random() * 4) + 1;
+      drawNextPreview();
+    }
+
+    function getNextJellyOrbitPos() {
+      const x = centerPoint.x + orbitRadius * Math.cos(orbitAngle);
+      const y = centerPoint.y + orbitRadius * Math.sin(orbitAngle);
+      return { x, y };
+    }
+
+    function dropJelly() {
+      if (!isSpawnReady || !isPlaying || isGameOver || !currentOrbitingJelly) return;
+
+      const pos = getNextJellyOrbitPos();
+      const config = getJellyConfig(currentOrbitingJelly.tier);
+
+      // Create physical dynamic circle
+      const jellyBody = Matter.Bodies.circle(pos.x, pos.y, config.radius, {
+        restitution: 0.35,
+        friction: 0.08,
+        density: 0.001
+      });
+
+      jellyBody.gameInfo = {
+        tier: currentOrbitingJelly.tier,
+        isDropped: true,
+        isRemoved: false
+      };
+
+      // Set initial tangential velocity based on orbit position
+      // Linear tangential speed v = omega * r
+      const omega = orbitSpeed * 60; // angular velocity per sec
+      const vt = omega * orbitRadius; // speed px/sec
+      
+      // Tangent vector is perpendicular to radial vector: (-sin, cos)
+      const vx = -vt * Math.sin(orbitAngle) / 60; // px/frame
+      const vy = vt * Math.cos(orbitAngle) / 60;  // px/frame
+      
+      Matter.Body.setVelocity(jellyBody, { x: vx, y: vy });
+
+      // Add to world
+      bodySquishMap.set(jellyBody.id, { sx: 0.9, sy: 1.1 });
+      Matter.Composite.add(world, jellyBody);
+
+      synth.playDrop();
+
+      // Trigger cooldown for next spawn
+      isSpawnReady = false;
+      spawnCooldownTimer = spawnCooldownMax;
+      currentOrbitingJelly = null;
+
+      // Start BGM on first interaction
+      synth.init();
+      if (!synth.isMuted && !synth.bgmInterval) {
+        synth.startBGM();
+      }
+    }
+
+
+    // --- 8. GRAVITY CONTROL MECHANICS ---
+    function setGravity(direction) {
+      if (!isPlaying || isGameOver) return;
+      if (currentGravity === direction) return; // already set
+
+      currentGravity = direction;
+      
+      let gx = 0;
+      let gy = 0;
+
+      // Set Matter.js gravity vector & styling variables
+      switch (direction) {
+        case "up":
+          gy = -1.2;
+          document.documentElement.style.setProperty('--glow-current', 'var(--glow-up)');
+          document.documentElement.style.setProperty('--border-color-current', '#38bdf8');
+          break;
+        case "down":
+          gy = 1.2;
+          document.documentElement.style.setProperty('--glow-current', 'var(--glow-down)');
+          document.documentElement.style.setProperty('--border-color-current', '#8b5cf6');
+          break;
+        case "left":
+          gx = -1.2;
+          document.documentElement.style.setProperty('--glow-current', 'var(--glow-left)');
+          document.documentElement.style.setProperty('--border-color-current', '#f43f5e');
+          break;
+        case "right":
+          gx = 1.2;
+          document.documentElement.style.setProperty('--glow-current', 'var(--glow-right)');
+          document.documentElement.style.setProperty('--border-color-current', '#10b981');
+          break;
+      }
+
+      engine.gravity.x = gx;
+      engine.gravity.y = gy;
+
+      moves++;
+      uiMoves.innerText = moves;
+      
+      synth.playGravity();
+
+      // Spawn 1 normal stone (딱딱젤리) at central spawn zone on gravity change
+      spawnStoneObstacle();
+    }
+
+    function spawnStoneObstacle() {
+      // Spawn slightly offset from center
+      const offsetRange = 15;
+      const rx = centerPoint.x + (Math.random() - 0.5) * offsetRange;
+      const ry = centerPoint.y + (Math.random() - 0.5) * offsetRange;
+      
+      const stoneBody = Matter.Bodies.circle(rx, ry, 18, {
+        restitution: 0.15,
+        friction: 0.12,
+        density: 0.0012
+      });
+
+      stoneBody.gameInfo = {
+        isStone: true,
+        isDropped: true,
+        isRemoved: false
+      };
+
+      bodySquishMap.set(stoneBody.id, { sx: 1.0, sy: 1.0 });
+      Matter.Composite.add(world, stoneBody);
+
+      // Create subtle puff smoke particles
+      for (let p = 0; p < 5; p++) {
+        particles.push(new Particle(rx, ry, "#64748b", false));
+      }
+    }
+
+
+    // --- 9. GAME OVER & ZONE BLOCKED SYSTEM ---
+    function checkSpawnZoneDanger(deltaTime) {
+      if (!isPlaying || isGameOver) return;
+
+      const bodies = Matter.Composite.allBodies(world);
+      let blocked = false;
+
+      for (let i = 0; i < bodies.length; i++) {
+        const body = bodies[i];
+        if (body.isStatic) continue;
+
+        // Verify if this is an already dropped object
+        if (body.gameInfo && body.gameInfo.isDropped) {
+          // Calculate distance from center
+          const dx = body.position.x - centerPoint.x;
+          const dy = body.position.y - centerPoint.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          // Let's check overlap: distance < (bodyRadius + spawnZoneRadius)
+          // We fetch body radius from gameInfo config or matter body bounds
+          let radius = 16;
+          if (body.gameInfo.isStone) {
+            radius = 18;
+          } else if (body.gameInfo.tier) {
+            radius = getJellyConfig(body.gameInfo.tier).radius;
+          }
+
+          if (dist < (radius + spawnZoneRadius - 5)) {
+            blocked = true;
+            break;
+          }
+        }
+      }
+
+      isZoneBlocked = blocked;
+
+      if (isZoneBlocked) {
+        dangerTimeAccumulator += deltaTime;
+        const timeLeft = Math.max(0, 3.0 - dangerTimeAccumulator);
+        
+        uiZone.innerText = `DANGER (${timeLeft.toFixed(1)}s)`;
+        uiZone.classList.add("danger");
+        canvasWrapper.classList.add("danger-border");
+        
+        if (dangerTimeAccumulator >= 3.0) {
+          triggerGameOver();
+        }
+      } else {
+        dangerTimeAccumulator = 0;
+        uiZone.innerText = "SAFE";
+        uiZone.classList.remove("danger");
+        canvasWrapper.classList.remove("danger-border");
+      }
+    }
+
+    function triggerGameOver() {
+      isGameOver = true;
+      synth.playGameOver();
+      synth.stopBGM();
+
+      // Explosion of all objects on screen for visual flare!
+      const bodies = Matter.Composite.allBodies(world);
+      bodies.forEach(body => {
+        if (body.isStatic) return;
+        
+        let color = "#475569";
+        let isStone = false;
+        
+        if (body.gameInfo) {
+          if (body.gameInfo.isStone) {
+            isStone = true;
+          } else if (body.gameInfo.tier) {
+            const config = getJellyConfig(body.gameInfo.tier);
+            color = config.color === "rainbow" ? "#e879f9" : config.color;
+          }
+        }
+
+        // Spawn a burst of particles
+        for (let p = 0; p < 8; p++) {
+          particles.push(new Particle(body.position.x, body.position.y, color, isStone));
+        }
+
+        Matter.Composite.remove(world, body);
+        bodySquishMap.delete(body.id);
+      });
+
+      // Show Game Over modal
+      summaryScore.innerText = score;
+      summaryMoves.innerText = moves;
+      overlayGameOver.classList.remove("hidden");
+    }
+
+
+    // --- 10. CUSTOM DRAWING SYSTEM ---
+    
+    // Gradient generators
+    function createRainbowGradient(x, y, r) {
+      const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r * 0.1, x, y, r);
+      grad.addColorStop(0, '#ff4b5c');
+      grad.addColorStop(0.2, '#ff8c32');
+      grad.addColorStop(0.4, '#ffd369');
+      grad.addColorStop(0.6, '#4ecc71');
+      grad.addColorStop(0.8, '#3498db');
+      grad.addColorStop(1, '#9b59b6');
+      return grad;
+    }
+
+    function createJellyGradient(x, y, r, baseColor) {
+      const grad = ctx.createRadialGradient(x - r*0.2, y - r*0.2, r * 0.1, x, y, r);
+      grad.addColorStop(0, '#ffffff'); // Glossy highlight
+      grad.addColorStop(0.2, baseColor);
+      grad.addColorStop(1, adjustColorBrightness(baseColor, -30)); // Shader border
+      return grad;
+    }
+
+    // Helper to darken colors for gradient shader
+    function adjustColorBrightness(hex, percent) {
+      let num = parseInt(hex.replace("#",""), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) + amt,
+      G = (num >> 8 & 0x00FF) + amt,
+      B = (num & 0x0000FF) + amt;
+      return "#" + (0x1000000 + (R<255?R<0?0:R:255)*0x10000 + (G<255?G<0?0:G:255)*0x100 + (B<255?B<0?0:B:255)).toString(16).slice(1);
+    }
+
+    function drawNextPreview() {
+      nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+      
+      const cx = nextCanvas.width / 2;
+      const cy = nextCanvas.height / 2;
+      const config = getJellyConfig(nextJellyTier);
+      const r = Math.min(30, config.radius * 1.1); // cap size inside next panel
+      
+      // Draw gradient body
+      nextCtx.beginPath();
+      nextCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      nextCtx.fillStyle = createJellyGradient(cx, cy, r, config.color);
+      nextCtx.fill();
+      
+      // Outline
+      nextCtx.strokeStyle = "rgba(255,255,255,0.2)";
+      nextCtx.lineWidth = 1.5;
+      nextCtx.stroke();
+      
+      // Draw simple eyes inside preview
+      nextCtx.fillStyle = "#ffffff";
+      nextCtx.beginPath();
+      nextCtx.arc(cx - r*0.3, cy - r*0.1, r*0.18, 0, Math.PI*2);
+      nextCtx.arc(cx + r*0.3, cy - r*0.1, r*0.18, 0, Math.PI*2);
+      nextCtx.fill();
+      
+      nextCtx.fillStyle = "#000000";
+      nextCtx.beginPath();
+      nextCtx.arc(cx - r*0.3, cy - r*0.1, r*0.08, 0, Math.PI*2);
+      nextCtx.arc(cx + r*0.3, cy - r*0.1, r*0.08, 0, Math.PI*2);
+      nextCtx.fill();
+
+      // Mouth
+      nextCtx.strokeStyle = "#000000";
+      nextCtx.lineWidth = 1.5;
+      nextCtx.beginPath();
+      nextCtx.arc(cx, cy + r*0.2, r*0.15, 0, Math.PI);
+      nextCtx.stroke();
+    }
+
+    function drawJellyBody(x, y, radius, config, angle, squishX, squishY) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.scale(squishX, squishY);
+      
+      // Gradient
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      
+      if (config.color === "rainbow") {
+        ctx.fillStyle = createRainbowGradient(0, 0, radius);
+      } else {
+        ctx.fillStyle = createJellyGradient(0, 0, radius, config.color);
+      }
+      ctx.fill();
+      
+      // Light overlay borders
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw Face Expressions (responsive to gravity or state)
+      drawFaceExpressions(radius, config.tier);
+
+      ctx.restore();
+    }
+
+    function drawFaceExpressions(radius, tier) {
+      // Calculate coordinates relative to body center (0, 0)
+      ctx.fillStyle = "#ffffff";
+      
+      // Wobble animation eye stretch
+      const eyeR = Math.max(3, radius * 0.14);
+      const ex1 = -radius * 0.32;
+      const ex2 = radius * 0.32;
+      const ey = -radius * 0.08;
+
+      // Worried eyes if zone is blocked, otherwise normal
+      if (isZoneBlocked) {
+        // Draw worried white eyes
+        ctx.beginPath();
+        ctx.arc(ex1, ey, eyeR * 0.9, 0, Math.PI*2);
+        ctx.arc(ex2, ey, eyeR * 0.9, 0, Math.PI*2);
+        ctx.fill();
+
+        // Draw pupils looking upwards in fear
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(ex1, ey - eyeR*0.2, eyeR * 0.45, 0, Math.PI*2);
+        ctx.arc(ex2, ey - eyeR*0.2, eyeR * 0.45, 0, Math.PI*2);
+        ctx.fill();
+
+        // Worried squiggly mouth
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.15, radius * 0.22);
+        ctx.lineTo(-radius * 0.05, radius * 0.15);
+        ctx.lineTo(radius * 0.05, radius * 0.22);
+        ctx.lineTo(radius * 0.15, radius * 0.15);
+        ctx.stroke();
+      } else {
+        // Standard Cute Face
+        ctx.beginPath();
+        ctx.arc(ex1, ey, eyeR, 0, Math.PI * 2);
+        ctx.arc(ex2, ey, eyeR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw pupils looking towards current gravity
+        let px = 0;
+        let py = 0;
+        switch (currentGravity) {
+          case "up": py = -eyeR * 0.3; break;
+          case "down": py = eyeR * 0.3; break;
+          case "left": px = -eyeR * 0.3; break;
+          case "right": px = eyeR * 0.3; break;
+        }
+
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(ex1 + px, ey + py, eyeR * 0.5, 0, Math.PI * 2);
+        ctx.arc(ex2 + px, ey + py, eyeR * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Smiling mouth
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(0, radius * 0.12, radius * 0.22, 0, Math.PI);
+        ctx.stroke();
+        
+        // Cute pink blush for higher tiers (Tier >= 4)
+        if (tier >= 4) {
+          ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
+          ctx.beginPath();
+          ctx.arc(ex1 - eyeR*0.6, ey + eyeR*0.9, eyeR*0.7, 0, Math.PI*2);
+          ctx.arc(ex2 + eyeR*0.6, ey + eyeR*0.9, eyeR*0.7, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawStoneBody(x, y, radius, isBig, angle, squishX, squishY) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.scale(squishX, squishY);
+      
+      // Craggy polygon drawing for rocky texture
+      const numPoints = isBig ? 10 : 8;
+      ctx.beginPath();
+      
+      for (let i = 0; i < numPoints; i++) {
+        const theta = (i / numPoints) * Math.PI * 2;
+        // Rocky unevenness
+        const jitter = 0.85 + 0.15 * Math.sin(theta * 5.2 + i);
+        const rx = radius * jitter * Math.cos(theta);
+        const ry = radius * jitter * Math.sin(theta);
+        
+        if (i === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+
+      // Stone Gradient
+      const baseColor = isBig ? "#5f6c7d" : "#404c5c";
+      const grad = ctx.createRadialGradient(-radius*0.2, -radius*0.2, radius*0.1, 0, 0, radius);
+      grad.addColorStop(0, "#cbd5e1"); // light grey rocky shine
+      grad.addColorStop(0.3, baseColor);
+      grad.addColorStop(1, "#1e293b"); // shadow
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Heavy outline
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = isBig ? 3.5 : 2;
+      ctx.stroke();
+
+      // Cracks / details on stone
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.5)";
+      ctx.lineWidth = 1.5;
+      
+      ctx.beginPath();
+      // Draw some cracks inside the stone
+      ctx.moveTo(-radius * 0.4, -radius * 0.2);
+      ctx.lineTo(-radius * 0.1, radius * 0.1);
+      ctx.lineTo(radius * 0.3, -radius * 0.3);
+      
+      if (isBig) {
+        ctx.moveTo(radius * 0.2, radius * 0.4);
+        ctx.lineTo(-radius * 0.2, radius * 0.3);
+        
+        // Big stones have glowing gold/neon cracks for premium styling
+        ctx.stroke();
+        ctx.strokeStyle = "#8b5cf6"; // Neon crack glow
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.4, -radius * 0.2);
+        ctx.lineTo(-radius * 0.1, radius * 0.1);
+        ctx.lineTo(radius * 0.3, -radius * 0.3);
+      }
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+
+    // --- 11. MAIN LOOP (requestAnimationFrame) ---
+    let lastTime = 0;
+
+    function gameLoop(time) {
+      if (!lastTime) lastTime = time;
+      const deltaTime = (time - lastTime) / 1000; // secs
+      lastTime = time;
+
+      // Update Matter physics
+      if (isPlaying && !isGameOver) {
+        Matter.Engine.update(engine, 1000 / 60);
+        processPendingMergeAndShatters();
+        checkSpawnZoneDanger(deltaTime);
+        
+        // Increment orbit rotation angle
+        orbitAngle += orbitSpeed;
+        if (orbitAngle >= Math.PI * 2) {
+          orbitAngle -= Math.PI * 2;
+        }
+
+        // Spawn Orbiting Jelly if none is active
+        if (!currentOrbitingJelly && !isSpawnReady) {
+          spawnCooldownTimer--;
+          if (spawnCooldownTimer <= 0) {
+            isSpawnReady = true;
+          }
+        }
+        
+        if (isSpawnReady && !currentOrbitingJelly) {
+          currentOrbitingJelly = {
+            tier: nextJellyTier,
+            angle: orbitAngle
+          };
+          generateNextJelly();
+        }
+      }
+
+      // Draw Board
+      drawRenderBoard();
+
+      // Request next frame
+      requestAnimationFrame(gameLoop);
+    }
+
+    function drawRenderBoard() {
+      // Clear Canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Orbit dashed circle (Center Spawn Zone perimeter)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerPoint.x, centerPoint.y, orbitRadius, 0, Math.PI * 2);
+      ctx.setLineDash([5, 6]);
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.22)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw Center Spawn Zone guide (Warning area)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerPoint.x, centerPoint.y, spawnZoneRadius, 0, Math.PI * 2);
+      ctx.setLineDash([2, 4]);
+      ctx.strokeStyle = isZoneBlocked 
+        ? "rgba(244, 63, 94, 0.55)" // Warning flashing look
+        : "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+
+      // Prevent crash on initial load before world is initialized
+      if (!world) return;
+
+      // Draw Orbiting Preview Jelly
+      if (isPlaying && !isGameOver && currentOrbitingJelly) {
+        const pos = getNextJellyOrbitPos();
+        const config = getJellyConfig(currentOrbitingJelly.tier);
+        
+        // Slow pulsing breath animation
+        const pulse = 1.0 + 0.05 * Math.sin(Date.now() / 150);
+        
+        drawJellyBody(pos.x, pos.y, config.radius * pulse, config, 0, 1.0, 1.0);
+      }
+
+      // Draw Dynamic Bodies from Matter World
+      const bodies = Matter.Composite.allBodies(world);
+      bodies.forEach(body => {
+        if (body.isStatic) return;
+
+        // Fetch squish/wobble scale
+        let sq = bodySquishMap.get(body.id);
+        if (!sq) {
+          sq = { sx: 1.0, sy: 1.0 };
+          bodySquishMap.set(body.id, sq);
+        }
+
+        // Linear interpolation back to 1.0 (relax)
+        sq.sx += (1.0 - sq.sx) * 0.12;
+        sq.sy += (1.0 - sq.sy) * 0.12;
+
+        // Apply stretch from velocity
+        const speed = Math.sqrt(body.velocity.x * body.velocity.x + body.velocity.y * body.velocity.y);
+        let dynamicSx = sq.sx;
+        let dynamicSy = sq.sy;
+        
+        if (speed > 1.2 && !body.isStatic) {
+          // Stretch along velocity vector
+          const stretch = Math.min(0.15, speed * 0.012);
+          dynamicSx = sq.sx * (1.0 - stretch);
+          dynamicSy = sq.sy * (1.0 + stretch);
+        }
+
+        // Draw based on type
+        if (body.gameInfo) {
+          if (body.gameInfo.isStone) {
+            drawStoneBody(body.position.x, body.position.y, 18, false, body.angle, dynamicSx, dynamicSy);
+          } else if (body.gameInfo.tier === 9) {
+            drawStoneBody(body.position.x, body.position.y, 85, true, body.angle, dynamicSx, dynamicSy);
+          } else if (body.gameInfo.tier) {
+            const config = getJellyConfig(body.gameInfo.tier);
+            drawJellyBody(body.position.x, body.position.y, config.radius, config, body.angle, dynamicSx, dynamicSy);
+          }
+        }
+      });
+
+      // Update & Draw Particles
+      const gx = engine ? engine.gravity.x : 0;
+      const gy = engine ? engine.gravity.y : 1.2;
+      
+      particles = particles.filter(p => {
+        p.update(gx, gy);
+        p.draw(ctx);
+        return p.alpha > 0.01;
+      });
+
+      // Update & Draw Floating score texts
+      floatingTexts = floatingTexts.filter(ft => {
+        ft.update();
+        ft.draw(ctx);
+        return ft.alpha > 0.01;
+      });
+    }
+
+
+    // --- 12. CONTROLS & BINDINGS ---
+    
+    // Keyboard Handler
+    window.addEventListener("keydown", function(e) {
+      if (!isPlaying || isGameOver) return;
+      
+      switch (e.code) {
+        // Drop bindings
+        case "Space":
+        case "Enter":
+          e.preventDefault(); // stop scrolling page
+          dropJelly();
+          break;
+        // Gravity bindings (Arrow Keys & WASD)
+        case "ArrowUp":
+        case "KeyW":
+          e.preventDefault();
+          setGravity("up");
+          break;
+        case "ArrowDown":
+        case "KeyS":
+          e.preventDefault();
+          setGravity("down");
+          break;
+        case "ArrowLeft":
+        case "KeyA":
+          e.preventDefault();
+          setGravity("left");
+          break;
+        case "ArrowRight":
+        case "KeyD":
+          e.preventDefault();
+          setGravity("right");
+          break;
+      }
+    });
+
+    // Touch & Swipe Event Handlers (Mobile)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    canvas.addEventListener("touchstart", function(e) {
+      if (!isPlaying || isGameOver) return;
+      // Prevent browser default behavior like panning/zooming
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function(e) {
+      if (!isPlaying || isGameOver) return;
+      e.preventDefault();
+
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      const elapsed = Date.now() - touchStartTime;
+
+      const swipeThreshold = 35; // min pixels to count as swipe
+      const swipeTimeLimit = 280; // max ms to count as swipe
+
+      if (elapsed < swipeTimeLimit && Math.max(Math.abs(dx), Math.abs(dy)) > swipeThreshold) {
+        // Swipe detected! Determine direction
+        if (Math.abs(dx) > Math.abs(dy)) {
+          // Horizontal swipe
+          if (dx > 0) {
+            setGravity("right");
+          } else {
+            setGravity("left");
+          }
+        } else {
+          // Vertical swipe
+          if (dy > 0) {
+            setGravity("down");
+          } else {
+            setGravity("up");
+          }
+        }
+      } else if (elapsed < 200 && Math.max(Math.abs(dx), Math.abs(dy)) < 12) {
+        // Tap detected!
+        dropJelly();
+      }
+    }, { passive: false });
+
+
+    // --- 13. GAME CONTROL ACTIONS (START, RESTART, RESET) ---
+    function startGame() {
+      // Create Engine
+      initPhysics();
+      
+      // Reset variables
+      score = 0;
+      moves = 0;
+      dangerTimeAccumulator = 0;
+      isZoneBlocked = false;
+      isGameOver = false;
+      isSpawnReady = true;
+      currentOrbitingJelly = null;
+      particles = [];
+      floatingTexts = [];
+      bodySquishMap.clear();
+
+      uiScore.innerText = score;
+      uiMoves.innerText = moves;
+      uiZone.innerText = "SAFE";
+      uiZone.classList.remove("danger");
+      canvasWrapper.classList.remove("danger-border");
+      
+      // Reset gravity defaults
+      currentGravity = "down";
+      document.documentElement.style.setProperty('--glow-current', 'var(--glow-down)');
+      document.documentElement.style.setProperty('--border-color-current', '#8b5cf6');
+      
+      // Setup initial orbit jelly
+      generateNextJelly();
+      currentOrbitingJelly = {
+        tier: Math.floor(Math.random() * 3) + 1,
+        angle: 0
+      };
+      
+      gameStartTime = Date.now();
+      isPlaying = true;
+      
+      // Close all overlays
+      overlayStart.classList.add("hidden");
+      overlayGameOver.classList.add("hidden");
+
+      // Synth initialization
+      synth.init();
+      if (!synth.isMuted) {
+        synth.startBGM();
+      }
+    }
+
+    function resetGame() {
+      // Clear world and engines
+      if (engine) {
+        Matter.World.clear(world, false);
+        Matter.Engine.clear(engine);
+      }
+      
+      // Reset overlays & start fresh
+      overlayGameOver.classList.add("hidden");
+      overlayStart.classList.remove("hidden");
+      
+      isPlaying = false;
+      isGameOver = false;
+      
+      synth.stopBGM();
+      
+      // Draw initial state of blank board
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerPoint.x, centerPoint.y, orbitRadius, 0, Math.PI * 2);
+      ctx.setLineDash([5, 6]);
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.22)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Bind Buttons
+    document.getElementById("btn-start").addEventListener("click", (e) => {
+      e.target.blur();
+      startGame();
+    });
+    document.getElementById("btn-restart").addEventListener("click", (e) => {
+      e.target.blur();
+      startGame();
+    });
+    document.getElementById("btn-reset").addEventListener("click", (e) => {
+      e.target.blur();
+      resetGame();
+    });
+    
+    // Mute Button toggle
+    const btnSound = document.getElementById("btn-sound");
+    btnSound.addEventListener("click", (e) => {
+      e.target.blur();
+      const isMuted = synth.toggleMute();
+      btnSound.innerText = isMuted ? "🔇" : "🔊";
+    });
+
+    // Start Draw Loop
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

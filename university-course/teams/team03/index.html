@@ -1,0 +1,1566 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>캠퍼스 런: 마감 탈출 (Campus Run: Deadline Escape)</title>
+  <style>
+    /* 
+       외부 CDN, Google Fonts, 외부 URL 라이브러리 사용을 전면 배제하고,
+       로컬 환경에서 바로 더블 클릭하여 실행할 수 있도록 기본 시스템 폰트를 적용합니다.
+    */
+    :root {
+      --bg-color: #0c0d12;
+      --panel-bg: #15161e;
+      --panel-border: #272833;
+      --accent-neon: #6f42fb;
+      --accent-mint: #00ffcc;
+      --accent-orange: #ff6f00;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    /* 뒷배경 격자 격신 데코레이션 */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-image: 
+        linear-gradient(rgba(111, 66, 251, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(111, 66, 251, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    main {
+      width: 100%;
+      max-width: 840px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* 게임 헤더 */
+    header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--panel-border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .brand h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--text-main) 30%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .team-badge {
+      background-color: var(--accent-orange);
+      color: var(--text-main);
+      font-size: 0.8rem;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* 게임 캐비닛 본체 */
+    .console-wrapper {
+      background-color: var(--panel-bg);
+      border: 2px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 8px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+
+    /* 게임 스크린 및 오버레이 */
+    .game-area {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: #000000;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9);
+    }
+
+    #gameCanvas {
+      display: block;
+    }
+
+    /* 화면 오버레이 레이아웃 */
+    .screen-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 11, 18, 0.95);
+      z-index: 10;
+      text-align: center;
+      padding: 40px;
+      transition: opacity 0.2s ease;
+    }
+
+    .screen-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .screen-overlay h2 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+
+    .screen-overlay.clear h2 {
+      color: var(--accent-mint);
+      text-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+    }
+
+    .screen-overlay.over h2 {
+      color: #ff3366;
+      text-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+    }
+
+    .screen-overlay p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1.6;
+      max-width: 540px;
+      margin-bottom: 24px;
+    }
+
+    /* 조작키 안내 박스 */
+    .guide-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 16px 24px;
+      text-align: left;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 24px;
+      font-size: 0.9rem;
+    }
+
+    .guide-box h3 {
+      color: var(--accent-mint);
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .guide-box ul {
+      list-style: none;
+    }
+
+    .guide-box li {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .key-badge {
+      background: #2a2c3a;
+      border: 1px solid #45485d;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      font-family: monospace;
+      color: var(--text-main);
+      box-shadow: 0 2px 0 #151622;
+      display: inline-block;
+      min-width: 55px;
+      text-align: center;
+    }
+
+    /* 결과 스탯 보드 */
+    .result-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .stat-card .value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent-mint);
+    }
+
+    /* 버튼 스타일 */
+    .btn {
+      background: linear-gradient(135deg, var(--accent-neon) 0%, #4c1d95 100%);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 12px 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(111, 66, 251, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(111, 66, 251, 0.5);
+      background: linear-gradient(135deg, #8b5cf6 0%, var(--accent-neon) 100%);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    /* 크레딧 풋터 */
+    footer {
+      width: 100%;
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--panel-border);
+      padding-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <!-- 게임 타이틀 및 팀 정보 -->
+    <header>
+      <div class="brand">
+        <h1>캠퍼스 런: 마감 탈출</h1>
+        <p>과제 마감에 쫓기는 대학생 '마감이'의 캠퍼스 마감 질주</p>
+      </div>
+      <div class="team-badge">3조</div>
+    </header>
+
+    <!-- 콘솔 캐비닛 -->
+    <div class="console-wrapper">
+      <div class="game-area">
+        <!-- 1. 시작 화면 -->
+        <div id="startScreen" class="screen-overlay">
+          <h2>캠퍼스 런: 마감 탈출</h2>
+          <p>과제 제출 마감 시간이 단 60초 남았습니다!<br>캠퍼스를 전력질주하며 장애물을 피하고 학점을 채울 아이템을 모으세요.</p>
+          <button class="btn" id="startBtn">게임 시작</button>
+        </div>
+
+        <!-- 2. 게임 설명 화면 -->
+        <div id="introScreen" class="screen-overlay hidden">
+          <h2>게임 설명</h2>
+          <div class="guide-box">
+            <h3>조작 가이드</h3>
+            <ul>
+              <li>
+                <span class="key-badge">←</span> <span class="key-badge">→</span> 또는 
+                <span class="key-badge">A</span> <span class="key-badge">D</span>
+                <span>좌우 이동</span>
+              </li>
+              <li>
+                <span class="key-badge">Space</span>
+                <span>점프 (장애물 회피)</span>
+              </li>
+            </ul>
+            <h3 style="margin-top: 15px; color: var(--accent-orange);">게임 룰</h3>
+            <ul>
+              <li>• HP는 총 3칸으로 시작하며, 장애물 충돌 시 1칸씩 감소합니다.</li>
+              <li>• 커피 획득 시 10점, 노트 획득 시 20점을 추가 획득합니다.</li>
+              <li>• 60초 타이머가 끝날 때까지 생존하면 성공(CLEAR)합니다.</li>
+              <li>• 스테이지는 시간에 따라 1단계 ➔ 2단계 ➔ 3단계로 가속됩니다.</li>
+            </ul>
+          </div>
+          <button class="btn" id="introNextBtn">게임 플레이 출발!</button>
+        </div>
+
+        <!-- 3. 실패 화면 (Game Over) -->
+        <div id="gameOverScreen" class="screen-overlay over hidden">
+          <h2>마감 실패!</h2>
+          <p>시간 내에 과제를 제출하지 못했습니다...<br>마감이의 학점이 산산조각 났습니다.</p>
+          <div class="result-stats">
+            <div class="stat-card">
+              <span class="label">획득 점수</span>
+              <span class="value" id="overScore">000000</span>
+            </div>
+            <div class="stat-card">
+              <span class="label">최고 기록</span>
+              <span class="value" id="overBest">000000</span>
+            </div>
+          </div>
+          <button class="btn" id="restartOverBtn">다시 시도</button>
+        </div>
+
+        <!-- 4. 성공 화면 (Clear) -->
+        <div id="gameClearScreen" class="screen-overlay clear hidden">
+          <h2>과제 제출 성공!</h2>
+          <p>마감 마지노선에 무사히 포탈에 접속하여 과제를 골인시켰습니다!<br>A+ 학점이 눈앞에 선합니다.</p>
+          <div class="result-stats">
+            <div class="stat-card">
+              <span class="label">최종 점수</span>
+              <span class="value" id="clearScore">000000</span>
+            </div>
+            <div class="stat-card">
+              <span class="label">최고 기록</span>
+              <span class="value" id="clearBest">000000</span>
+            </div>
+          </div>
+          <button class="btn" id="restartClearBtn">다시 달리기</button>
+        </div>
+
+        <!-- 게임 캔버스 -->
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+      </div>
+    </div>
+
+    <!-- 프로젝트 멤버 소개 크레딧 -->
+    <footer>
+      <span>개발자: 이세현 (HTML 로직 구현)</span>
+      <span>디자이너: 이수현 (그래픽 리소스 추출)</span>
+      <span>사운드 디렉터: 이성연 (배경 음악 생성)</span>
+    </footer>
+  </main>
+
+  <script>
+    /* ==========================================
+       1. 이미지 및 오디오 로컬 리소스 전역 상수 선언
+       ========================================== */
+    // 이미지 파일 매핑
+    const PATH_PLAYER_IMG = 'assets/images/player.png';
+    const PATH_BG_IMG     = 'assets/images/background.png';
+    const PATH_CLOUD_IMG  = 'assets/images/cloud.png';
+    const PATH_BOMB_IMG   = 'assets/images/bomb.png';
+    const PATH_CLOCK_IMG  = 'assets/images/clock.png';
+    const PATH_COFFEE_IMG = 'assets/images/coffee.png';
+    const PATH_NOTE_IMG   = 'assets/images/note.png';
+
+    // 오디오 파일 매핑
+    const PATH_AUDIO_BGM      = 'assets/audio/bgm.mp3';
+    const PATH_SFX_JUMP       = 'assets/audio/jump.mp3';
+    const PATH_SFX_ITEM       = 'assets/audio/item.mp3';
+    const PATH_SFX_HIT        = 'assets/audio/hit.mp3';
+    const PATH_SFX_GAMEOVER   = 'assets/audio/gameover.mp3';
+    const PATH_VOICE_START    = 'assets/audio/ready_go.mp3';
+    const PATH_VOICE_CLEAR    = 'assets/audio/success.mp3';
+    const PATH_VOICE_OVER     = 'assets/audio/failure.mp3';
+
+    /* ==========================================
+       2. 에셋 객체 생성 및 예외 처리 로더
+       ========================================== */
+    const images = {};
+    const audio = {};
+
+    function loadImage(key, src) {
+      const img = new Image();
+      img.loaded = false;
+      img.onload = () => { img.loaded = true; };
+      img.onerror = () => { 
+        img.loaded = false;
+        console.warn(`이미지 로드 실패 (Fallback 렌더링 대체): ${src}`);
+      };
+      img.src = src;
+      images[key] = img;
+    }
+
+    function loadAudio(key, src, loop = false, volume = 1.0) {
+      try {
+        const aud = new Audio(src);
+        aud.loop = loop;
+        aud.volume = volume;
+        audio[key] = aud;
+      } catch (e) {
+        console.warn(`오디오 객체 생성 오류: ${src}`, e);
+        audio[key] = null;
+      }
+    }
+
+    // 이미지 로드 시도
+    loadImage('player', PATH_PLAYER_IMG);
+    loadImage('background', PATH_BG_IMG);
+    loadImage('cloud', PATH_CLOUD_IMG);
+    loadImage('bomb', PATH_BOMB_IMG);
+    loadImage('clock', PATH_CLOCK_IMG);
+    loadImage('coffee', PATH_COFFEE_IMG);
+    loadImage('note', PATH_NOTE_IMG);
+
+    // 오디오 로드 시도 (BGM은 loop=true, volume=0.5로 설정)
+    loadAudio('bgm', PATH_AUDIO_BGM, true, 0.5);
+    loadAudio('jump', PATH_SFX_JUMP, false, 0.8);
+    loadAudio('item', PATH_SFX_ITEM, false, 0.8);
+    loadAudio('hit', PATH_SFX_HIT, false, 0.8);
+    loadAudio('gameover', PATH_SFX_GAMEOVER, false, 0.8);
+    loadAudio('voiceStart', PATH_VOICE_START, false, 0.8);
+    loadAudio('voiceClear', PATH_VOICE_CLEAR, false, 0.8);
+    loadAudio('voiceOver', PATH_VOICE_OVER, false, 0.8);
+
+    // 오디오 재생 안전 함수 (Autoplay 차단 및 누락 파일 대응)
+    function playAudio(key) {
+      const sound = audio[key];
+      if (!sound) return;
+      try {
+        sound.currentTime = 0;
+        const playPromise = sound.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            console.log(`오디오 자동 재생이 차단되었거나 에셋이 없습니다: ${key}`);
+          });
+        }
+      } catch (e) {
+        console.warn(`오디오 재생 오류: ${key}`, e);
+      }
+    }
+
+    function stopAudio(key) {
+      const sound = audio[key];
+      if (sound) {
+        try {
+          sound.pause();
+          sound.currentTime = 0;
+        } catch(e) {}
+      }
+    }
+
+    /* ==========================================
+       3. 게임 시스템 핵심 변수 및 초기화
+       ========================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 게임 상태: START, INTRO, PLAYING, GAMEOVER, CLEAR
+    let gameState = 'START';
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('campus_magam_best') || '0');
+    let hp = 3;
+    let timeLeft = 60; // 제한시간 60초
+    let stage = 1;
+    let baseSpeed = 4.0;
+
+    let items = [];
+    let obstacles = [];
+    let particles = [];
+    
+    let obstacleTimer = 0;
+    let itemTimer = 0;
+    let gameTick = 0;
+    let lastTime = 0;
+    let timerAccumulator = 0;
+    let screenShake = 0;
+
+    // 키 입력 바인딩
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'Space') {
+        e.preventDefault(); // 스페이스바 화면 스크롤 차단
+        if (gameState === 'PLAYING') {
+          player.jump();
+        }
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+    });
+
+    // 캔버스 크기: 800 x 600
+    // 인게임 플레이 공간 세로: 0px ~ 500px (y = 500px이 바닥선)
+    // 하단 HUD 바 영역: 500px ~ 600px
+    const groundY = 500;
+
+    /* ==========================================
+       4. 객체 클래스 설계 (Player, Obstacle, Item, Background)
+       ========================================== */
+
+    // PLAYER 클래스
+    const player = {
+      x: 100,
+      y: groundY - 60,
+      radius: 30, // 원형 충돌 판정 크기
+      vy: 0,
+      gravity: 0.65,
+      jumpForce: -13.0,
+      isGrounded: false,
+      speed: 6.5,
+      invincible: false,
+      invincibleTimer: 0,
+
+      update() {
+        // 좌우 이동 (A/D or 방향키)
+        let moveX = 0;
+        if (keys['KeyA'] || keys['ArrowLeft']) moveX = -this.speed;
+        if (keys['KeyD'] || keys['ArrowRight']) moveX = this.speed;
+        this.x += moveX;
+
+        // 경계 제한
+        if (this.x - this.radius < 10) this.x = this.radius + 10;
+        if (this.x + this.radius > canvas.width - 10) this.x = canvas.width - this.radius - 10;
+
+        // 중력 작용
+        this.vy += this.gravity;
+        this.y += this.vy;
+
+        // 바닥 충돌
+        if (this.y + this.radius >= groundY) {
+          this.y = groundY - this.radius;
+          this.vy = 0;
+          this.isGrounded = true;
+        } else {
+          this.isGrounded = false;
+        }
+
+        // 무적 프레임 차감
+        if (this.invincible) {
+          this.invincibleTimer--;
+          if (this.invincibleTimer <= 0) {
+            this.invincible = false;
+          }
+        }
+      },
+
+      jump() {
+        if (this.isGrounded) {
+          this.vy = this.jumpForce;
+          this.isGrounded = false;
+          playAudio('jump');
+        }
+      },
+
+      draw() {
+        ctx.save();
+
+        // 무적 상태 깜빡임 렌더링
+        if (this.invincible) {
+          if (Math.floor(gameTick / 4) % 2 === 0) {
+            ctx.restore();
+            return;
+          }
+        }
+
+        // 플레이어 캐릭터 원형(Circle) 영역 내부에 클리핑하여 렌더링
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.clip();
+
+        if (images.player && images.player.loaded) {
+          // 종횡비 유지하며 원형 영역 꽉 채우기
+          let img = images.player;
+          let scale = Math.max((this.radius * 2) / img.width, (this.radius * 2) / img.height);
+          let w = img.width * scale;
+          let h = img.height * scale;
+          let dx = this.x - w / 2;
+          let dy = this.y - h / 2;
+          ctx.drawImage(img, dx, dy, w, h);
+        } else {
+          // Fallback: 도트 스타일 마감이 원형 렌더링
+          ctx.fillStyle = '#ea580c'; // 오렌지 후드
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#fed7aa'; // 얼굴
+          ctx.beginPath();
+          ctx.arc(this.x + 6, this.y, this.radius * 0.6, -Math.PI * 0.7, Math.PI * 0.7);
+          ctx.fill();
+
+          ctx.fillStyle = '#0f172a'; // 눈
+          ctx.fillRect(this.x + 10, this.y - 6, 3, 5);
+
+          ctx.strokeStyle = '#ea580c';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(this.x + 4, this.y, this.radius * 0.9, -Math.PI * 0.7, Math.PI * 0.7);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+    };
+
+    // OBSTACLE (장애물) 클래스
+    class Obstacle {
+      constructor(type) {
+        this.type = type; // 'cloud' (졸음 구름), 'bomb' (과제 폭탄), 'clock' (지각 시계)
+        this.x = canvas.width + 50;
+
+        if (type === 'cloud') {
+          this.radius = 22;
+          // 공중에 떠다님
+          this.y = groundY - 100 - Math.random() * 80;
+        } else if (type === 'bomb') {
+          this.radius = 20;
+          this.y = groundY - this.radius;
+        } else {
+          // clock (지각 시계)
+          this.radius = 18;
+          this.y = groundY - this.radius;
+        }
+
+        // LV 기준 속도 설정
+        let sp = baseSpeed;
+        if (type === 'clock') sp *= 1.45; // 지각 시계는 빠르게 움직임
+
+        this.speed = sp;
+        this.floatOffset = Math.random() * 100;
+      }
+
+      update() {
+        this.x -= this.speed;
+
+        // 졸음 구름은 물결치듯 위아래로 움직임
+        if (this.type === 'cloud') {
+          this.y += Math.sin((gameTick + this.floatOffset) * 0.05) * 0.8;
+        }
+      }
+
+      draw() {
+        ctx.save();
+        
+        let img = images[this.type];
+        if (img && img.loaded) {
+          // 이미지 렌더링
+          let w = this.radius * 2.3;
+          let h = this.radius * 2.3;
+          ctx.drawImage(img, this.x - w/2, this.y - h/2, w, h);
+        } else {
+          // Fallback 드로잉
+          if (this.type === 'cloud') {
+            // 졸음 구름 (하늘색 보송한 둥근 모양)
+            ctx.fillStyle = 'rgba(186, 230, 253, 0.9)';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.arc(this.x - 12, this.y + 4, this.radius * 0.7, 0, Math.PI * 2);
+            ctx.arc(this.x + 12, this.y + 4, this.radius * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 눈 감은 모양 (- -)
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(this.x - 8, this.y + 2); ctx.lineTo(this.x - 3, this.y + 2);
+            ctx.moveTo(this.x + 3, this.y + 2); ctx.lineTo(this.x + 8, this.y + 2);
+            ctx.stroke();
+
+          } else if (this.type === 'bomb') {
+            // 과제 폭탄 (검은 폭탄에 불꽃 튀는 도화선)
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 빨간 띠
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(this.x - this.radius, this.y - 4, this.radius * 2, 8);
+
+            // 도화선 & 불꽃
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y - this.radius);
+            ctx.quadraticCurveTo(this.x + 10, this.y - this.radius - 10, this.x + 15, this.y - this.radius - 8);
+            ctx.stroke();
+
+            ctx.fillStyle = (Math.floor(gameTick / 6) % 2 === 0) ? '#fbbf24' : '#ef4444';
+            ctx.beginPath();
+            ctx.arc(this.x + 15, this.y - this.radius - 8, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+          } else {
+            // 지각 시계 (알람이 달린 시끄러운 시계 모양)
+            let vib = Math.sin(gameTick * 0.4) * 2; // 진동 효과
+            ctx.fillStyle = '#dc2626'; // 빨간색 몸체
+            ctx.beginPath();
+            ctx.arc(this.x + vib, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff'; // 다이얼
+            ctx.beginPath();
+            ctx.arc(this.x + vib, this.y, this.radius * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 바늘
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x + vib, this.y);
+            ctx.lineTo(this.x + vib + Math.cos(gameTick * 0.1) * 8, this.y + Math.sin(gameTick * 0.1) * 8);
+            ctx.stroke();
+
+            // 양쪽 알람 벨
+            ctx.fillStyle = '#64748b';
+            ctx.beginPath();
+            ctx.arc(this.x - 12 + vib, this.y - this.radius, 6, 0, Math.PI * 2);
+            ctx.arc(this.x + 12 + vib, this.y - this.radius, 6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      getBoundingCircle() {
+        return {
+          x: this.x,
+          y: this.y,
+          radius: this.radius
+        };
+      }
+    }
+
+    // ITEM (아이템) 클래스
+    class Item {
+      constructor(type) {
+        this.type = type; // 'coffee' (커피), 'note' (노트)
+        this.x = canvas.width + 50;
+        this.y = groundY - 60 - Math.random() * 120;
+        this.radius = 16;
+        this.speed = baseSpeed;
+        this.floatOffset = Math.random() * 100;
+      }
+
+      update() {
+        this.x -= this.speed;
+        this.y += Math.sin((gameTick + this.floatOffset) * 0.08) * 1.2;
+      }
+
+      draw() {
+        ctx.save();
+        
+        let img = images[this.type];
+        if (img && img.loaded) {
+          let w = this.radius * 2.3;
+          let h = this.radius * 2.3;
+          ctx.drawImage(img, this.x - w/2, this.y - h/2, w, h);
+        } else {
+          // Fallback 드로잉
+          if (this.type === 'coffee') {
+            // 커피 컵 모양
+            ctx.fillStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.moveTo(this.x - 10, this.y - 12);
+            ctx.lineTo(this.x + 10, this.y - 12);
+            ctx.lineTo(this.x + 7, this.y + 14);
+            ctx.lineTo(this.x - 7, this.y + 14);
+            ctx.closePath();
+            ctx.fill();
+
+            // 컵 홀더 (갈색)
+            ctx.fillStyle = '#b45309';
+            ctx.beginPath();
+            ctx.moveTo(this.x - 8, this.y - 4);
+            ctx.lineTo(this.x + 8, this.y - 4);
+            ctx.lineTo(this.x + 7, this.y + 6);
+            ctx.lineTo(this.x - 7, this.y + 6);
+            ctx.closePath();
+            ctx.fill();
+
+            // 로고 초록 원
+            ctx.fillStyle = '#047857';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y + 1, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 검은 뚜껑
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(this.x - 11, this.y - 15, 22, 3);
+          } else {
+            // 파란 학우 비밀 노트
+            ctx.fillStyle = '#0284c7';
+            ctx.beginPath();
+            ctx.roundRect(this.x - 14, this.y - 11, 28, 22, 3);
+            ctx.fill();
+
+            // 종이 흰색 속지
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(this.x - 12, this.y - 9, 11, 18, 1);
+            ctx.roundRect(this.x + 1, this.y - 9, 11, 18, 1);
+            ctx.fill();
+
+            // 빨간 줄 책갈피선
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y - 9);
+            ctx.lineTo(this.x, this.y + 9);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      getBoundingCircle() {
+        return {
+          x: this.x,
+          y: this.y,
+          radius: this.radius
+        };
+      }
+    }
+
+    // 이펙트 파티클 클래스
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.size = Math.random() * 4 + 2;
+        let angle = Math.random() * Math.PI * 2;
+        let sp = Math.random() * 3 + 2;
+        this.vx = Math.cos(angle) * sp;
+        this.vy = Math.sin(angle) * sp;
+        this.life = 25 + Math.random() * 15;
+        this.maxLife = this.life;
+        this.alpha = 1.0;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+        this.alpha = this.life / this.maxLife;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // 별 모양 폭죽 파티클 (성공 시용)
+    class StarParticle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.size = Math.random() * 5 + 3;
+        let angle = Math.random() * Math.PI * 2;
+        let sp = Math.random() * 4 + 3;
+        this.vx = Math.cos(angle) * sp;
+        this.vy = Math.sin(angle) * sp - 2; // 위쪽으로 조금 뜨는 속성
+        this.gravity = 0.08;
+        this.life = 50 + Math.random() * 30;
+        this.maxLife = this.life;
+        this.alpha = 1.0;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.vy += this.gravity;
+        this.y += this.vy;
+        this.life--;
+        this.alpha = this.life / this.maxLife;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        
+        // 5각 별 그리기
+        ctx.beginPath();
+        let cx = this.x, cy = this.y, spikes = 5, outerRadius = this.size, innerRadius = this.size / 2;
+        let rot = Math.PI / 2 * 3;
+        let x = cx, y = cy;
+        let step = Math.PI / spikes;
+
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+          x = cx + Math.cos(rot) * outerRadius;
+          y = cy + Math.sin(rot) * outerRadius;
+          ctx.lineTo(x, y);
+          rot += step;
+
+          x = cx + Math.cos(rot) * innerRadius;
+          y = cy + Math.sin(rot) * innerRadius;
+          ctx.lineTo(x, y);
+          rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.restore();
+      }
+    }
+
+    // 패러랙스 스크롤 배경 관리자
+    const background = {
+      skyX: 0,
+      buildingX: 0,
+      treeX: 0,
+      roadX: 0,
+      
+      update(baseScrollSpeed) {
+        this.skyX -= baseScrollSpeed * 0.05;
+        this.buildingX -= baseScrollSpeed * 0.12;
+        this.treeX -= baseScrollSpeed * 0.35;
+        this.roadX -= baseScrollSpeed;
+
+        if (this.skyX <= -canvas.width) this.skyX = 0;
+        if (this.buildingX <= -canvas.width) this.buildingX = 0;
+        if (this.treeX <= -canvas.width) this.treeX = 0;
+        if (this.roadX <= -canvas.width) this.roadX = 0;
+      },
+
+      draw() {
+        // 1. 하늘 그라데이션 (정적)
+        let skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+        if (stage === 1) {
+          skyGrad.addColorStop(0, '#0ea5e9'); // 상큼한 아침 하늘
+          skyGrad.addColorStop(1, '#bae6fd');
+        } else if (stage === 2) {
+          skyGrad.addColorStop(0, '#701a75'); // 붉어지는 노을녘
+          skyGrad.addColorStop(0.6, '#d946ef');
+          skyGrad.addColorStop(1, '#ffedd5');
+        } else {
+          skyGrad.addColorStop(0, '#0c0a0f'); // 마감 직전 자정 밤하늘
+          skyGrad.addColorStop(0.6, '#1e1b4b');
+          skyGrad.addColorStop(1, '#312e81');
+        }
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, canvas.width, groundY);
+
+        // 만약 전체 배경 이미지가 로드되어 있다면 그것을 렌더링하고, 없으면 수동 패러랙스 드로잉 수행
+        if (images.background && images.background.loaded) {
+          // 2회 나누어 렌더링 (루핑)
+          ctx.drawImage(images.background, this.roadX, 0, canvas.width, groundY);
+          ctx.drawImage(images.background, this.roadX + canvas.width, 0, canvas.width, groundY);
+          return;
+        }
+
+        // 수동 패러랙스 Fallback 드로잉
+        // 해/달 그리기
+        ctx.save();
+        if (stage === 1) {
+          ctx.fillStyle = '#fef08a';
+          ctx.shadowColor = '#eab308';
+          ctx.shadowBlur = 15;
+          ctx.beginPath();
+          ctx.arc(680, 80, 30, 0, Math.PI*2);
+          ctx.fill();
+        } else if (stage === 2) {
+          ctx.fillStyle = '#f97316';
+          ctx.shadowColor = '#ea580c';
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          ctx.arc(640, 130, 45, 0, Math.PI*2);
+          ctx.fill();
+        } else {
+          // 달빛 포탈 느낌
+          ctx.fillStyle = '#c084fc';
+          ctx.shadowColor = '#a855f7';
+          ctx.shadowBlur = 25;
+          ctx.beginPath();
+          ctx.arc(650, 110, 40, 0, Math.PI*2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // 2. 멀리 보이는 건물들 (Layer 1)
+        ctx.fillStyle = stage === 3 ? '#161525' : (stage === 2 ? '#242533' : '#2d3345');
+        this.drawLayer(this.buildingX, () => {
+          ctx.fillRect(50, groundY - 240, 90, 240);
+          ctx.fillRect(140, groundY - 180, 70, 180);
+          ctx.fillRect(260, groundY - 300, 110, 300);
+          ctx.fillRect(370, groundY - 200, 80, 200);
+          ctx.fillRect(490, groundY - 260, 100, 260);
+          ctx.fillRect(630, groundY - 220, 85, 220);
+        });
+
+        // 3. 조경 나무 (Layer 2)
+        this.drawLayer(this.treeX, () => {
+          // 나무 1
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(100, groundY - 40, 8, 40);
+          ctx.fillStyle = stage === 3 ? '#13281c' : (stage === 2 ? '#9a3412' : '#15803d');
+          ctx.beginPath(); ctx.arc(104, groundY - 55, 24, 0, Math.PI * 2); ctx.fill();
+
+          // 나무 2
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(320, groundY - 50, 10, 50);
+          ctx.fillStyle = stage === 3 ? '#13281c' : (stage === 2 ? '#7c2d12' : '#166534');
+          ctx.beginPath(); ctx.arc(325, groundY - 70, 28, 0, Math.PI * 2); ctx.fill();
+
+          // 나무 3
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(580, groundY - 40, 8, 40);
+          ctx.fillStyle = stage === 3 ? '#13281c' : (stage === 2 ? '#9a3412' : '#15803d');
+          ctx.beginPath(); ctx.arc(584, groundY - 55, 24, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // 4. 인도 도로 (Layer 3 - 빠르게 지나감)
+        ctx.fillStyle = stage === 3 ? '#111322' : '#334155'; // 아스팔트
+        ctx.fillRect(0, groundY, canvas.width, 100);
+
+        // 잔디 연석
+        ctx.fillStyle = stage === 3 ? '#080a14' : (stage === 2 ? '#a16207' : '#166534');
+        ctx.fillRect(0, groundY, canvas.width, 12);
+
+        // 도로 점선
+        ctx.fillStyle = '#94a3b8';
+        this.drawLayer(this.roadX, () => {
+          for(let i=0; i<12; i++) {
+            ctx.fillRect(i * 100 + 20, groundY + 45, 45, 6);
+          }
+        });
+      },
+
+      drawLayer(xVal, drawItemsFunc) {
+        ctx.save();
+        ctx.translate(xVal, 0);
+        drawItemsFunc();
+        ctx.translate(canvas.width, 0);
+        drawItemsFunc();
+        ctx.restore();
+      }
+    };
+
+    /* ==========================================
+       5. 게임 물리 판정 (AABB 및 원형 충돌)
+       ========================================== */
+    function checkCircleCollision(c1, c2) {
+      let dx = c1.x - c2.x;
+      let dy = c1.y - c2.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      return dist < (c1.radius + c2.radius);
+    }
+
+    /* ==========================================
+       6. 메인 게임 루프 & 업데이트 로직
+       ========================================== */
+    class GameEngine {
+      constructor() {
+        this.aniId = null;
+      }
+
+      reset() {
+        score = 0;
+        hp = 3;
+        timeLeft = 60;
+        stage = 1;
+        baseSpeed = 4.5;
+        items = [];
+        obstacles = [];
+        particles = [];
+        gameTick = 0;
+        timerAccumulator = 0;
+        screenShake = 0;
+
+        player.x = 120;
+        player.y = groundY - player.radius;
+        player.vy = 0;
+        player.isGrounded = true;
+        player.invincible = false;
+        player.invincibleTimer = 0;
+      }
+
+      start() {
+        this.reset();
+        gameState = 'PLAYING';
+        lastTime = performance.now();
+        
+        // 오디오 재생
+        playAudio('bgm');
+        playAudio('voiceStart');
+
+        this.loop(lastTime);
+      }
+
+      loop(timestamp) {
+        if (gameState !== 'PLAYING') {
+          cancelAnimationFrame(this.aniId);
+          return;
+        }
+
+        this.aniId = requestAnimationFrame((t) => this.loop(t));
+
+        let dt = timestamp - lastTime;
+        if (dt > 100) dt = 16.66; // 급격한 스파이크 방지
+        lastTime = timestamp;
+
+        this.update(dt);
+        this.draw();
+      }
+
+      update(dt) {
+        gameTick++;
+
+        // 화면 흔들림 효과 감쇠
+        if (screenShake > 0) {
+          screenShake -= 0.4;
+          if (screenShake < 0) screenShake = 0;
+        }
+
+        // 기본 점수 증가
+        if (gameTick % 6 === 0) {
+          score += 1;
+        }
+
+        // 제한시간 카운트다운 (밀리초 단위 계산)
+        timerAccumulator += dt;
+        if (timerAccumulator >= 1000) {
+          timeLeft--;
+          timerAccumulator -= 1000;
+
+          // 스테이지 전이 조건
+          if (timeLeft === 40) {
+            stage = 2;
+            baseSpeed = 6.5;
+          } else if (timeLeft === 20) {
+            stage = 3;
+            baseSpeed = 9.0;
+          }
+
+          if (timeLeft <= 0) {
+            this.clear();
+            return;
+          }
+        }
+
+        // 배경 스크롤 업데이트
+        background.update(baseSpeed);
+
+        // 플레이어 업데이트
+        player.update();
+
+        // 파티클 업데이트
+        particles.forEach((p, index) => {
+          p.update();
+          if (p.life <= 0) particles.splice(index, 1);
+        });
+
+        // 장애물 소환 로직
+        obstacleTimer -= dt;
+        if (obstacleTimer <= 0) {
+          // 스테이지에 따른 소환 쿨다운 조율
+          let minCool = 1800, maxCool = 3200;
+          if (stage === 2) { minCool = 1300; maxCool = 2400; }
+          if (stage === 3) { minCool = 800; maxCool = 1500; }
+
+          obstacleTimer = minCool + Math.random() * (maxCool - minCool);
+
+          let pool = ['bomb'];
+          if (stage >= 1) pool.push('cloud');
+          if (stage >= 2) pool.push('clock');
+          if (stage === 3) {
+            pool.push('clock');
+            pool.push('bomb');
+          }
+          let picked = pool[Math.floor(Math.random() * pool.length)];
+          obstacles.push(new Obstacle(picked));
+        }
+
+        // 아이템 소환 로직
+        itemTimer -= dt;
+        if (itemTimer <= 0) {
+          let minCool = 1500, maxCool = 2500;
+          if (stage === 2) { minCool = 1200; maxCool = 2000; }
+          if (stage === 3) { minCool = 900; maxCool = 1600; }
+
+          itemTimer = minCool + Math.random() * (maxCool - minCool);
+
+          let pick = 'coffee';
+          if (stage >= 2 && Math.random() > 0.5) {
+            pick = 'note';
+          }
+          items.push(new Item(pick));
+        }
+
+        // 장애물 이동 및 충돌
+        obstacles.forEach((obs, index) => {
+          obs.update();
+
+          if (obs.x < -100) {
+            obstacles.splice(index, 1);
+            return;
+          }
+
+          // 충돌 체크
+          let pCircle = { x: player.x, y: player.y, radius: player.radius * 0.85 }; // 관용적인 판정 적용
+          let oCircle = obs.getBoundingCircle();
+
+          if (checkCircleCollision(pCircle, oCircle)) {
+            if (!player.invincible) {
+              hp--;
+              player.invincible = true;
+              player.invincibleTimer = 90; // 1.5초간 무적 깜빡임
+              screenShake = 10;
+              playAudio('hit');
+
+              // 충돌 스파크 파티클
+              for (let i = 0; i < 8; i++) {
+                particles.push(new Particle(player.x, player.y, '#f43f5e'));
+              }
+
+              if (hp <= 0) {
+                this.gameOver();
+              }
+            }
+          }
+        });
+
+        // 아이템 이동 및 획득
+        items.forEach((it, index) => {
+          it.update();
+
+          if (it.x < -100) {
+            items.splice(index, 1);
+            return;
+          }
+
+          let pCircle = { x: player.x, y: player.y, radius: player.radius };
+          let iCircle = it.getBoundingCircle();
+
+          if (checkCircleCollision(pCircle, iCircle)) {
+            playAudio('item');
+            let gain = it.type === 'coffee' ? 10 : 20;
+            score += gain;
+
+            // 노란 반짝이 획득 이펙트
+            let pColor = it.type === 'coffee' ? '#10b981' : '#38bdf8';
+            for (let i = 0; i < 10; i++) {
+              particles.push(new Particle(it.x, it.y, pColor));
+            }
+
+            items.splice(index, 1);
+          }
+        });
+      }
+
+      draw() {
+        ctx.save();
+
+        // 피격 셰이크 적용
+        if (screenShake > 0) {
+          let dx = (Math.random() - 0.5) * screenShake;
+          let dy = (Math.random() - 0.5) * screenShake;
+          ctx.translate(dx, dy);
+        }
+
+        // 배경 드로잉
+        background.draw();
+
+        // 파티클 드로잉
+        particles.forEach(p => p.draw());
+
+        // 장애물 및 아이템 드로잉
+        items.forEach(it => it.draw());
+        obstacles.forEach(obs => obs.draw());
+
+        // 플레이어 캐릭터 드로잉
+        player.draw();
+
+        ctx.restore();
+
+        // 하단 HUD 바 드로잉 (Canvas 내 500px ~ 600px 영역)
+        this.drawHUD();
+      }
+
+      drawHUD() {
+        ctx.save();
+
+        // HUD 베이스 영역 배경
+        ctx.fillStyle = '#15161e';
+        ctx.fillRect(0, 500, canvas.width, 100);
+
+        // 상단 경계선
+        ctx.strokeStyle = '#272833';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 500);
+        ctx.lineTo(canvas.width, 500);
+        ctx.stroke();
+
+        // 1. 하단 HUD의 초상화(Portrait) 사각형 영역 플레이어 이미지 렌더링
+        ctx.save();
+        ctx.strokeStyle = '#272833';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(24, 516, 68, 68);
+
+        ctx.fillStyle = '#0a0a0f';
+        ctx.fillRect(24, 516, 68, 68);
+
+        if (images.player && images.player.loaded) {
+          // 클리핑 적용하여 사각형 내부에 맞추기
+          ctx.beginPath();
+          ctx.rect(24, 516, 68, 68);
+          ctx.clip();
+
+          let img = images.player;
+          let scale = Math.max(68 / img.width, 68 / img.height);
+          let w = img.width * scale;
+          let h = img.height * scale;
+          let dx = 24 + (68 - w) / 2;
+          let dy = 516 + (68 - h) / 2;
+          ctx.drawImage(img, dx, dy, w, h);
+        } else {
+          // Fallback 초상화 (원형 미니 플레이어 대체)
+          ctx.beginPath();
+          ctx.rect(24, 516, 68, 68);
+          ctx.clip();
+          drawMiniFallbackPortrait(ctx, 58, 550, 24);
+        }
+        ctx.restore();
+
+        // 2. 정보 텍스트 드로잉 (HP, 점수, 남은시간, 현재 스테이지)
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+
+        // HP 하트
+        ctx.font = 'bold 15px system-ui, sans-serif';
+        ctx.fillText("HP", 112, 550);
+        
+        let heartString = "";
+        for (let i = 0; i < 3; i++) {
+          heartString += i < hp ? "❤️" : "🖤";
+        }
+        ctx.font = '18px system-ui, sans-serif';
+        ctx.fillText(heartString, 145, 550);
+
+        // SCORE
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        ctx.fillStyle = varColorForLevel();
+        ctx.fillText("SCORE", 310, 540);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 20px monospace';
+        ctx.fillText(String(score).padStart(6, '0'), 310, 562);
+
+        // TIMER
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        ctx.fillStyle = timeLeft <= 10 ? '#ef4444' : '#a78bfa';
+        ctx.fillText("DEADLINE", 490, 540);
+        ctx.fillStyle = timeLeft <= 10 ? '#ef4444' : '#ffffff';
+        ctx.font = '800 20px monospace';
+        ctx.fillText(`${timeLeft}s`, 490, 562);
+
+        // STAGE LEVEL
+        ctx.fillStyle = varColorForLevel();
+        ctx.font = 'bold 15px system-ui, sans-serif';
+        ctx.fillText(`STAGE: LV.${stage}`, 680, 550);
+
+        ctx.restore();
+      }
+
+      gameOver() {
+        gameState = 'GAMEOVER';
+        cancelAnimationFrame(this.aniId);
+
+        // 오디오 정지 및 게임오버 SFX
+        stopAudio('bgm');
+        playAudio('gameover');
+        playAudio('voiceOver');
+
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('campus_magam_best', highScore);
+        }
+
+        document.getElementById('overScore').innerText = String(score).padStart(6, '0');
+        document.getElementById('overBest').innerText = String(highScore).padStart(6, '0');
+        document.getElementById('gameOverScreen').classList.remove('hidden');
+      }
+
+      clear() {
+        gameState = 'CLEAR';
+        cancelAnimationFrame(this.aniId);
+
+        stopAudio('bgm');
+        playAudio('voiceClear');
+
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('campus_magam_best', highScore);
+        }
+
+        document.getElementById('clearScore').innerText = String(score).padStart(6, '0');
+        document.getElementById('clearBest').innerText = String(highScore).padStart(6, '0');
+        document.getElementById('gameClearScreen').classList.remove('hidden');
+
+        // 성공 폭죽 애니메이션 기동
+        this.runClearAnimation();
+      }
+
+      runClearAnimation() {
+        let fCount = 0;
+        const fire = () => {
+          if (gameState !== 'CLEAR') return;
+          
+          let rx = 100 + Math.random() * (canvas.width - 200);
+          let ry = 80 + Math.random() * 160;
+          let color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+          
+          for (let i = 0; i < 20; i++) {
+            particles.push(new StarParticle(rx, ry, color));
+          }
+          
+          fCount++;
+          if (fCount < 16) {
+            setTimeout(fire, 350);
+          }
+        };
+        fire();
+
+        const renderLoop = () => {
+          if (gameState !== 'CLEAR') return;
+
+          // 성공시 밤하늘 그리기
+          ctx.fillStyle = '#090514';
+          ctx.fillRect(0, 0, canvas.width, groundY);
+
+          ctx.fillStyle = '#111322';
+          ctx.fillRect(0, groundY, canvas.width, 100);
+
+          // 파티클 드로잉
+          particles.forEach((p, idx) => {
+            p.update();
+            if (p.life <= 0) particles.splice(idx, 1);
+            else p.draw();
+          });
+
+          requestAnimationFrame(renderLoop);
+        };
+        renderLoop();
+      }
+    }
+
+    const engine = new GameEngine();
+
+    function varColorForLevel() {
+      if (stage === 1) return '#00ffcc';
+      if (stage === 2) return '#ffb700';
+      return '#ff3388';
+    }
+
+    // 초상화 Fallback용 그리기 도우미
+    function drawMiniFallbackPortrait(ctx, x, y, r) {
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(x + 3, y, r * 0.6, -Math.PI * 0.7, Math.PI * 0.7);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(x + 6, y - 4, 2, 3);
+    }
+
+    /* ==========================================
+       7. UI 컨트롤 및 이벤트 바인딩
+       ========================================== */
+    
+    // 버튼 바인딩
+    // 시작 버튼
+    document.getElementById('startBtn').addEventListener('click', () => {
+      document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('introScreen').classList.remove('hidden');
+    });
+
+    // 설명 스크린 완료 출발 버튼
+    document.getElementById('introNextBtn').addEventListener('click', () => {
+      document.getElementById('introScreen').classList.add('hidden');
+      engine.start();
+    });
+
+    // 게임 오버 다시 하기 버튼
+    document.getElementById('restartOverBtn').addEventListener('click', () => {
+      document.getElementById('gameOverScreen').classList.add('hidden');
+      engine.start();
+    });
+
+    // 게임 클리어 다시 하기 버튼
+    document.getElementById('restartClearBtn').addEventListener('click', () => {
+      document.getElementById('gameClearScreen').classList.add('hidden');
+      engine.start();
+    });
+
+    // 대기 화면 캔버스 초기화 그리기
+    function drawStartCanvas() {
+      ctx.fillStyle = '#0c0d12';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 도로 베이스
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, groundY, canvas.width, 100);
+
+      // 초상화 HUD 경계
+      ctx.fillStyle = '#15161e';
+      ctx.fillRect(0, 500, canvas.width, 100);
+      ctx.strokeStyle = '#272833';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, 500); ctx.lineTo(canvas.width, 500); ctx.stroke();
+
+      // 초상화 박스
+      ctx.strokeStyle = '#272833';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(24, 516, 68, 68);
+    }
+    
+    drawStartCanvas();
+  </script>
+</body>
+</html>

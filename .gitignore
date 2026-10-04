@@ -1,0 +1,11 @@
+.DS_Store
+*.log
+.imports/
+university-course/docs/superpowers/
+practicum/DEVELOPMENT.md
+university-course/DEVELOPMENT.md
+practicum/examples/mini-battleground/server/*.service
+*.backup-*
+*.next-*
+practicum/_pending_team.html
+practicum/examples/mini-battleground/data/leaderboard.json

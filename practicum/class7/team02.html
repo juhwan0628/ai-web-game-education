@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>정치인 래퍼들의 반란</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nosifer&family=Noto+Sans+KR:wght@700&display=swap');
+
+        body {
+            background-color: #0a0a0a;
+            color: #d4d4d4;
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 800px;
+            height: 600px;
+            border: 2px solid #333;
+            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+            position: relative;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.2);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            font-family: 'Nosifer', cursive;
+            color: #ff003c;
+            font-size: 2rem;
+            margin: 0;
+            text-shadow: 2px 2px #000;
+        }
+
+        #battle-field {
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            position: relative;
+        }
+
+        .character {
+            text-align: center;
+            width: 200px;
+        }
+
+        .avatar {
+            width: 150px;
+            height: 150px;
+            background: #222;
+            border: 4px solid #444;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem;
+            filter: grayscale(100%);
+            transition: all 0.3s;
+        }
+
+        .active .avatar {
+            border-color: #ff003c;
+            filter: grayscale(0%);
+            box-shadow: 0 0 20px #ff003c;
+        }
+
+        #message-box {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #000;
+        }
+
+        .bubble {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #ff003c;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            max-width: 300px;
+        }
+
+        #input-area {
+            text-align: center;
+            padding: 20px;
+            background: #111;
+        }
+
+        input {
+            background: #000;
+            border: 1px solid #444;
+            color: #00ff41;
+            padding: 10px;
+            width: 60%;
+            font-size: 1.2rem;
+            outline: none;
+            text-align: center;
+        }
+
+        input:focus {
+            border-color: #00ff41;
+        }
+
+        #score-board {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            color: #888;
+        }
+
+        .score-val {
+            color: #ff003c;
+            font-size: 2rem;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .btn {
+            background: #ff003c;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .btn:hover { background: #c4002f; }
+
+        .glitch {
+            animation: glitch 1s linear infinite;
+        }
+
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <header>
+        <h1>POLITICIAN RAP REBELLION</h1>
+        <div id="score-board">
+            <div>나의 라임: <span id="p-score" class="score-val">0</span></div>
+            <div>상대 지지도: <span id="e-score" class="score-val">0</span></div>
+        </div>
+    </header>
+
+    <div id="battle-field">
+        <div class="character" id="player">
+            <div class="avatar">🕶️</div>
+            <p>언더독 래퍼</p>
+        </div>
+
+        <div id="message-box">
+            <div class="bubble" id="ai-text">준비되었나, 애송이?</div>
+        </div>
+
+        <div class="character active" id="enemy">
+            <div class="avatar">🎭</div>
+            <p>타락한 의원</p>
+        </div>
+    </div>
+
+    <div id="input-area">
+        <p id="hint-text">상대의 라임을 가로채세요! (마지막 글자 받침 맞추기)</p>
+        <input type="text" id="user-input" placeholder="라임을 입력하고 Enter..." autofocus>
+    </div>
+
+    <div id="overlay">
+        <h2 id="result-title">GAME OVER</h2>
+        <p id="diss-track" style="font-style: italic; color: #aaa;"></p>
+        <button class="btn" onclick="location.reload()">다시 도전</button>
+    </div>
+</div>
+
+<script>
+    const aiWords = ["국민", "정치", "권력", "부패", "공약", "투표", "의원", "경제", "법안", "자유"];
+    let playerScore = 0;
+    let enemyScore = 0;
+    let currentAiWord = "";
+    let isGameOver = false;
+
+    const aiText = document.getElementById('ai-text');
+    const userInput = document.getElementById('user-input');
+    const pScoreDisplay = document.getElementById('p-score');
+    const eScoreDisplay = document.getElementById('e-score');
+    const overlay = document.getElementById('overlay');
+    const dissTrack = document.getElementById('diss-track');
+    const resultTitle = document.getElementById('result-title');
+
+    // 한글 받침 추출 함수
+    function getTail(word) {
+        const char = word.charCodeAt(word.length - 1);
+        if (char < 0xAC00 || char > 0xD7A3) return char;
+        return (char - 0xAC00) % 28;
+    }
+
+    function aiTurn() {
+        if(isGameOver) return;
+        currentAiWord = aiWords[Math.floor(Math.random() * aiWords.length)];
+        aiText.innerText = `"${currentAiWord}"! 이 비트에 맞춰봐!`;
+        userInput.value = "";
+        userInput.focus();
+    }
+
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isGameOver) {
+            const val = userInput.value.trim();
+            if (val.length < 2) {
+                alert("최소 두 글자 이상 입력하게!");
+                return;
+            }
+
+            if (getTail(val) === getTail(currentAiWord) && val !== currentAiWord) {
+                // 성공
+                playerScore++;
+                pScoreDisplay.innerText = playerScore;
+                aiText.innerText = "윽... 제법이군.";
+                checkGameStatus();
+                if(!isGameOver) setTimeout(aiTurn, 1500);
+            } else {
+                // 실패
+                enemyScore++;
+                eScoreDisplay.innerText = enemyScore;
+                aiText.innerText = "그게 라임이냐? 수준 낮군.";
+                checkGameStatus();
+                if(!isGameOver) setTimeout(aiTurn, 1500);
+            }
+        }
+    });
+
+    function checkGameStatus() {
+        if (playerScore >= 5) {
+            endGame(true);
+        } else if (enemyScore >= 5) {
+            endGame(false);
+        }
+    }
+
+    function endGame(win) {
+        isGameOver = true;
+        overlay.style.display = "flex";
+        if (win) {
+            resultTitle.innerText = "BATTLE WIN - 디스곡 발매";
+            resultTitle.style.color = "#00ff41";
+            dissTrack.innerText = `(Beat Drops...)\n"네 뱃지는 가짜, 네 공약은 낙서\n내 라임 앞에 넌 그저 구식 타자기\n국민은 알아, 누가 진짜 목소리인지\n넌 이제 퇴출, 내 랩이 네 정치 생명의 끝이지!"`;
+        } else {
+            resultTitle.innerText = "BATTLE LOSS - 커리어 종료";
+            resultTitle.style.color = "#ff003c";
+            dissTrack.innerText = `(상대의 비웃음...)\n"어설픈 정의감으로 날 이기려 했나?\n네 랩은 세금 낭비보다 더 가치가 없지\n지하실에서 평생 라임이나 맞춰라\n세상은 여전히 내 손바닥 안이니까!"`;
+        }
+    }
+
+    // 초기 시작
+    setTimeout(aiTurn, 1000);
+
+</script>
+</body>
+</html>

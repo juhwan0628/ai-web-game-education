@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>또환이의 퀴즈 맞추기</title>
+    <style>
+        /* 러블리하고 아기자기한 폰트 적용 */
+        @import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Gamja Flower', cursive, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #fff0f3 0%, #ffc2d1 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #4a4a4a;
+        }
+
+        #game-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(255, 133, 161, 0.3);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            border: 5px solid #ffb3c6;
+            position: relative;
+        }
+
+        h1 {
+            color: #ff477e;
+            font-size: 2.6rem;
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px #ffe5ec;
+        }
+
+        /* 대시보드 (점수 및 하트 목숨) */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            background-color: #fff0f3;
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 2px dashed #ff85a1;
+        }
+
+        .score {
+            color: #ff477e;
+            font-weight: bold;
+        }
+
+        .lives {
+            color: #ff7096;
+            letter-spacing: 2px;
+        }
+
+        /* 캐릭터 구역 */
+        .character-zone {
+            height: 150px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        /* [CSS 자체 제작] 귀여운 또환이 캐릭터 구조 */
+        .ddohwan {
+            width: 100px;
+            height: 100px;
+            background-color: #ffe66d;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 6px 12px rgba(255, 133, 161, 0.2);
+            transition: all 0.3s ease;
+            border: 3px solid #ffde43;
+        }
+
+        /* 또환이 기본 눈 (동글동글 깜찍한 눈) */
+        .eye {
+            position: absolute;
+            top: 35px;
+            width: 14px;
+            height: 14px;
+            background-color: #4a4a4a;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        .eye.left { left: 24px; }
+        .eye.right { right: 24px; }
+
+        /* 눈 안에 귀여운 하이라이트 빛 */
+        .eye::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 4px;
+            height: 4px;
+            background-color: white;
+            border-radius: 50%;
+        }
+
+        /* 또환이 볼터치 */
+        .blush {
+            position: absolute;
+            top: 48px;
+            width: 16px;
+            height: 9px;
+            background-color: #ff85a1;
+            border-radius: 50%;
+            opacity: 0.6;
+        }
+        .blush.left { left: 10px; }
+        .blush.right { right: 10px; }
+
+        /* 또환이 귀여운 부리 */
+        .beak {
+            position: absolute;
+            top: 46px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 16px;
+            background-color: #ff9f1c;
+            border-radius: 12px;
+            border: 2px solid #f39200;
+            z-index: 2;
+            transition: all 0.2s ease;
+        }
+
+        /* 메롱할 혀 (기본 상태는 숨김) */
+        .tongue {
+            position: absolute;
+            top: 58px;
+            left: 50%;
+            transform: translateX(-50%) scaleY(0);
+            width: 14px;
+            height: 18px;
+            background-color: #ff4d6d;
+            border-bottom-left-radius: 7px;
+            border-bottom-right-radius: 7px;
+            transition: transform 0.2s ease;
+            transform-origin: top center;
+            z-index: 1;
+        }
+
+        /* ★핵심 조건: 문제를 틀렸을 때 (눈 뒤집고 혀 내밀기) */
+        .ddohwan.shocked {
+            animation: shake 0.4s infinite;
+            background-color: #f1f2f6;
+            border-color: #ced6e0;
+        }
+
+        /* 눈 뒤집어짐 효과 (흰자위가 크게 보이고 눈동자가 위로 몰림) */
+        .ddohwan.shocked .eye {
+            background-color: #ffffff;
+            border: 2px solid #57606f;
+            width: 16px;
+            height: 16px;
+            top: 33px;
+        }
+        .ddohwan.shocked .eye::before {
+            background-color: #57606f; /* 눈동자가 위로 쏠려 뒤집힌 모양 연출 */
+            width: 6px;
+            height: 6px;
+            top: 0px;
+            left: 3px;
+        }
+
+        /* 틀렸을 때 부리가 아래로 사짝 처짐 */
+        .ddohwan.shocked .beak {
+            top: 48px;
+            background-color: #d2dae2;
+            border-color: #8c939d;
+        }
+
+        /* 틀렸을 때 혀가 쏙 튀어나옴 (메롱!) */
+        .ddohwan.shocked .tongue {
+            transform: translateX(-50%) scaleY(1);
+        }
+
+        @keyframes shake {
+            0% { transform: translate(2px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(0px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            75% { transform: translate(2px, 1px) rotate(-1deg); }
+            90% { transform: translate(-1px, -1px) rotate(1deg); }
+            100% { transform: translate(1px, 2px) rotate(0deg); }
+        }
+
+        /* 말풍선 캐릭터 멘트 */
+        .bubble {
+            position: absolute;
+            background: #ffffff;
+            border: 2px solid #ffb3c6;
+            border-radius: 15px;
+            padding: 6px 12px;
+            font-size: 1.1rem;
+            top: -5px;
+            right: 25px;
+            box-shadow: 3px 3px 0px #ffe5ec;
+            font-weight: bold;
+        }
+
+        /* 퀴즈 질문 상자 */
+        .quiz-box {
+            background-color: #ffffff;
+            border: 2px solid #ffc2d1;
+            border-radius: 20px;
+            padding: 22px;
+            margin-bottom: 20px;
+            min-height: 90px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .question {
+            font-size: 1.5rem;
+            font-weight: bold;
+            line-height: 1.4;
+            word-break: keep-all;
+        }
+
+        /* 객관식 답안 버튼들 */
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            background-color: #fff0f3;
+            border: 2px solid #ffb3c6;
+            border-radius: 15px;
+            padding: 14px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #4a4a4a;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background-color: #ff477e;
+            color: white;
+            border-color: #ff477e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(255, 71, 126, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* 스크린 제어 패널 */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .result-title {
+            font-size: 2.6rem;
+            margin-bottom: 10px;
+        }
+        .win-title { color: #ff477e; text-shadow: 2px 2px #ffe5ec; }
+        .lose-title { color: #7f8c8d; text-shadow: 2px 2px #f1f2f6; }
+
+        .result-msg {
+            font-size: 1.4rem;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .start-btn, .restart-btn {
+            background-color: #ff477e;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.6rem;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 6px 15px rgba(255, 71, 126, 0.4);
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .start-btn:hover, .restart-btn:hover {
+            background-color: #ff7096;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="start-screen" class="screen active">
+            <h1>또환이의 퀴즈 맞추기</h1>
+            <div class="character-zone">
+                <div class="ddohwan">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                    <div class="blush left"></div>
+                    <div class="blush right"></div>
+                    <div class="beak"></div>
+                    <div class="tongue"></div>
+                </div>
+                <div class="bubble">반가워! 나 또환이야! 🐥</div>
+            </div>
+            <p style="font-size: 1.3rem; margin-bottom: 25px; line-height: 1.6; word-break: keep-all;">
+                또환이와 함께 유쾌하고 즐거운 상식 퀴즈!<br>
+                정답을 맞춰 <strong>10점</strong>을 얻으면 대승리!<br>
+                <span style="color:#ff477e; font-weight: bold;">주의: 3번 틀리면 또환이 눈이 뒤집혀요..! 😱</span>
+            </p>
+            <button class="start-btn" onclick="startGame()">게임 시작하기 💗</button>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <h1>또환이의 퀴즈 맞추기</h1>
+            <div class="status-bar">
+                <div class="score">점수: <span id="current-score">0</span> / 10</div>
+                <div class="lives" id="lives-display">❤️❤️❤️</div>
+            </div>
+
+            <div class="character-zone">
+                <div id="game-ddohwan" class="ddohwan">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                    <div class="blush left"></div>
+                    <div class="blush right"></div>
+                    <div class="beak"></div>
+                    <div class="tongue"></div>
+                </div>
+                <div id="ddohwan-speech" class="bubble">정답이 뭘까나?</div>
+            </div>
+
+            <div class="quiz-box">
+                <div id="question" class="question">질문이 여기에 표시됩니다.</div>
+            </div>
+
+            <div class="options-container" id="options-box">
+                </div>
+        </div>
+
+        <div id="result-screen" class="screen">
+            <h2 id="result-title" class="result-title">결과</h2>
+            <div class="character-zone">
+                <div id="result-ddohwan" class="ddohwan">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                    <div class="blush left"></div>
+                    <div class="blush right"></div>
+                    <div class="beak"></div>
+                    <div class="tongue"></div>
+                </div>
+            </div>
+            <p id="result-message" class="result-msg">결과 안내 메시지</p>
+            <button class="restart-btn" onclick="startGame()">다시 도전하기 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        // 고등학생 조별과제용 직관적인 상식 퀴즈 15개
+        const quizBank = [
+            { q: "대한민국의 수도는 어디일까요?", a: ["서울", "부산", "인천", "제주"], correct: 0 },
+            { q: "지구에 빛과 에너지를 주는, 가장 가까운 별은?", a: ["달", "태양", "화성", "금성"], correct: 1 },
+            { q: "물(Water)의 분자 기호는 무엇일까요?", a: ["CO2", "H2O", "O2", "NaCl"], correct: 1 },
+            { q: "신호등에서 '초록색' 불이 켜지면 어떻게 해야 할까요?", a: ["멈춘다", "뒤로 간다", "길을 건넌다", "기다린다"], correct: 2 },
+            { q: "1년은 총 몇 달(월)로 이루어져 있나요?", a: ["10달", "11달", "12달", "13달"], correct: 2 },
+            { q: "컴퓨터에서 문장이나 파일을 '복사'하는 단축키는?", a: ["Ctrl + C", "Ctrl + V", "Ctrl + Z", "Ctrl + A"], correct: 0 },
+            { q: "신데렐라가 무도회장에 두고 온 구두의 종류는?", a: ["가죽 구두", "황금 구두", "유리 구두", "운동화"], correct: 2 },
+            { q: "사람의 일반적인 손가락은 양손 합쳐 모두 몇 개일까요?", a: ["5개", "8개", "10개", "12개"], correct: 2 },
+            { q: "대한민국의 국화(나라를 상징하는 꽃)는?", a: ["무궁화", "장미", "벚꽃", "진달래"], correct: 0 },
+            { q: "아이폰과 맥북을 만드는 회사 '애플'의 로고 모양은?", a: ["바나나", "사과", "딸기", "체리"], correct: 1 },
+            { q: "하늘에 아름답게 뜨는 무지개는 총 몇 가지 색깔일까요?", a: ["5색", "6색", "7색", "8색"], correct: 2 },
+            { q: "한글(훈민정음)을 창제하신 조선의 위대한 왕은?", a: ["태조 이성계", "세종대왕", "정조", "숙종"], correct: 1 },
+            { q: "일반적인 육면체 주사위에서 가장 큰 숫자는 무엇일까요?", a: ["4", "5", "6", "10"], correct: 2 },
+            { q: "태양계 행성 중 고리를 가지고 있는 거대한 행성은?", a: ["수성", "금성", "화성", "토성"], correct: 3 },
+            { q: "시간 단위 중 '1분'은 총 몇 초를 의미할까요?", a: ["30초", "60초", "90초", "120초"], correct: 1 }
+        ];
+
+        let currentQuizList = [];
+        let score = 0;
+        let lives = 3;
+        let currentQuestionIndex = 0;
+        let isAnimating = false; // 오답 리액션 연출 중 클릭 연타 방지
+
+        // 화면 전환 처리 함수
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        // 게임 시작 및 리셋
+        function startGame() {
+            score = 0;
+            lives = 3;
+            currentQuestionIndex = 0;
+            isAnimating = false;
+
+            // 중복 방지 및 다채로운 플레이를 위해 문제 배열을 랜덤 믹스
+            currentQuizList = [...quizBank].sort(() => Math.random() - 0.5);
+
+            // 캐릭터 상태 초기화
+            const gameDdohwan = document.getElementById('game-ddohwan');
+            gameDdohwan.classList.remove('shocked');
+            document.getElementById('ddohwan-speech').innerText = "정답이 뭘까나?";
+
+            updateStatusUI();
+            showScreen('game-screen');
+            loadQuestion();
+        }
+
+        // 대시보드 스코어 및 하트 개수 새로고침
+        function updateStatusUI() {
+            document.getElementById('current-score').innerText = score;
+            let heartIcons = "";
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) heartIcons += "❤️";
+                else heartIcons += "💔";
+            }
+            document.getElementById('lives-display').innerText = heartIcons;
+        }
+
+        // 문제 레이아웃 세팅
+        function loadQuestion() {
+            // 승리 조건 체크 (10점 달성)
+            if (score >= 10) {
+                endGame(true);
+                return;
+            }
+
+            // 문제 은행 바닥났을 경우 재소집
+            if (currentQuestionIndex >= currentQuizList.length) {
+                currentQuizList = [...quizBank].sort(() => Math.random() - 0.5);
+                currentQuestionIndex = 0;
+            }
+
+            const activeQuiz = currentQuizList[currentQuestionIndex];
+            document.getElementById('question').innerText = activeQuiz.q;
+
+            const optionsBox = document.getElementById('options-box');
+            optionsBox.innerHTML = ''; // 기존 보기 초기화
+
+            activeQuiz.a.forEach((optionText, idx) => {
+                const button = document.createElement('button');
+                button.className = 'btn';
+                button.innerText = optionText;
+                button.onclick = () => checkPlayerAnswer(idx);
+                optionsBox.appendChild(button);
+            });
+        }
+
+        // 플레이어 정답 검증 처리
+        function checkPlayerAnswer(selectedIndex) {
+            if (isAnimating) return; // 리액션 진행 중일 땐 추가 입력 방지
+
+            const activeQuiz = currentQuizList[currentQuestionIndex];
+            const gameDdohwan = document.getElementById('game-ddohwan');
+            const speechBubble = document.getElementById('ddohwan-speech');
+
+            if (selectedIndex === activeQuiz.correct) {
+                // [정답인 경우]
+                score++;
+                speechBubble.innerText = "정답이야! 멋져! 🐣";
+                updateStatusUI();
+                
+                if (score >= 10) {
+                    setTimeout(() => endGame(true), 600);
+                } else {
+                    currentQuestionIndex++;
+                    setTimeout(loadQuestion, 600);
+                }
+            } else {
+                // [틀린 경우] -> 조건 실행: 눈을 뒤집고 혀를 내민다 (shocked 클래스 부여)
+                lives--;
+                updateStatusUI();
+                isAnimating = true;
+
+                gameDdohwan.classList.add('shocked');
+                speechBubble.innerText = "끼에에엑!! 메롱! 👅";
+
+                setTimeout(() => {
+                    if (lives <= 0) {
+                        endGame(false);
+                    } else {
+                        // 목숨이 남았다면 다시 원래의 귀여운 모습으로 복구 후 다음 문제 진행
+                        gameDdohwan.classList.remove('shocked');
+                        speechBubble.innerText = "후우.. 다시 가보자!";
+                        isAnimating = false;
+                        currentQuestionIndex++;
+                        loadQuestion();
+                    }
+                }, 1300); // 엽기적인 표정을 감상하는 유예 시간 지정
+            }
+        }
+
+        // 최종 게임 엔딩 화면
+        function endGame(isWin) {
+            const resultTitle = document.getElementById('result-title');
+            const resultMessage = document.getElementById('result-message');
+            const resultDdohwan = document.getElementById('result-ddohwan');
+
+            if (isWin) {
+                resultTitle.innerText = "🎉 축 승리 🎉";
+                resultTitle.className = "result-title win-title";
+                resultMessage.innerHTML = `정말 대단해! 완벽하게 10점을 달성했어!<br>또환이가 감사의 춤을 춥니다! 🐣✨`;
+                resultDdohwan.classList.remove('shocked');
+            } else {
+                resultTitle.innerText = "😭 탈락 😭";
+                resultTitle.className = "result-title lose-title";
+                resultMessage.innerHTML = `3번 틀려서 탈락해버렸어...<br>또환이가 눈을 뒤집은 채 깨어나지 못해요!`;
+                resultDdohwan.classList.add('shocked');
+            }
+
+            showScreen('result-screen');
+        }
+    </script>
+</body>
+</html>

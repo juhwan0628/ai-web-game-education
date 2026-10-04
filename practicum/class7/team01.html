@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아레나이모션 (Arena Emotion)</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #0b0c10;
+            color: white;
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 게임 메인 컨테이너 */
+        #game-container {
+            position: relative;
+            width: 500px;
+            height: 650px;
+            border: 4px solid #ffb7c5;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(255, 183, 197, 0.4);
+            overflow: hidden;
+        }
+
+        /* [반드시 포함할 요소] 시키모리 일러스트 스타일 벡터 배경 (남자 제외, 단독) */
+        #shikimori-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffe3e8 0%, #ffccd5 100%);
+            z-index: 1;
+            overflow: hidden;
+        }
+        /* 시키모리 시그니처 벚꽃빛 롱 헤어 */
+        .shikimori-hair-back {
+            position: absolute;
+            bottom: -50px; right: -20px;
+            width: 320px; height: 500px;
+            background: #ffb7c5;
+            border-radius: 160px 50px 80px 50px;
+            opacity: 0.85;
+            transform: rotate(-10deg);
+        }
+        .shikimori-hair-front {
+            position: absolute;
+            bottom: 50px; right: 40px;
+            width: 140px; height: 260px;
+            background: #ffa4b6;
+            border-radius: 0 0 100px 100px;
+            transform: rotate(15deg);
+            z-index: 3;
+        }
+        /* 얼굴 및 피부 */
+        .shikimori-face {
+            position: absolute;
+            bottom: 180px; right: 80px;
+            width: 160px; height: 200px;
+            background: #fff0eb;
+            border-radius: 80px 80px 100px 90px;
+            z-index: 2;
+            box-shadow: -5px 10px 20px rgba(255, 164, 182, 0.3);
+        }
+        /* 시키모리 특유의 청초하면서도 매서운 눈빛 (푸른 눈동자) */
+        .shikimori-eye {
+            position: absolute;
+            bottom: 280px; right: 180px;
+            width: 35px; height: 20px;
+            background: white;
+            border-radius: 50% 50% 40% 40%;
+            border-top: 4px solid #4a3b32;
+            z-index: 4;
+            overflow: hidden;
+            transform: rotate(5deg);
+        }
+        .shikimori-eye::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 5px;
+            width: 18px; height: 18px;
+            background: radial-gradient(circle, #00f0ff 0%, #0055ff 70%, #001166 100%);
+            border-radius: 50%;
+        }
+        /* 특유의 쿨한 미소 살짝 도는 입 */
+        .shikimori-mouth {
+            position: absolute;
+            bottom: 230px; right: 190px;
+            width: 25px; height: 8px;
+            border-bottom: 3px solid #ff758f;
+            border-radius: 0 0 10px 10px;
+            z-index: 4;
+            transform: rotate(-3deg);
+        }
+        /* 분위기를 더해주는 휘날리는 벚꽃잎 효과들 */
+        .petal {
+            position: absolute;
+            background: #ffffff;
+            border-radius: 15px 0 15px 12px;
+            opacity: 0.7;
+            animation: floatPetal 6s infinite linear;
+        }
+        @keyframes floatPetal {
+            0% { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { transform: translateY(670px) translateX(-100px) rotate(360deg); opacity: 0; }
+        }
+
+        /* 게임 플레이 UI 및 레이아웃 */
+        #game-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 12, 16, 0.4);
+            z-index: 5;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 25px;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+        }
+        #title-display { font-size: 16px; letter-spacing: 2px; color: #ffb7c5; font-weight: bold; margin-bottom: 5px; }
+        #accuracy-display { font-size: 36px; font-weight: 900; color: #ffffff; text-shadow: 0 0 10px rgba(0,0,0,0.8); }
+        #combo-display { font-size: 24px; color: #00fff5; font-weight: bold; height: 30px; margin-top: 5px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
+        #judgment-display { font-size: 32px; font-weight: bold; height: 40px; margin-top: 10px; text-shadow: 0 0 8px rgba(0,0,0,0.9); }
+
+        #play-area {
+            display: flex;
+            width: 80%;
+            margin: 0 auto;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            border-left: 2px solid rgba(255,183,197,0.3);
+            border-right: 2px solid rgba(255,183,197,0.3);
+        }
+        .lane {
+            flex: 1;
+            height: 100%;
+            border-right: 1px dashed rgba(255, 255, 255, 0.15);
+            position: relative;
+        }
+        .lane:last-child { border-right: none; }
+
+        /* [요청반영] 판정선 및 가이드 위치 하향 조정 (기존 bottom 100px -> 50px) */
+        #judgment-line {
+            position: absolute;
+            bottom: 50px;
+            left: 10%;
+            width: 80%;
+            height: 4px;
+            background: linear-gradient(90deg, #ff758f, #ffb7c5, #ff758f);
+            box-shadow: 0 0 15px #ff758f;
+            z-index: 6;
+        }
+        .key-guide {
+            position: absolute;
+            bottom: 15px; /* 판정선 밑으로 자연스럽게 조정 */
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #ffb7c5;
+            text-shadow: 0 0 5px black;
+        }
+
+        /* 떨어지는 노트 (판정선 위치 하향에 맞춰 소멸 범위 자동 확장됨) */
+        .note {
+            position: absolute;
+            left: 5%;
+            width: 90%;
+            height: 18px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            z-index: 7;
+        }
+        .note-d, .note-k { background: linear-gradient(90deg, #ff4b5c, #ff758f); }
+        .note-f, .note-j { background: linear-gradient(90deg, #00bbf9, #00fff5); }
+
+        .lane.active {
+            background: linear-gradient(to top, rgba(255, 117, 143, 0.4), transparent);
+        }
+
+        /* 시스템 스크린 (시작/결과) */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(11, 12, 16, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+        .menu-title { font-size: 42px; color: #ffb7c5; margin-bottom: 5px; font-weight: 900; text-shadow: 0 0 10px rgba(255,117,143,0.5); }
+        .menu-subtitle { font-size: 16px; color: #aaa; margin-bottom: 30px; }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 15px; width: 220px; }
+        button {
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: 2px solid #ffb7c5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: transparent;
+        }
+        .btn-easy { border-color: #4ade80; color: #4ade80; }
+        .btn-easy:hover { background: #4ade80; color: black; }
+        .btn-normal { border-color: #facc15; color: #facc15; }
+        .btn-normal:hover { background: #facc15; color: black; }
+        .btn-hard { border-color: #ff4b5c; color: #ff4b5c; }
+        .btn-hard:hover { background: #ff4b5c; color: white; }
+        
+        #result-status { font-size: 48px; font-weight: 900; margin: 20px 0; }
+
+        /* [요청반영] 카운트다운 레이어 CSS */
+        #countdown-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+        }
+        #countdown-text {
+            font-size: 100px;
+            font-weight: 900;
+            color: #ffb7c5;
+            text-shadow: 0 0 20px rgba(255,117,143,0.8);
+            animation: pulse 0.5s ease-out infinite alternate;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.2); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="shikimori-bg">
+            <div class="shikimori-hair-back"></div>
+            <div class="shikimori-face"></div>
+            <div class="shikimori-hair-front"></div>
+            <div class="shikimori-eye"></div>
+            <div class="shikimori-mouth"></div>
+            
+            <div class="petal" style="width:12px; height:10px; left:10%; animation-delay:0s; animation-duration:5s;"></div>
+            <div class="petal" style="width:15px; height:12px; left:40%; animation-delay:1.5s; animation-duration:6s;"></div>
+            <div class="petal" style="width:10px; height:9px; left:70%; animation-delay:3s; animation-duration:4s;"></div>
+            <div class="petal" style="width:14px; height:11px; left:25%; animation-delay:4.5s; animation-duration:5.5s;"></div>
+        </div>
+
+        <div id="game-overlay">
+            <div id="ui-layer">
+                <div id="title-display">ARENA EMOTION</div>
+                <div id="accuracy-display">100.00%</div>
+                <div id="combo-display"></div>
+                <div id="judgment-display"></div>
+            </div>
+
+            <div id="judgment-line"></div>
+
+            <div id="play-area">
+                <div class="lane" id="lane-0"><div class="key-guide">D</div></div>
+                <div class="lane" id="lane-1"><div class="key-guide">F</div></div>
+                <div class="lane" id="lane-2"><div class="key-guide">J</div></div>
+                <div class="lane" id="lane-3"><div class="key-guide">K</div></div>
+            </div>
+        </div>
+
+        <div id="countdown-layer">
+            <div id="countdown-text">3</div>
+        </div>
+
+        <div id="start-screen" class="screen">
+            <div class="menu-title">아레나이모션</div>
+            <div class="menu-subtitle">목표: 체보를 틀리지 않고 맞추기! (D, F, J, K)</div>
+            <div class="btn-group">
+                <button class="btn-easy" onclick="prepareGame('easy')">쉬움 (느린 속도)</button>
+                <button class="btn-normal" onclick="prepareGame('normal')">보통 (빠른 속도)</button>
+                <button class="btn-hard" onclick="prepareGame('hard')">최상 (고밀도 + 고속)</button>
+            </div>
+        </div>
+
+        <div id="result-screen" class="screen" style="display: none;">
+            <div class="menu-title">PLAY RESULT</div>
+            <div id="result-accuracy" style="font-size: 24px; color: #eee;">최종 정확도: 0.00%</div>
+            <div id="result-status"></div>
+            <button style="border-color:#ffb7c5; color:#ffb7c5; padding: 10px 30px;" onclick="backToMenu()">다시 하기</button>
+        </div>
+    </div>
+
+    <script>
+        const lanes = [document.getElementById('lane-0'), document.getElementById('lane-1'), document.getElementById('lane-2'), document.getElementById('lane-3')];
+        const accuracyDisplay = document.getElementById('accuracy-display');
+        const comboDisplay = document.getElementById('combo-display');
+        const judgmentDisplay = document.getElementById('judgment-display');
+        const startScreen = document.getElementById('start-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const resultAccuracy = document.getElementById('result-accuracy');
+        const resultStatus = document.getElementById('result-status');
+        const countdownLayer = document.getElementById('countdown-layer');
+        const countdownText = document.getElementById('countdown-text');
+
+        const keyMap = { 'd': 0, 'D': 0, 'f': 1, 'F': 1, 'j': 2, 'J': 2, 'k': 3, 'K': 3 };
+        
+        // 게임 환경 변수
+        let notes = [];
+        let totalNotesCount = 0;
+        let processedNotesCount = 0;
+        let hitNotesCount = 0;
+        let combo = 0;
+        
+        let gameInterval;
+        let noteSpawnInterval;
+        let audioCtx;
+        
+        let currentConfig = { speed: 5, spawnRate: 600, maxNotes: 55 };
+
+        function playSound(freq, type, duration) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // [요청반영] 난이도 선택 후 카운트다운을 처리하는 함수
+        function prepareGame(difficulty) {
+            startScreen.style.display = 'none';
+            resultScreen.style.display = 'none';
+            countdownLayer.style.display = 'flex';
+            
+            // 초기 세팅 변수화
+            notes = [];
+            totalNotesCount = 0;
+            processedNotesCount = 0;
+            hitNotesCount = 0;
+            combo = 0;
+            accuracyDisplay.innerText = "100.00%";
+            comboDisplay.innerText = "";
+            judgmentDisplay.innerText = "";
+
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            // 난이도별 세부 세팅 주입
+            if (difficulty === 'easy') {
+                currentConfig = { speed: 4, spawnRate: 700, maxNotes: 35 };
+            } else if (difficulty === 'normal') {
+                currentConfig = { speed: 7, spawnRate: 450, maxNotes: 55 };
+            } else if (difficulty === 'hard') {
+                currentConfig = { speed: 10, spawnRate: 220, maxNotes: 110 };
+            }
+
+            // 3, 2, 1 카운트다운 시퀀스 가동
+            let count = 3;
+            countdownText.innerText = count;
+            playSound(440, 'sine', 0.1); // 삐- 소리
+
+            let countTimer = setInterval(() => {
+                count--;
+                if (count === 2) {
+                    countdownText.innerText = "2";
+                    playSound(440, 'sine', 0.1);
+                } else if (count === 1) {
+                    countdownText.innerText = "1";
+                    playSound(440, 'sine', 0.1);
+                } else if (count === 0) {
+                    countdownText.innerText = "START!!";
+                    playSound(880, 'sine', 0.15); // 시작 소리는 높은 음으로
+                } else {
+                    clearInterval(countTimer);
+                    countdownLayer.style.display = 'none';
+                    // 카운트다운이 완벽히 끝나면 진짜 게임 루프를 시작합니다.
+                    runGameEngine(difficulty);
+                }
+            }, 1000);
+        }
+
+        // 실제 게임 엔진 가동 핵심 로직
+        function runGameEngine(difficulty) {
+            gameInterval = setInterval(updateGame, 1000 / 60);
+
+            noteSpawnInterval = setInterval(() => {
+                if (totalNotesCount < currentConfig.maxNotes) {
+                    spawnNote();
+                    if (difficulty === 'hard' && Math.random() > 0.6) {
+                        spawnNote();
+                    }
+                    playSound(120, 'triangle', 0.05);
+                } else if (notes.length === 0) {
+                    endGame();
+                }
+            }, currentConfig.spawnRate);
+        }
+
+        function spawnNote() {
+            const laneIndex = Math.floor(Math.random() * 4);
+            const noteEl = document.createElement('div');
+            noteEl.classList.add('note', `note-${['d','f','j','k'][laneIndex]}`);
+            noteEl.style.top = '0px';
+            lanes[laneIndex].appendChild(noteEl);
+
+            notes.push({
+                element: noteEl,
+                lane: laneIndex,
+                y: 0
+            });
+            totalNotesCount++;
+        }
+
+        function updateGame() {
+            for (let i = notes.length - 1; i >= 0; i--) {
+                const note = notes[i];
+                note.y += currentConfig.speed;
+                note.element.style.top = note.y + 'px';
+
+                // [위치조정 반영] 판정선이 bottom 50px(y=600)로 내려갔으므로 놓침 임계값도 y=610으로 하향 조정
+                if (note.y > 610) {
+                    processedNotesCount++;
+                    combo = 0;
+                    comboDisplay.innerText = "";
+                    showJudgment("MISS", "#ff4b5c");
+                    
+                    note.element.remove();
+                    notes.splice(i, 1);
+                    
+                    updateAccuracy();
+                }
+            }
+
+            if (processedNotesCount > 5) {
+                let currentAcc = (hitNotesCount / processedNotesCount) * 100;
+                if (currentAcc <= 25) {
+                    endGame();
+                }
+            }
+        }
+
+        function updateAccuracy() {
+            if (processedNotesCount === 0) return;
+            let acc = (hitNotesCount / processedNotesCount) * 100;
+            accuracyDisplay.innerText = acc.toFixed(2) + "%";
+        }
+
+        function showJudgment(text, color) {
+            judgmentDisplay.innerText = text;
+            judgmentDisplay.style.color = color;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const laneIndex = keyMap[e.key];
+            if (laneIndex === undefined) return;
+
+            lanes[laneIndex].classList.add('active');
+
+            const targetIndex = notes.findIndex(n => n.lane === laneIndex);
+
+            if (targetIndex !== -1) {
+                const note = notes[targetIndex];
+                // [위치조정 반영] 판정선 위치가 y=582 부근에 정렬되므로 이에 맞춰 타격 정밀도 가중치 오프셋 매칭
+                const hitDistance = Math.abs(note.y - 572);
+
+                if (hitDistance < 55) { 
+                    processedNotesCount++;
+                    hitNotesCount++;
+                    combo++;
+                    
+                    if (hitDistance <= 15) {
+                        showJudgment("PERFECT", "#00fff5");
+                        playSound(650, 'sine', 0.08);
+                    } else if (hitDistance <= 35) {
+                        showJudgment("GREAT", "#4ade80");
+                        playSound(550, 'sine', 0.08);
+                    } else {
+                        showJudgment("GOOD", "#facc15");
+                        playSound(450, 'sine', 0.08);
+                    }
+
+                    comboDisplay.innerText = `${combo} COMBO`;
+                    updateAccuracy();
+
+                    note.element.remove();
+                    notes.splice(targetIndex, 1);
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const laneIndex = keyMap[e.key];
+            if (laneIndex !== undefined) {
+                lanes[laneIndex].classList.remove('active');
+            }
+        });
+
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(noteSpawnInterval);
+            
+            notes.forEach(n => n.element.remove());
+            notes = [];
+
+            let finalAcc = processedNotesCount === 0 ? 0 : (hitNotesCount / processedNotesCount) * 100;
+            resultAccuracy.innerText = `최종 정확도: ${finalAcc.toFixed(2)}%`;
+
+            if (finalAcc <= 25) {
+                resultStatus.innerText = "FAIL (실패)";
+                resultStatus.style.color = "#ff4b5c";
+                playSound(200, 'sawtooth', 0.4);
+            } else if (finalAcc >= 100) {
+                resultStatus.innerText = "야르! (100% 완벽)";
+                resultStatus.style.color = "#00fff5";
+                playSound(880, 'sine', 0.15);
+                setTimeout(() => playSound(1320, 'sine', 0.2), 150);
+            } else if (finalAcc >= 75) {
+                resultStatus.innerText = "SUCCESS (성공)";
+                resultStatus.style.color = "#4ade80";
+                playSound(523, 'sine', 0.15);
+                setTimeout(() => playSound(659, 'sine', 0.15), 100);
+            } else {
+                resultStatus.innerText = "CLEAR (보통)";
+                resultStatus.style.color = "#facc15";
+                playSound(440, 'sine', 0.2);
+            }
+
+            resultScreen.style.display = 'flex';
+        }
+
+        function backToMenu() {
+            resultScreen.style.display = 'none';
+            startScreen.style.display = 'flex';
+            accuracyDisplay.innerText = "100.00%";
+            comboDisplay.innerText = "";
+            judgmentDisplay.innerText = "";
+        }
+    </script>
+</body>
+</html>

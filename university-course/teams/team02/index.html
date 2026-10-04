@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>교사(死)</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="title-card" id="titleCard">
+        <p class="eyebrow">AI 협업 기반 공포 탈출 게임</p>
+        <h1>교사(死)</h1>
+        <p class="subtitle">
+          교육실습 마지막 날, 새벽 2시의 학교에서 깨어났다.
+        </p>
+        <button id="startButton">눈 뜨기</button>
+        <p class="controls">
+          방향키 이동 · Space 점프 · E 상호작용 · 마우스 손전등 조준
+        </p>
+      </section>
+
+      <canvas id="game" width="960" height="640" aria-label="교사 게임 화면"></canvas>
+
+      <aside class="hud">
+        <div class="portrait" id="playerPortrait" aria-label="플레이어 초상화"></div>
+        <div>
+          <span>목숨</span>
+          <strong id="health">3</strong>
+        </div>
+        <div>
+          <span>남은 시간</span>
+          <strong id="timer">--:--</strong>
+        </div>
+        <div>
+          <span>스테이지</span>
+          <strong id="stageName">교무실</strong>
+        </div>
+      </aside>
+
+      <button class="restart-button" id="restartButton" type="button" hidden>Restart</button>
+
+      <section class="message-panel">
+        <p id="objective">눈을 뜨고 주변을 살펴보자.</p>
+        <p id="hint">시작 버튼을 누르면 사운드가 활성화됩니다.</p>
+      </section>
+    </main>
+
+    <script src="game-platformer.js"></script>
+  </body>
+</html>

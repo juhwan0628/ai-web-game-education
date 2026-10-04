@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>우주 고양이의 별 수집 대작전</title>
+
+  <style>
+    /* --- CSS DESIGN SYSTEM (100% LOCAL & SYSTEM FONTS) --- */
+    :root {
+      --primary: #00f0ff;
+      --secondary: #ff007f;
+      --accent: #ffd700;
+      --bg-dark: #060814;
+      --panel-bg: rgba(13, 17, 39, 0.85);
+      --panel-border: rgba(0, 240, 255, 0.25);
+      --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: var(--bg-dark);
+      color: #ffffff;
+      font-family: var(--font-family);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      background-image: 
+        radial-gradient(circle at 20% 30%, rgba(0, 240, 255, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, rgba(255, 0, 127, 0.15) 0%, transparent 45%);
+    }
+
+    /* Game Scaling Wrapper */
+    .game-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100vh;
+      padding: 10px;
+    }
+
+    /* Main Container (800x600 fixed logical size scaled via JS) */
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.85),
+        0 0 45px rgba(0, 240, 255, 0.3);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      background: #000;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Canvas (800x500 game screen) */
+    #game-canvas {
+      width: 800px;
+      height: 500px;
+      display: block;
+      background: #020308;
+    }
+
+    /* Lower HUD (800x100 HUD screen) */
+    #hud {
+      width: 800px;
+      height: 100px;
+      background: rgba(10, 14, 30, 0.95);
+      border-top: 1px solid rgba(0, 240, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 24px;
+      box-sizing: border-box;
+    }
+
+    /* HUD Portrait Area (Square) */
+    #hud-portrait {
+      width: 80px;
+      height: 80px;
+      border: 2px solid rgba(0, 240, 255, 0.4);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    #hud-portrait img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hud-stats-group {
+      display: flex;
+      gap: 30px;
+      flex-grow: 1;
+      justify-content: center;
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .hud-label {
+      color: #7b839b;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .hud-value {
+      color: #ffffff;
+      font-size: 1.3rem;
+      font-weight: 900;
+      text-shadow: 0 0 8px var(--primary);
+    }
+
+    .hud-value.highlight {
+      color: var(--accent);
+      text-shadow: 0 0 8px var(--accent);
+    }
+
+    .hud-value.danger {
+      color: var(--secondary);
+      text-shadow: 0 0 8px var(--secondary);
+    }
+
+    /* Screens & Overlays */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+      z-index: 10;
+      padding: 30px;
+      text-align: center;
+      background: rgba(4, 5, 12, 0.75);
+    }
+
+    .screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Glassmorphism Panel */
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 35px;
+      max-width: 520px;
+      width: 100%;
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.6),
+        0 0 25px rgba(0, 240, 255, 0.1);
+      animation: panel-glow 4s infinite alternate;
+    }
+
+    @keyframes panel-glow {
+      0% { border-color: rgba(0, 240, 255, 0.2); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0, 240, 255, 0.05); }
+      100% { border-color: rgba(0, 240, 255, 0.45); box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 240, 255, 0.2); }
+    }
+
+    /* Typography */
+    h1 {
+      font-size: 2.3rem;
+      margin: 0 0 8px 0;
+      font-weight: 950;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 15px rgba(0, 240, 255, 0.45);
+    }
+
+    h2 {
+      font-size: 1.6rem;
+      margin-top: 0;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 900;
+    }
+
+    p {
+      color: #c3c7db;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin: 0 0 20px 0;
+    }
+
+    /* Instructions Box */
+    .game-desc {
+      font-size: 0.9rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 0;
+      margin: 15px 0;
+      text-align: left;
+    }
+
+    .desc-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      gap: 10px;
+      color: #9da3be;
+    }
+    
+    .desc-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .desc-icon {
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    /* Buttons */
+    .btn {
+      background: linear-gradient(135deg, var(--primary) 0%, #007bff 100%);
+      color: #03050c;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 1.05rem;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0, 240, 255, 0.35);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(0, 240, 255, 0.5);
+      filter: brightness(1.1);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px rgba(0, 240, 255, 0.35);
+    }
+
+    /* Keyboard Hint */
+    .keyboard-hint {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-wrapper">
+    <div id="game-container">
+      
+      <!-- Gameplay Screen (800x500) -->
+      <canvas id="game-canvas" width="800" height="500"></canvas>
+
+      <!-- Lower HUD (800x100, visible during gameplay) -->
+      <div id="hud" class="hidden">
+        <!-- HUD Portrait Box -->
+        <div id="hud-portrait">
+          <img id="hud-portrait-img" src="" alt="Player Portrait">
+        </div>
+        
+        <!-- Center Stats -->
+        <div class="hud-stats-group">
+          <div class="hud-item">
+            <span class="hud-label">SCORE</span>
+            <span id="hud-score" class="hud-value">0</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">STAGE</span>
+            <span id="hud-stage" class="hud-value">LV.1</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">LIFE</span>
+            <span id="hud-life" class="hud-value danger">❤️❤️❤️</span>
+          </div>
+        </div>
+
+        <!-- Right Side: Time -->
+        <div class="hud-item" style="margin-right: 10px;">
+          <span class="hud-label">TIME</span>
+          <span id="hud-time" class="hud-value highlight">60.0s</span>
+        </div>
+      </div>
+
+      <!-- SCREEN: Start Screen -->
+      <div id="start-screen" class="screen">
+        <div class="panel">
+          <div style="font-size: 2.8rem; margin-bottom: 8px;">🐱🚀</div>
+          <h1>우주 고양이의<br>별 수집 대작전</h1>
+          <p style="color: var(--primary); font-size: 0.85rem; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 15px;">COSMO CAT'S EXPEDITION</p>
+          
+          <div class="game-desc">
+            <div class="desc-item">
+              <span class="desc-icon">▶</span>
+              <span><strong>조작법:</strong> 좌우 방향키(←, →)로 이동</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-icon">▶</span>
+              <span><strong>점수 획득:</strong> 떨어지는 <strong>황금 별</strong>을 모으면 +10점!</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-icon">▶</span>
+              <span><strong>체력 관리:</strong> 떨어지는 <strong>운석</strong> 충돌 시 체력 1 감소 (기본 3개)</span>
+            </div>
+            <div class="desc-item">
+              <span class="desc-icon">▶</span>
+              <span><strong>난이도:</strong> 시간의 흐름에 따라 스테이지(LV1 → LV2 → LV3)가 변경됩니다.</span>
+            </div>
+          </div>
+
+          <button id="start-btn" class="btn">미션 시작</button>
+        </div>
+        <div class="keyboard-hint">PRESS ENTER TO START</div>
+      </div>
+
+      <!-- SCREEN: Result Screen -->
+      <div id="result-screen" class="screen hidden">
+        <div class="panel">
+          <div id="result-emoji" style="font-size: 3rem; margin-bottom: 8px;">👑</div>
+          <h1 id="result-title">미션 완료!</h1>
+          <p id="result-msg">우주를 구하기 위한 별 에너지를 모두 모았습니다!</p>
+          
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 15px; margin: 15px 0; display: flex; justify-content: space-around;">
+            <div class="hud-item">
+              <span class="hud-label">최종 점수</span>
+              <span id="result-score" class="hud-value highlight" style="font-size: 1.8rem;">0</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">최종 스테이지</span>
+              <span id="result-stage" class="hud-value" style="font-size: 1.8rem;">LV.3</span>
+            </div>
+          </div>
+
+          <button id="restart-btn" class="btn" style="margin-top: 15px;">다시 시작</button>
+        </div>
+        <div class="keyboard-hint">PRESS ENTER TO RESTART</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // === 1. CODE CONSTANTS (전역 경로 상수 분리) ===
+    // 나중에 디자이너와 사운드 기획자가 전달할 실제 에셋 파일명에 맞게 매핑할 수 있습니다.
+    
+    // 이미지 경로
+    const IMG_PLAYER_PATH = 'assets/images/player.png';
+    const IMG_BACKGROUND_PATH = 'assets/images/background.png';
+    const IMG_METEOR_PATH = 'assets/images/meteor.png';
+    const IMG_STAR_PATH = 'assets/images/star.png';
+
+    // 오디오 경로
+    const AUD_BGM_PATH = 'assets/audio/bgm.mp3';
+    const AUD_SFX_COLLECT_PATH = 'assets/audio/sfx_click.mp3'; // 별 획득: 딩! (README 명칭 연동)
+    const AUD_SFX_CRASH_PATH = 'assets/audio/sfx_crash.mp3';   // 충돌: 쾅!
+    const AUD_SFX_SUCCESS_PATH = 'assets/audio/sfx_success.mp3'; // 게임 성공: 팡파레
+    const AUD_SFX_GAMEOVER_PATH = 'assets/audio/sfx_gameover.mp3'; // 게임 오버: 뚜-
+
+    // 목소리 경로
+    const AUD_VOICE_READY_PATH = 'assets/audio/voice_ready.mp3'; // "Ready!"
+    const AUD_VOICE_GO_PATH = 'assets/audio/voice_go.mp3';       // "Go!"
+    const AUD_VOICE_COMPLETE_PATH = 'assets/audio/voice_complete.mp3'; // "Mission Complete!"
+
+    // --- AUDIO SYSTEM & AUTOPLAY POLICY BYPASS ---
+    let bgmAudio = null;
+    let sfxCollect = null;
+    let sfxCrash = null;
+    let sfxSuccess = null;
+    let sfxGameOver = null;
+    let voiceReady = null;
+    let voiceGo = null;
+    let voiceComplete = null;
+
+    // 사용자 인터랙션 순간 호출하여 오디오 객체들을 초기화하고 활성화
+    function initAudio() {
+      if (bgmAudio) return; // 이미 초기화된 경우 스킵
+      
+      try {
+        bgmAudio = new Audio(AUD_BGM_PATH);
+        bgmAudio.loop = true;
+        bgmAudio.volume = 0.5;
+
+        sfxCollect = new Audio(AUD_SFX_COLLECT_PATH);
+        sfxCrash = new Audio(AUD_SFX_CRASH_PATH);
+        sfxSuccess = new Audio(AUD_SFX_SUCCESS_PATH);
+        sfxGameOver = new Audio(AUD_SFX_GAMEOVER_PATH);
+        
+        voiceReady = new Audio(AUD_VOICE_READY_PATH);
+        voiceGo = new Audio(AUD_VOICE_GO_PATH);
+        voiceComplete = new Audio(AUD_VOICE_COMPLETE_PATH);
+        
+        console.log("Audio objects successfully initialized.");
+      } catch (e) {
+        console.warn("Failed to initialize Audio objects:", e.message);
+      }
+    }
+
+    // 개별 효과음 재생 헬퍼 함수 (에셋 부재 시 예외 처리)
+    function playAudio(audioObj) {
+      if (!audioObj) return;
+      try {
+        audioObj.currentTime = 0;
+        audioObj.play().catch(err => {
+          console.warn("Audio play blocked by browser or file missing:", err.message);
+        });
+      } catch (e) {
+        console.warn("Audio play failed:", e.message);
+      }
+    }
+
+    // --- GRAPHICS LOAD & FALLBACK ---
+    const imgPlayer = new Image();
+    imgPlayer.src = IMG_PLAYER_PATH;
+    let playerImgLoaded = false;
+    imgPlayer.onload = () => { playerImgLoaded = true; };
+    imgPlayer.onerror = () => { playerImgLoaded = false; };
+
+    const imgBackground = new Image();
+    imgBackground.src = IMG_BACKGROUND_PATH;
+    let bgLoaded = false;
+    imgBackground.onload = () => { bgLoaded = true; };
+    imgBackground.onerror = () => { bgLoaded = false; };
+
+    const imgMeteor = new Image();
+    imgMeteor.src = IMG_METEOR_PATH;
+    let meteorImgLoaded = false;
+    imgMeteor.onload = () => { meteorImgLoaded = true; };
+    imgMeteor.onerror = () => { meteorImgLoaded = false; };
+
+    const imgStar = new Image();
+    imgStar.src = IMG_STAR_PATH;
+    let starImgLoaded = false;
+    imgStar.onload = () => { starImgLoaded = true; };
+    imgStar.onerror = () => { starImgLoaded = false; };
+
+    // --- GAME ENGINE SETUP ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI Elements
+    const startScreen = document.getElementById('start-screen');
+    const resultScreen = document.getElementById('result-screen');
+    const hud = document.getElementById('hud');
+
+    const scoreVal = document.getElementById('hud-score');
+    const stageVal = document.getElementById('hud-stage');
+    const lifeVal = document.getElementById('hud-life');
+    const timeVal = document.getElementById('hud-time');
+
+    const resultScore = document.getElementById('result-score');
+    const resultStage = document.getElementById('result-stage');
+    const resultTitle = document.getElementById('result-title');
+    const resultMsg = document.getElementById('result-msg');
+    const resultEmoji = document.getElementById('result-emoji');
+
+    // Game States
+    const STATE_START = 'start';
+    const STATE_PLAY = 'play';
+    const STATE_GAMEOVER = 'gameover';
+    const STATE_SUCCESS = 'success';
+    let gameState = STATE_START;
+
+    // Input Controller
+    const keys = {};
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'Enter') {
+        if (gameState === STATE_START) {
+          initAudio();
+          startGame();
+        } else if (gameState === STATE_GAMEOVER || gameState === STATE_SUCCESS) {
+          initAudio();
+          startGame();
+        }
+      }
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.code] = false;
+    });
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      initAudio();
+      startGame();
+    });
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      initAudio();
+      startGame();
+    });
+
+    // Auto Scaling to center/scale properly
+    function resizeGame() {
+      const container = document.getElementById('game-container');
+      const w = window.innerWidth - 20;
+      const h = window.innerHeight - 20;
+      const scaleX = w / 800;
+      const scaleY = h / 600;
+      const scale = Math.min(scaleX, scaleY, 1.2);
+      container.style.transform = `scale(${scale})`;
+      container.style.transformOrigin = 'center center';
+    }
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('load', resizeGame);
+
+    // --- GAME VARIABLES ---
+    let score = 0;
+    let stage = 1;
+    let life = 3;
+    let timeRemaining = 60.0;
+    let gameElapsedTime = 0;
+
+    // Player Object
+    const player = {
+      x: 400,
+      y: 430, // 500 canvas height, place slightly above bottom
+      radius: 30,
+      vx: 0,
+      speed: 12,
+      friction: 0.85,
+      invincibleTimer: 0
+    };
+
+    let meteors = [];
+    let stars = [];
+    let particles = [];
+    let starStars = []; // Twinkling background stars
+
+    let cameraShake = 0;
+    let lastTime = 0;
+    let meteorSpawnTimer = 0;
+    let starSpawnTimer = 0;
+
+    // Announcements HUD
+    let stageOverlayTimer = 0;
+    let stageOverlayText = '';
+    let stageOverlaySubtext = '';
+
+    // Initialize Twinkling Stars
+    function initStarField() {
+      starStars = [];
+      for (let i = 0; i < 40; i++) {
+        starStars.push({
+          x: Math.random() * 800,
+          y: Math.random() * 500,
+          size: Math.random() * 2 + 1,
+          brightness: Math.random(),
+          brightenSpeed: (Math.random() * 0.02 + 0.005) * (Math.random() < 0.5 ? 1 : -1)
+        });
+      }
+    }
+    initStarField();
+
+    // --- INTERFACE FUNCTION (HUD 인터페이스 업데이트) ---
+    function updateHUD() {
+      scoreVal.textContent = score;
+      stageVal.textContent = `LV.${stage}`;
+      timeVal.textContent = `${Math.max(0, timeRemaining).toFixed(1)}s`;
+      
+      let hearts = '';
+      for (let i = 0; i < 3; i++) {
+        hearts += i < life ? '❤️' : '🖤';
+      }
+      lifeVal.textContent = hearts;
+
+      // 하단 초상화(Portrait) 이미지 자동 연동
+      const portraitImg = document.getElementById('hud-portrait-img');
+      if (portraitImg && portraitImg.getAttribute('src') !== IMG_PLAYER_PATH) {
+        portraitImg.setAttribute('src', IMG_PLAYER_PATH);
+        // 에셋 미로드 시 기본 플레이어 영역 대체 스타일 처리를 위해 에러 이벤트 리스너 추가
+        portraitImg.onerror = () => {
+          portraitImg.style.display = 'none';
+          document.getElementById('hud-portrait').style.background = 'radial-gradient(circle, #ffe082 0%, #ffb300 100%)';
+        };
+      }
+    }
+
+    function triggerStageAnnouncement(title, sub, seconds) {
+      stageOverlayText = title;
+      stageOverlaySubtext = sub;
+      stageOverlayTimer = seconds;
+    }
+
+    // --- GAME ENGINE FLOW ---
+
+    function startGame() {
+      // 변수 리셋
+      score = 0;
+      stage = 1;
+      life = 3;
+      timeRemaining = 60.0;
+      gameElapsedTime = 0;
+
+      player.x = 400;
+      player.vx = 0;
+      player.invincibleTimer = 0;
+
+      meteors = [];
+      stars = [];
+      particles = [];
+
+      cameraShake = 0;
+      meteorSpawnTimer = 0;
+      starSpawnTimer = 0;
+
+      initStarField();
+      updateHUD();
+
+      startScreen.classList.add('hidden');
+      resultScreen.classList.add('hidden');
+      hud.classList.remove('hidden');
+
+      gameState = STATE_PLAY;
+      lastTime = performance.now();
+
+      // BGM 루프 재생 제어
+      if (bgmAudio) {
+        try {
+          bgmAudio.currentTime = 0;
+          bgmAudio.play().catch(err => {
+            console.warn("BGM playback blocked by browser/missing asset:", err.message);
+          });
+        } catch (e) {
+          console.warn("BGM playback error:", e.message);
+        }
+      }
+
+      // Voice Ready & Go 재생
+      playAudio(voiceReady);
+      setTimeout(() => {
+        if (gameState === STATE_PLAY) {
+          playAudio(voiceGo);
+        }
+      }, 1000);
+
+      triggerStageAnnouncement("LV1 (튜토리얼)", "방향키로 운석을 피하고 별을 수집하세요!", 2.2);
+      
+      requestAnimationFrame(gameLoop);
+    }
+
+    function gameOver() {
+      gameState = STATE_GAMEOVER;
+      
+      // BGM 정지
+      if (bgmAudio) {
+        bgmAudio.pause();
+        bgmAudio.currentTime = 0;
+      }
+      
+      playAudio(sfxGameOver);
+
+      // 결과 화면 세팅
+      resultTitle.textContent = "미션 실패!";
+      resultTitle.style.color = "var(--secondary)";
+      resultMsg.textContent = "코스모캣이 운석에 충돌하여 에너지를 잃었습니다.";
+      resultEmoji.textContent = "💥";
+      resultScore.textContent = score.toString();
+      resultStage.textContent = `LV.${stage}`;
+
+      hud.classList.add('hidden');
+      resultScreen.classList.remove('hidden');
+    }
+
+    function gameSuccess() {
+      gameState = STATE_SUCCESS;
+
+      // BGM 정지
+      if (bgmAudio) {
+        bgmAudio.pause();
+        bgmAudio.currentTime = 0;
+      }
+
+      playAudio(sfxSuccess);
+      playAudio(voiceComplete);
+
+      // 결과 화면 세팅
+      resultTitle.textContent = "미션 완료!";
+      resultTitle.style.color = "var(--accent)";
+      resultMsg.textContent = "별 에너지를 모으고 60초 동안 살아남는 데 성공했습니다!";
+      resultEmoji.textContent = "👑";
+      resultScore.textContent = score.toString();
+      resultStage.textContent = `LV.3`;
+
+      hud.classList.add('hidden');
+      resultScreen.classList.remove('hidden');
+      
+      createConfetti();
+    }
+
+    // --- GAME LOOP & UPDATES ---
+    function gameLoop(timestamp) {
+      if (gameState !== STATE_PLAY) return;
+
+      let dt = (timestamp - lastTime) / 1000;
+      if (dt > 0.1) dt = 0.1; // lag safety
+      lastTime = timestamp;
+
+      update(dt);
+      draw();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+      gameElapsedTime += dt;
+      timeRemaining -= dt;
+
+      // 무적 시간 차감
+      if (player.invincibleTimer > 0) {
+        player.invincibleTimer -= dt;
+      }
+
+      // 시간 종료 시 성공 트리거
+      if (timeRemaining <= 0) {
+        gameSuccess();
+        return;
+      }
+
+      // 스테이지 시스템 관리 (20초마다 난이도 상향)
+      const oldStage = stage;
+      if (60 - timeRemaining >= 40) {
+        stage = 3;
+      } else if (60 - timeRemaining >= 20) {
+        stage = 2;
+      } else {
+        stage = 1;
+      }
+
+      if (stage !== oldStage) {
+        if (stage === 2) {
+          triggerStageAnnouncement("LV2 (일반)", "운석 속도가 증가하고, 별이 더 많이 출현합니다!", 2.5);
+        } else if (stage === 3) {
+          triggerStageAnnouncement("LV3 (최종)", "경고! 거대 운석이 등장하며 운석 속도가 최대가 됩니다!", 3.0);
+        }
+      }
+
+      // 플레이어 키보드 조작 물리 엔진
+      let moveDir = 0;
+      if (keys['ArrowLeft'] || keys['KeyA']) {
+        moveDir = -1;
+      } else if (keys['ArrowRight'] || keys['KeyD']) {
+        moveDir = 1;
+      }
+
+      if (moveDir !== 0) {
+        player.vx += moveDir * player.speed * 0.35;
+      }
+      player.vx *= player.friction;
+      player.x += player.vx;
+
+      // 화면 경계 이동 제약 (800x500)
+      if (player.x < player.radius) {
+        player.x = player.radius;
+        player.vx = 0;
+      }
+      if (player.x > 800 - player.radius) {
+        player.x = 800 - player.radius;
+        player.vx = 0;
+      }
+
+      // 스포너 파라미터 셋팅 (스테이지별 상이)
+      let meteorInterval = 1.2;
+      let meteorMinSpeed = 3.0;
+      let meteorMaxSpeed = 5.0;
+      let starInterval = 1.5;
+
+      if (stage === 2) {
+        meteorInterval = 0.75;
+        meteorMinSpeed = 5.0;
+        meteorMaxSpeed = 8.0;
+        starInterval = 1.0;
+      } else if (stage === 3) {
+        meteorInterval = 0.5;
+        meteorMinSpeed = 6.5;
+        meteorMaxSpeed = 10.0;
+        starInterval = 0.9;
+      }
+
+      // 운석 스폰
+      meteorSpawnTimer -= dt;
+      if (meteorSpawnTimer <= 0) {
+        let size = Math.random() * 15 + 20; // 기본 크기 20-35
+        let type = 'normal';
+        let speed = Math.random() * (meteorMaxSpeed - meteorMinSpeed) + meteorMinSpeed;
+
+        // Stage 3 거대 운석 소환 (15% 확률)
+        if (stage === 3 && Math.random() < 0.15) {
+          type = 'giant';
+          size = Math.random() * 25 + 65; // 거대 크기 65-90
+          speed = Math.random() * 2.0 + 4.0; // 크기 때문에 비교적 느림
+        }
+
+        meteors.push({
+          x: Math.random() * (800 - size * 2) + size,
+          y: -size,
+          size: size,
+          type: type,
+          vy: speed,
+          vx: (Math.random() - 0.5) * 1.5,
+          rotation: Math.random() * Math.PI * 2,
+          rotationSpeed: (Math.random() - 0.5) * 0.05
+        });
+
+        meteorSpawnTimer = meteorInterval * (Math.random() * 0.4 + 0.8);
+      }
+
+      // 별 스폰
+      starSpawnTimer -= dt;
+      if (starSpawnTimer <= 0) {
+        const size = 18;
+        stars.push({
+          x: Math.random() * (800 - size * 2) + size,
+          y: -size,
+          size: size,
+          vy: Math.random() * 1.5 + 2.0,
+          pulseTimer: Math.random() * Math.PI
+        });
+        starSpawnTimer = starInterval * (Math.random() * 0.3 + 0.85);
+      }
+
+      // 백그라운드 twinkling 별들 위치 갱신
+      starStars.forEach(s => {
+        s.y += 0.3;
+        if (s.y > 500) {
+          s.y = 0;
+          s.x = Math.random() * 800;
+        }
+        s.brightness += s.brightenSpeed;
+        if (s.brightness > 1 || s.brightness < 0.1) {
+          s.brightenSpeed = -s.brightenSpeed;
+        }
+      });
+
+      // 운석 위치 갱신 및 플레이어 충돌 검사
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.y += m.vy;
+        m.x += m.vx;
+        m.rotation += m.rotationSpeed;
+
+        if (m.y > 500 + m.size) {
+          meteors.splice(i, 1);
+          continue;
+        }
+
+        // 충돌 체크 (원 vs 원)
+        if (player.invincibleTimer <= 0) {
+          const dx = m.x - player.x;
+          const dy = m.y - player.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          // 충돌 충돌 반경 보정 (에셋 렌더링 오차 방지)
+          if (dist < (player.radius + m.size * 0.8)) {
+            life -= 1;
+            player.invincibleTimer = 1.5; // 1.5초 무적
+            cameraShake = m.type === 'giant' ? 20 : 10;
+            playAudio(sfxCrash);
+
+            // 충돌 폭발 파티클 (붉은색 폭발 효과)
+            const pCount = m.type === 'giant' ? 25 : 12;
+            for (let k = 0; k < pCount; k++) {
+              const angle = Math.random() * Math.PI * 2;
+              const spd = Math.random() * 5 + 2;
+              createParticle(
+                m.x,
+                m.y,
+                Math.cos(angle) * spd,
+                Math.sin(angle) * spd,
+                `rgba(255, ${Math.random() * 80}, 0, 0.9)`,
+                Math.random() * 12 + 6,
+                'explosion'
+              );
+            }
+
+            meteors.splice(i, 1);
+            updateHUD();
+
+            if (life <= 0) {
+              gameOver();
+              return;
+            }
+          }
+        }
+      }
+
+      // 별 위치 갱신 및 플레이어 수집 검사
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const s = stars[i];
+        s.y += s.vy;
+        s.pulseTimer += 0.05;
+
+        if (s.y > 500 + s.size) {
+          stars.splice(i, 1);
+          continue;
+        }
+
+        // 수집 체크 (원 vs 원)
+        const dx = s.x - player.x;
+        const dy = s.y - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < (player.radius + s.size)) {
+          score += 10;
+          playAudio(sfxCollect);
+
+          // 황금색 반짝임 파티클 효과
+          for (let k = 0; k < 10; k++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = Math.random() * 3 + 1.5;
+            createParticle(
+              s.x,
+              s.y,
+              Math.cos(angle) * spd,
+              Math.sin(angle) * spd,
+              `rgba(255, 215, 0, ${Math.random() * 0.6 + 0.4})`,
+              Math.random() * 4 + 2,
+              'sparkle'
+            );
+          }
+
+          stars.splice(i, 1);
+          updateHUD();
+        }
+      }
+
+      // 파티클 업데이트
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        
+        if (p.type === 'sparkle') {
+          p.vx *= 0.96;
+          p.vy *= 0.96;
+        } else if (p.type === 'explosion') {
+          p.vx *= 0.92;
+          p.vy *= 0.92;
+        }
+        
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // 카메라 흔들림 복원
+      if (cameraShake > 0) {
+        cameraShake *= 0.88;
+        if (cameraShake < 0.1) cameraShake = 0;
+      }
+
+      // 스테이지 전환 텍스트 표시 타이머
+      if (stageOverlayTimer > 0) {
+        stageOverlayTimer -= dt;
+      }
+
+      updateHUD();
+    }
+
+    // --- RENDER/DRAW LOGIC ---
+    function draw() {
+      ctx.save();
+      
+      // 카메라 흔들림(Camera Shake) 번역
+      if (cameraShake > 0) {
+        const dx = (Math.random() - 0.5) * cameraShake;
+        const dy = (Math.random() - 0.5) * cameraShake;
+        ctx.translate(dx, dy);
+      }
+
+      // 1. 배경 드로잉 (background.png)
+      if (bgLoaded) {
+        ctx.drawImage(imgBackground, 0, 0, 800, 500);
+      } else {
+        // Fallback: 우주 공간 묘사
+        ctx.fillStyle = '#060814';
+        ctx.fillRect(0, 0, 800, 500);
+      }
+
+      // 2. 백그라운드 Twinkling 별 드로잉
+      starStars.forEach(s => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.brightness})`;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+      });
+
+      // 3. 별(Star) 아이템 드로잉
+      stars.forEach(s => {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.rotate(s.pulseTimer);
+        const pulse = 1 + 0.12 * Math.sin(s.pulseTimer * 4);
+        ctx.scale(pulse, pulse);
+
+        if (starImgLoaded) {
+          ctx.drawImage(imgStar, -s.size, -s.size, s.size * 2, s.size * 2);
+        } else {
+          // Fallback: 노란색 glowing 별 도형
+          ctx.shadowColor = '#ffd700';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = '#ffea00';
+          drawStarShape(ctx, 0, 0, 5, s.size, s.size / 2);
+        }
+        ctx.restore();
+      });
+
+      // 4. 운석(Meteor) 장애물 드로잉
+      meteors.forEach(m => {
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.rotation);
+
+        if (meteorImgLoaded) {
+          ctx.drawImage(imgMeteor, -m.size, -m.size, m.size * 2, m.size * 2);
+        } else {
+          // Fallback: 회색 찌그러진 운석 도형
+          ctx.fillStyle = '#374151';
+          ctx.beginPath();
+          const pts = 8;
+          for (let i = 0; i < pts; i++) {
+            const angle = (i / pts) * Math.PI * 2;
+            const offset = 0.85 + Math.sin(angle * 3) * 0.12;
+            const r = m.size * offset;
+            const rx = Math.cos(angle) * r;
+            const ry = Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(rx, ry);
+            else ctx.lineTo(rx, ry);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#4b5563';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // 크레이터 세부 묘사
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+          ctx.beginPath();
+          ctx.arc(-m.size/4, -m.size/4, m.size/5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(m.size/4, m.size/4, m.size/7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      // 5. 파티클 드로잉
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // 6. 플레이어 드로잉 (★ player.png 원형 영역 클리핑 렌더링 명세 반영 ★)
+      ctx.save();
+      
+      // 피격 무적 깜빡임 효과 구현
+      if (player.invincibleTimer > 0) {
+        ctx.globalAlpha = Math.floor(gameElapsedTime * 16) % 2 === 0 ? 0.35 : 0.8;
+      }
+
+      ctx.beginPath();
+      // 플레이어 캐릭터 원형(Circle) 영역 정의
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.clip(); // 다른 오브젝트에 영향이 없도록 clip 설정 (ctx.save & restore 범위 내부)
+
+      if (playerImgLoaded) {
+        // 이미지가 깨지지 않고 영역 정중앙에 꼭 들어맞게 렌더링
+        ctx.drawImage(
+          imgPlayer, 
+          player.x - player.radius, 
+          player.y - player.radius, 
+          player.radius * 2, 
+          player.radius * 2
+        );
+      } else {
+        // Fallback: 에셋 로딩 안될 때 임시 드로잉 (귀여운 노란 고양이 머리)
+        ctx.fillStyle = '#ffe082';
+        ctx.fill();
+        
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffb300';
+        ctx.stroke();
+
+        // 귀 드로잉
+        ctx.fillStyle = '#ffb300';
+        ctx.beginPath();
+        ctx.moveTo(player.x - 14, player.y - 12);
+        ctx.lineTo(player.x - 22, player.y - 28);
+        ctx.lineTo(player.x - 5, player.y - 20);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(player.x + 14, player.y - 12);
+        ctx.lineTo(player.x + 22, player.y - 28);
+        ctx.lineTo(player.x + 5, player.y - 20);
+        ctx.fill();
+
+        // 눈 코 입
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(player.x - 8, player.y - 4, 3, 0, Math.PI * 2);
+        ctx.arc(player.x + 8, player.y - 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y + 1, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore(); // 클리핑 해제 및 이전 드로잉 복구
+
+      // 7. 스테이지 알림 오버레이
+      if (stageOverlayTimer > 0) {
+        ctx.save();
+        ctx.textAlign = 'center';
+        
+        let opacity = 1.0;
+        if (stageOverlayTimer < 0.5) opacity = stageOverlayTimer / 0.5;
+        ctx.globalAlpha = opacity;
+
+        ctx.fillStyle = 'rgba(6, 8, 20, 0.85)';
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        
+        const boxW = 460;
+        const boxH = 90;
+        // roundRect polyfill이 적용된 함수 사용
+        ctx.beginPath();
+        ctx.roundRect(400 - boxW/2, 230 - boxH/2, boxW, boxH, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "bold 19px system-ui, sans-serif";
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillText(stageOverlayText, 400, 225);
+
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText(stageOverlaySubtext, 400, 255);
+
+        ctx.restore();
+      }
+
+      ctx.restore(); // 카메라 흔들림 translate 복구
+    }
+
+    // Helper: 별 모양 다각형 드로잉
+    function drawStarShape(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+      let rot = Math.PI / 2 * 3;
+      let x = cx;
+      let y = cy;
+      let step = Math.PI / spikes;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - outerRadius);
+      for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerRadius;
+        y = cy + Math.sin(rot) * outerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+
+        x = cx + Math.cos(rot) * innerRadius;
+        y = cy + Math.sin(rot) * innerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+      }
+      ctx.lineTo(cx, cy - outerRadius);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // --- EFFECT EMITTERS ---
+    function createParticle(x, y, vx, vy, color, size, type) {
+      particles.push({
+        x: x,
+        y: y,
+        vx: vx,
+        vy: vy,
+        color: color,
+        size: size,
+        alpha: 1,
+        decay: Math.random() * 0.02 + 0.025,
+        type: type
+      });
+    }
+
+    // 승리 시 꽃가루 축하 파티클
+    function createConfetti() {
+      const colors = ['#00f0ff', '#ff007f', '#ffd700', '#00ff66', '#a020f0'];
+      for (let i = 0; i < 80; i++) {
+        setTimeout(() => {
+          if (gameState !== STATE_SUCCESS) return;
+          createParticle(
+            Math.random() * 800,
+            -10,
+            (Math.random() - 0.5) * 4,
+            Math.random() * 3 + 2.5,
+            colors[Math.floor(Math.random() * colors.length)],
+            Math.random() * 6 + 3,
+            'sparkle'
+          );
+        }, i * 25);
+      }
+    }
+
+    // --- CANVAS ROUNDRECT POLYFILL ---
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (typeof r === 'number') r = [r];
+        if (r.length === 1) r = [r[0], r[0], r[0], r[0]];
+        const rTopLeft = r[0];
+        const rTopRight = r[1] !== undefined ? r[1] : r[0];
+        const rBottomRight = r[2] !== undefined ? r[2] : r[0];
+        const rBottomLeft = r[3] !== undefined ? r[3] : r[1] !== undefined ? r[1] : r[0];
+
+        this.beginPath();
+        this.moveTo(x + rTopLeft, y);
+        this.lineTo(x + w - rTopRight, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + rTopRight);
+        this.lineTo(x + w, y + h - rBottomRight);
+        this.quadraticCurveTo(x + w, y + h, x + w - rBottomRight, y + h);
+        this.lineTo(x + rBottomLeft, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - rBottomLeft);
+        this.lineTo(x, y + rTopLeft);
+        this.quadraticCurveTo(x, y, x + rTopLeft, y);
+        this.closePath();
+        return this;
+      };
+    }
+  </script>
+</body>
+</html>

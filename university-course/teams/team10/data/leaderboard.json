@@ -1,0 +1,68 @@
+[
+  {
+    "name": "SKKU",
+    "score": 162016,
+    "kills": 666,
+    "rank": "S",
+    "level": 16,
+    "crates": 11,
+    "seconds": 290,
+    "won": false,
+    "date": "2026-05-14T09:20:42Z"
+  },
+  {
+    "name": "JUHWAN",
+    "score": 142884,
+    "kills": 587,
+    "rank": "S",
+    "level": 15,
+    "crates": 10,
+    "seconds": 273,
+    "won": false,
+    "date": "2026-05-19T02:23:32Z"
+  },
+  {
+    "name": "YONSEI",
+    "score": 65807,
+    "kills": 300,
+    "rank": "S",
+    "level": 12,
+    "crates": 5,
+    "seconds": 156,
+    "won": false,
+    "date": "2026-05-14T08:14:01Z"
+  },
+  {
+    "name": "허주환",
+    "score": 25503,
+    "kills": 95,
+    "rank": "S",
+    "level": 8,
+    "crates": 10,
+    "seconds": 221,
+    "won": false,
+    "date": "2026-05-14T07:24:53Z"
+  },
+  {
+    "name": "GIMOOTI",
+    "score": 11737,
+    "kills": 47,
+    "rank": "S",
+    "level": 7,
+    "crates": 4,
+    "seconds": 97,
+    "won": true,
+    "date": "2026-05-14T07:00:53Z"
+  },
+  {
+    "name": "ACE",
+    "score": 8472,
+    "kills": 42,
+    "rank": "S",
+    "level": 5,
+    "crates": 1,
+    "seconds": 65,
+    "won": true,
+    "date": "2026-05-14T05:51:29Z"
+  }
+]

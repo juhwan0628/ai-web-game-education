@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Web Game Education</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211b;background:#f4f6f3}
+    *{box-sizing:border-box}body{margin:0}.wrap{max-width:980px;margin:0 auto;padding:72px 24px}
+    .eyebrow{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#52705d}
+    h1{font-size:clamp(38px,7vw,72px);line-height:1.02;letter-spacing:-.045em;margin:14px 0 22px}
+    .lead{max-width:760px;font-size:20px;line-height:1.65;color:#526057}
+    .flow{display:grid;grid-template-columns:1fr auto 1fr;gap:22px;align-items:stretch;margin-top:54px}
+    .card{display:block;padding:30px;border:1px solid #dce3dd;border-radius:20px;background:#fff;color:inherit;text-decoration:none;box-shadow:0 8px 28px rgba(20,40,28,.05)}
+    .card:hover{transform:translateY(-2px);transition:.15s ease}.phase{font-size:13px;font-weight:800;color:#668270;text-transform:uppercase;letter-spacing:.08em}
+    h2{font-size:27px;margin:10px 0 12px}.card p{color:#5b675f;line-height:1.65;margin:0}.arrow{align-self:center;font-size:30px;color:#8ba091}
+    .meta{margin-top:56px;padding-top:20px;border-top:1px solid #dce3dd;color:#65736a;font-size:14px;line-height:1.7}
+    @media(max-width:700px){.wrap{padding-top:46px}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="eyebrow">AI × Computer Education</div>
+    <h1>AI Web Game Education</h1>
+    <p class="lead">교생실습에서 시작한 생성형 AI 웹게임 제작 수업을 실제 적용하고, 그 경험을 바탕으로 성균관대학교 컴퓨터교육과 인공지능교육 교과목에서 SPEC 중심 협업 수업으로 발전시킨 프로젝트입니다.</p>
+    <section class="flow">
+      <a class="card" href="./practicum/">
+        <div class="phase">Iteration 01 · Teaching Practicum</div>
+        <h2>Prompt-based Web Game Class</h2>
+        <p>Gemini와 단일 HTML을 활용해 고등학교 1학년 3개 학급이 조별 웹게임을 기획·생성·실행·수정한 첫 번째 수업입니다.</p>
+      </a>
+      <div class="arrow">→</div>
+      <a class="card" href="./university-course/">
+        <div class="phase">Iteration 02 · AI Education Course</div>
+        <h2>SPEC-driven AI Collaboration</h2>
+        <p>첫 수업의 한계를 바탕으로 SPEC, 역할 분업, 이미지·오디오 에셋, 제출 검수·배포 자동화를 도입한 확장 버전입니다.</p>
+      </a>
+    </section>
+    <div class="meta">From classroom deployment to iterative instructional design · HTML/CSS/JavaScript · Generative AI · SPEC-driven development</div>
+  </main>
+</body>
+</html>

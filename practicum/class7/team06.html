@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>레오맘피하기 - 최종 진화 버전</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #111;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        h1 {
+            margin: 5px 0;
+            font-size: 28px;
+            color: #ff3333;
+            text-shadow: 3px 3px #000;
+        }
+        #gameUi {
+            width: 600px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-shadow: 1px 1px #000;
+            background: rgba(0,0,0,0.4);
+            padding: 8px;
+            border-radius: 5px;
+        }
+        .highlight { color: #ffcc00; }
+        .weapon-text { color: #00ffcc; }
+        canvas {
+            background-color: #2b2d30;
+            border: 4px solid #333;
+            box-shadow: 0 0 25px rgba(0,0,0,0.9);
+        }
+        #instruction {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #ccc;
+            text-align: center;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚔️ 레오맘피하기 (LeoMom Evade) ⚔️</h1>
+    <div id="gameUi">
+        <div id="stageText">STAGE: 1 / 6</div>
+        <div id="weaponText" class="weapon-text">무기: 기본 권총</div>
+        <div id="ammoText" class="highlight">탄약: 30 / 30</div>
+        <div id="livesText">LIVES: ❤️❤️❤️</div>
+        <div id="enemyText">남은 레오: 0</div>
+    </div>
+    <canvas id="gameCanvas" width="600" height="500"></canvas>
+    <div id="instruction">
+        <b>이동:</b> 방향키 (←, →, ↑, ↓) | <b>공격:</b> F 키 (원거리 사격 / 근접 베기) | <b>재장전:</b> R 키 (총기류 전용)<br>
+        🎁 <i>레오 처치 시 25% 확률로 드롭되는 상자에서 <b>기관총, 한방총, 기본칼, 사시미칼, 검도칼</b>이 무작위로 등장합니다!</i>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 게임 상태 시스템
+        let gameState = "START"; 
+        let stage = 1;
+        const maxStage = 6; // 6단계로 최적화
+        let lives = 3;
+
+        // 플레이어 데이터
+        const player = {
+            x: 300,
+            y: 450,
+            radius: 15,
+            speed: 4.5,
+            color: '#00ffcc'
+        };
+
+        // 무기 메커니즘 종류: NORMAL, MACHINEGUN, RAILGUN, SWORD_1, SWORD_2, SWORD_3
+        let currentWeapon = "NORMAL"; 
+        let maxAmmo = 30;
+        let currentAmmo = 30;
+        let isReloading = false;
+        let reloadTimer = 0;
+        let reloadDuration = 60; 
+        let bulletDamage = 1;    
+
+        // 칼(근접무기) 관련 이펙트 변수
+        let isSlashing = false;
+        let slashTimer = 0;
+        let slashRadius = 0; // 칼의 공격 범위
+
+        // 키 입력 제어 객체
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, f: false, r: false };
+
+        // 엔티티 배열
+        let bullets = [];
+        let enemies = [];
+        let items = []; 
+        let particles = [];
+        let boss = null;
+
+        // 사격/공격 딜레이 조절
+        let attackCooldown = 0;
+        let attackInterval = 6; 
+
+        let enemiesToSpawn = 0;
+        let spawnTimer = 0;
+
+        // 키 이벤트 등록
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (e.key in keys) keys[e.key] = true;
+            if (key === 'f' || key === 'r') keys[key] = true;
+
+            // 수동 장전 (총기류만 가능)
+            if (key === 'r' && !isReloading && currentAmmo < maxAmmo && !currentWeapon.startsWith("SWORD") && gameState === "PLAYING") {
+                isReloading = true;
+                reloadTimer = 0;
+            }
+
+            if (gameState !== "PLAYING" && e.key === 'Enter') {
+                initGame();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (e.key in keys) keys[e.key] = false;
+            if (key === 'f' || key === 'r') keys[key] = false;
+        });
+
+        // 무기 스펙 밸런싱 세팅 함수
+        function setWeapon(type) {
+            currentWeapon = type;
+            isReloading = false;
+            isSlashing = false;
+            
+            if (type === "NORMAL") {
+                maxAmmo = 30; attackInterval = 6; reloadDuration = 60; bulletDamage = 1; currentAmmo = maxAmmo;
+            } else if (type === "MACHINEGUN") {
+                maxAmmo = 100; attackInterval = 3; reloadDuration = 20; bulletDamage = 1; currentAmmo = maxAmmo;
+            } else if (type === "RAILGUN") {
+                maxAmmo = 10; attackInterval = 15; reloadDuration = 80; bulletDamage = 5; currentAmmo = maxAmmo;
+            } else if (type === "SWORD_1") { // 기본칼
+                maxAmmo = Infinity; attackInterval = 12; bulletDamage = 2; slashRadius = 50;
+            } else if (type === "SWORD_2") { // 사시미칼
+                maxAmmo = Infinity; attackInterval = 10; bulletDamage = 3; slashRadius = 75;
+            } else if (type === "SWORD_3") { // 검도칼 (최강)
+                maxAmmo = Infinity; attackInterval = 8; bulletDamage = 5; slashRadius = 110;
+            }
+        }
+
+        // 게임 판 세팅 리셋
+        function initGame() {
+            if (gameState === "GAMEOVER" || gameState === "CLEAR") {
+                stage = 1;
+                lives = 3;
+            }
+            bullets = []; enemies = []; items = []; particles = []; boss = null;
+            setWeapon("NORMAL");
+            player.x = canvas.width / 2;
+            player.y = canvas.height * 0.85;
+            
+            if (stage === maxStage) {
+                enemiesToSpawn = 0;
+                spawnBoss();
+            } else {
+                enemiesToSpawn = 5 + stage * 3; 
+            }
+            gameState = "PLAYING";
+        }
+
+        // 6단계 최종 거대 보스 레오맘 등장성 정의
+        function spawnBoss() {
+            boss = {
+                x: canvas.width / 2, y: 120,
+                radius: 70, // 역대급으로 가장 거대한 크기
+                hp: 200, maxHp: 200,
+                speed: 1.5, direction: 1
+            };
+        }
+
+        // 폭발 타격 비주얼 이펙트 파티클
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 3 + 2, alpha: 1, color: color
+                });
+            }
+        }
+
+        // 오토 타겟팅 에임 계산식
+        function getClosestEnemy() {
+            let closest = null; let minDist = Infinity;
+            if (boss) return boss;
+            enemies.forEach(enemy => {
+                let dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                if (dist < minDist) { minDist = dist; closest = enemy; }
+            });
+            return closest;
+        }
+
+        // 벡터 기반 강아지 및 이름 드로잉 엔진
+        function drawDog(x, y, radius, isBoss, currentHp, maxHp) {
+            ctx.save();
+            
+            // 1. 귀 모양
+            ctx.fillStyle = isBoss ? '#661111' : '#8a5229';
+            ctx.beginPath();
+            ctx.ellipse(x - radius * 0.7, y - radius * 0.3, radius * 0.35, radius * 0.65, Math.PI / 6, 0, Math.PI * 2);
+            ctx.ellipse(x + radius * 0.7, y - radius * 0.3, radius * 0.35, radius * 0.65, -Math.PI / 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. 얼굴 셰이프
+            ctx.fillStyle = isBoss ? '#cc4444' : '#bd8757';
+            ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#111'; ctx.lineWidth = isBoss ? 4 : 2; ctx.stroke();
+
+            // 3. 눈과 눈동자
+            ctx.fillStyle = '#000'; ctx.beginPath();
+            ctx.arc(x - radius * 0.32, y - radius * 0.05, radius * 0.12, 0, Math.PI * 2);
+            ctx.arc(x + radius * 0.32, y - radius * 0.05, radius * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. 머즐과 코
+            ctx.fillStyle = '#edd1b8'; ctx.beginPath(); ctx.arc(x, y + radius * 0.3, radius * 0.35, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#222'; ctx.beginPath(); ctx.ellipse(x, y + radius * 0.22, radius * 0.12, radius * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+
+            // 5. [강제 사항] 머리 위 이름 시각화 레이어 
+            ctx.fillStyle = isBoss ? '#ff3333' : '#ffffff';
+            ctx.font = isBoss ? 'bold 18px Arial' : 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
+            
+            const nameText = isBoss ? "👑 최종보스 레오맘" : "레오";
+            ctx.strokeText(nameText, x, y - radius - 10);
+            ctx.fillText(nameText, x, y - radius - 10);
+
+            // 레오들의 실시간 대미지 체력바 출력
+            if (!isBoss) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x - 15, y + radius + 6, 30, 4);
+                ctx.fillStyle = '#00ff00'; ctx.fillRect(x - 15, y + radius + 6, 30 * (currentHp / maxHp), 4);
+            }
+            ctx.restore();
+        }
+
+        // 물리 프레임 업데이트 연산
+        function update() {
+            if (gameState !== "PLAYING") return;
+
+            // 1. 유저 무빙 (방향키 독점 구조)
+            if (keys.ArrowUp && player.y - player.radius > 0) player.y -= player.speed;
+            if (keys.ArrowDown && player.y + player.radius < canvas.height) player.y += player.speed;
+            if (keys.ArrowLeft && player.x - player.radius > 0) player.x -= player.speed;
+            if (keys.ArrowRight && player.x + player.radius < canvas.width) player.x += player.speed;
+
+            // 2. 장전 시계 타이머 가동 (총기 한정)
+            if (isReloading) {
+                reloadTimer++;
+                if (reloadTimer >= reloadDuration) { currentAmmo = maxAmmo; isReloading = false; }
+            }
+
+            // 3. 검기(슬래시) 애니메이션 페이드아웃 처리
+            if (isSlashing) {
+                slashTimer++;
+                if (slashTimer > 6) isSlashing = false; // 6프레임 동안만 이펙트 유지
+            }
+
+            // 4. F키 공격 입력 연산
+            attackCooldown++;
+            if (keys.f && attackCooldown >= attackInterval) {
+                if (currentWeapon.startsWith("SWORD")) {
+                    // [칼 모드 작동]: 근접형 검기 발생 시켜 범위 내부의 적 타격
+                    isSlashing = true;
+                    slashTimer = 0;
+                    attackCooldown = 0;
+
+                    // 범위 내 일반 적(레오) 탐색 및 공격 처리
+                    enemies.forEach((enemy, eIdx) => {
+                        let dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                        if (dist <= slashRadius + enemy.radius) {
+                            enemy.hp -= bulletDamage;
+                            createExplosion(enemy.x, enemy.y, '#ffffff');
+                            if (enemy.hp <= 0) {
+                                if (Math.random() < 0.25) items.push({ x: enemy.x, y: enemy.y });
+                                createExplosion(enemy.x, enemy.y, '#ffcc00');
+                                enemies.splice(eIdx, 1);
+                            }
+                        }
+                    });
+
+                    // 범위 내 보스 타격 처리
+                    if (boss) {
+                        let distToBoss = Math.hypot(boss.x - player.x, boss.y - player.y);
+                        if (distToBoss <= slashRadius + boss.radius) {
+                            boss.hp -= bulletDamage;
+                            createExplosion(player.x, player.y, '#ff0000');
+                            if (boss.hp <= 0) { createExplosion(boss.x, boss.y, '#ff3333'); gameState = "CLEAR"; }
+                        }
+                    }
+
+                } else if (!isReloading && currentAmmo > 0) {
+                    // [총기 모드 작동] F키 초고속 사격
+                    let target = getClosestEnemy();
+                    if (target) {
+                        let angle = Math.atan2(target.y - player.y, target.x - player.x);
+                        bullets.push({
+                            x: player.x, y: player.y,
+                            vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10,
+                            radius: currentWeapon === "RAILGUN" ? 7 : 4.5,
+                            damage: bulletDamage,
+                            color: currentWeapon === "RAILGUN" ? '#00ffff' : '#ffff00'
+                        });
+                        currentAmmo--;
+                        attackCooldown = 0;
+                        if (currentAmmo <= 0) { isReloading = true; reloadTimer = 0; }
+                    }
+                }
+            }
+
+            // 5. 일반 레오 적군 스폰
+            if (stage < maxStage && enemiesToSpawn > 0) {
+                spawnTimer++;
+                if (spawnTimer > Math.max(35, 80 - stage * 6)) {
+                    enemies.push({
+                        x: Math.random() * (canvas.width - 60) + 30, y: -40,
+                        radius: 17, hp: 5, maxHp: 5, // 체력 5 고정
+                        speed: 0.9 + (stage * 0.1) + Math.random() * 0.3
+                    });
+                    enemiesToSpawn--; spawnTimer = 0;
+                }
+            }
+
+            // 6. 최종 보스 레오맘 패턴 무빙
+            if (boss) {
+                boss.x += boss.speed * boss.direction;
+                if (boss.x - boss.radius < 0 || boss.x + boss.radius > canvas.width) boss.direction *= -1;
+                if (boss.y < 140) boss.y += 0.12;
+
+                if (Math.hypot(boss.x - player.x, boss.y - player.y) < boss.radius + player.radius) {
+                    lives = 0; gameState = "GAMEOVER";
+                }
+            }
+
+            // 7. 총알 비행 이동
+            bullets.forEach((bullet, bIdx) => {
+                bullet.x += bullet.vx; bullet.y += bullet.vy;
+                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) bullets.splice(bIdx, 1);
+            });
+
+            // 8. 무기 아이템 큐브 박스 자석 습득 체크
+            items.forEach((item, iIdx) => {
+                if (Math.hypot(item.x - player.x, item.y - player.y) < player.radius + 12) {
+                    // 가중치 확률 배분으로 5가지 무기 중 무작위 획득
+                    let rand = Math.random();
+                    if (rand < 0.2) setWeapon("MACHINEGUN");
+                    else if (rand < 0.4) setWeapon("RAILGUN");
+                    else if (rand < 0.6) setWeapon("SWORD_1");
+                    else if (rand < 0.8) setWeapon("SWORD_2");
+                    else setWeapon("SWORD_3");
+
+                    createExplosion(item.x, item.y, '#00ffcc');
+                    items.splice(iIdx, 1);
+                }
+            });
+
+            // 9. 일반 레오 충돌 및 원거리 피격 판정
+            enemies.forEach((enemy, eIdx) => {
+                let angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                enemy.x += Math.cos(angle) * enemy.speed; enemy.y += Math.sin(angle) * enemy.speed;
+
+                if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < enemy.radius + player.radius) {
+                    createExplosion(player.x, player.y, '#ff3333');
+                    enemies.splice(eIdx, 1);
+                    lives--; if (lives <= 0) gameState = "GAMEOVER";
+                    return;
+                }
+
+                bullets.forEach((bullet, bIdx) => {
+                    if (Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y) < enemy.radius + bullet.radius) {
+                        enemy.hp -= bullet.damage;
+                        createExplosion(bullet.x, bullet.y, bullet.color);
+                        bullets.splice(bIdx, 1);
+                        if (enemy.hp <= 0) {
+                            if (Math.random() < 0.25) items.push({ x: enemy.x, y: enemy.y });
+                            createExplosion(enemy.x, enemy.y, '#ffcc00');
+                            enemies.splice(eIdx, 1);
+                        }
+                    }
+                });
+            });
+
+            // 10. 보스 원거리 피격 판정
+            if (boss) {
+                bullets.forEach((bullet, bIdx) => {
+                    if (Math.hypot(boss.x - bullet.x, boss.y - bullet.y) < boss.radius + bullet.radius) {
+                        boss.hp -= bullet.damage;
+                        createExplosion(bullet.x, bullet.y, '#ffffff');
+                        bullets.splice(bIdx, 1);
+                        if (boss.hp <= 0) { createExplosion(boss.x, boss.y, '#ff3333'); gameState = "CLEAR"; }
+                    }
+                });
+            }
+
+            particles.forEach((p, pIdx) => {
+                p.x += p.vx; p.y += p.vy; p.alpha -= 0.03;
+                if (p.alpha <= 0) particles.splice(pIdx, 1);
+            });
+
+            if (stage < maxStage && enemiesToSpawn === 0 && enemies.length === 0) { stage++; initGame(); }
+
+            // 상단 실시간 UI 문자 교체
+            let wName = "기본 권총";
+            if (currentWeapon === "MACHINEGUN") wName = "🚀 초고속 기관총";
+            if (currentWeapon === "RAILGUN") wName = "⚡ 즉사 레일건";
+            if (currentWeapon === "SWORD_1") wName = "🗡️ 기본칼 (근접)";
+            if (currentWeapon === "SWORD_2") wName = "⚔️ 사시미칼 (중근접)";
+            if (currentWeapon === "SWORD_3") wName = "🔥 검도칼 (광범위)";
+
+            document.getElementById('stageText').innerText = `STAGE: ${stage} / ${maxStage}`;
+            document.getElementById('weaponText').innerText = `무기: ${wName}`;
+            
+            if (currentWeapon.startsWith("SWORD")) {
+                document.getElementById('ammoText').innerText = `탄약: 무제한 (근접)`;
+            } else {
+                document.getElementById('ammoText').innerText = isReloading ? `재장전 중...` : `탄약: ${currentAmmo} / ${maxAmmo}`;
+            }
+            document.getElementById('livesText').innerText = `LIVES: ${'❤️'.repeat(Math.max(0, lives))}`;
+            document.getElementById('enemyText').innerText = boss ? `레오맘 HP: ${boss.hp}/${boss.maxHp}` : `남은 레오: ${enemiesToSpawn + enemies.length}`;
+        }
+
+        // 페인팅 드로잉 렌더
+        function draw() {
+            ctx.fillStyle = '#2b2d30'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 모눈종이 그리드
+            ctx.strokeStyle = '#37393d'; ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            if (gameState === "PLAYING") {
+                // 칼 공격 이펙트 시각화 (F키 다운 시 활성화)
+                if (isSlashing) {
+                    ctx.save();
+                    ctx.beginPath();
+                    let grad = ctx.createRadialGradient(player.x, player.y, player.radius, player.x, player.y, slashRadius);
+                    // 등급에 따른 검기 색상 차별화
+                    let sColor = '#fff';
+                    if (currentWeapon === "SWORD_2") sColor = 'rgba(0, 255, 200, 0.4)';
+                    if (currentWeapon === "SWORD_3") sColor = 'rgba(255, 50, 50, 0.5)';
+                    
+                    grad.addColorStop(0, sColor);
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = grad;
+                    ctx.arc(player.x, player.y, slashRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // 아군 플레이어 유닛
+                ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+                ctx.fillStyle = player.color; ctx.fill();
+                ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+
+                // 무기 아이템 상자 (? 큐브)
+                items.forEach(item => {
+                    ctx.fillStyle = '#00ffcc'; ctx.fillRect(item.x - 9, item.y - 9, 18, 18);
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(item.x - 9, item.y - 9, 18, 18);
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+                    ctx.fillText("?", item.x, item.y + 5);
+                });
+
+                // 날아다니는 총알 객체
+                bullets.forEach(bullet => {
+                    ctx.beginPath(); ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = bullet.color; ctx.fill();
+                });
+
+                // 일반 강아지 부대 '레오' 호출
+                enemies.forEach(enemy => {
+                    drawDog(enemy.x, enemy.y, enemy.radius, false, enemy.hp, enemy.maxHp);
+                });
+
+                // 최종 보스 거대 레오맘 호출
+                if (boss) {
+                    drawDog(boss.x, boss.y, boss.radius, true, boss.hp, boss.maxHp);
+                    ctx.fillStyle = '#ff0000'; ctx.fillRect(boss.x - boss.radius, boss.y - boss.radius - 28, (boss.radius*2) * (boss.hp / boss.maxHp), 8);
+                }
+
+                // 잔상 타격 파티클
+                particles.forEach(p => {
+                    ctx.save(); ctx.globalAlpha = p.alpha; ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); ctx.restore();
+                });
+
+            } else {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.88)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+
+                if (gameState === "START") {
+                    ctx.font = 'bold 36px Arial'; ctx.fillStyle = '#ff3333';
+                    ctx.fillText('레오맘피하기 : 무기 대전쟁', canvas.width / 2, canvas.height / 2 - 70);
+                    ctx.font = '15px Arial'; ctx.fillStyle = '#fff';
+                    ctx.fillText('조작 가이드: 오직 방향키 이동 ｜ 공격: [F] 키 ｜ 장전: [R] 키', canvas.width / 2, canvas.height / 2 - 20);
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.fillText('🎁 신규 시스템: 근접 무기 ＂칼＂(기본칼, 사시미칼, 검도칼) 추가!', canvas.width / 2, canvas.height / 2 + 15);
+                    ctx.fillStyle = '#aaffaa';
+                    ctx.fillText('칼 상태일 때는 적에게 가까이 다가가 F를 누르면 한 번에 베어버립니다!', canvas.width / 2, canvas.height / 2 + 40);
+                    ctx.font = 'bold 19px Arial'; ctx.fillStyle = '#00ffcc';
+                    ctx.fillText('[ Enter 키를 눌러 조별발표 시연 시작 ]', canvas.width / 2, canvas.height / 2 + 95);
+                } else if (gameState === "GAMEOVER") {
+                    ctx.font = 'bold 42px Arial'; ctx.fillStyle = '#ff3333';
+                    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+                    ctx.font = '20px Arial'; ctx.fillStyle = '#fff';
+                    ctx.fillText(`작전 실패 스테이지: 단계 ${stage}`, canvas.width / 2, canvas.height / 2 + 20);
+                    ctx.fillStyle = '#00ffcc'; ctx.fillText('[ Enter 키를 눌러 재시작 ]', canvas.width / 2, canvas.height / 2 + 75);
+                } else if (gameState === "CLEAR") {
+                    ctx.font = 'bold 40px Arial'; ctx.fillStyle = '#00ffcc';
+                    ctx.fillText('🎉 전 스테이지 완전 정복 🎉', canvas.width / 2, canvas.height / 2 - 20);
+                    ctx.font = '19px Arial'; ctx.fillStyle = '#fff';
+                    ctx.fillText('대단합니다! 근접 검도칼과 원거리 화력을 조화롭게 다뤄 승리했습니다!', canvas.width / 2, canvas.height / 2 + 20);
+                    ctx.fillStyle = '#ffcc00'; ctx.fillText('[ Enter 키를 눌러 게임 처음부터 다시하기 ]', canvas.width / 2, canvas.height / 2 + 75);
+                }
+            }
+        }
+
+        function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+        gameLoop();
+    </script>
+</body>
+</html>

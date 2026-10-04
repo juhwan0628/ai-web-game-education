@@ -1,0 +1,251 @@
+:root {
+  color-scheme: dark;
+  --blood: #9f1d25;
+  --paper: #f1e4c9;
+  --shadow: #030407;
+  --panel: rgba(7, 9, 13, 0.46);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(88, 98, 107, 0.18), transparent 36rem),
+    linear-gradient(135deg, #040507, #101018 55%, #050507);
+  color: var(--paper);
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+
+.game-shell {
+  position: relative;
+  width: min(100vw, 1040px);
+  padding: 24px;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 3 / 2;
+  margin: 0 auto;
+  border: 2px solid rgba(241, 228, 201, 0.2);
+  border-radius: 18px;
+  background: #08090c;
+  box-shadow:
+    0 0 80px rgba(0, 0, 0, 0.72),
+    inset 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+.title-card {
+  position: absolute;
+  inset: 24px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 48px;
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.88)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 7px);
+  backdrop-filter: blur(5px);
+}
+
+.title-card.hidden {
+  pointer-events: none;
+  animation: openEyes 1.7s ease forwards;
+}
+
+.eyebrow,
+.controls,
+.subtitle {
+  margin: 0;
+  color: rgba(241, 228, 201, 0.76);
+}
+
+.eyebrow {
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 0;
+  color: #fff5df;
+  font-size: clamp(4rem, 12vw, 8rem);
+  line-height: 0.9;
+  letter-spacing: -0.08em;
+  text-shadow:
+    4px 0 var(--blood),
+    0 0 30px rgba(159, 29, 37, 0.7);
+}
+
+button {
+  border: 1px solid rgba(241, 228, 201, 0.32);
+  border-radius: 999px;
+  padding: 14px 32px;
+  background: rgba(159, 29, 37, 0.68);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  background: #be2731;
+}
+
+.hud {
+  position: absolute;
+  right: 42px;
+  bottom: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+
+.hud div,
+.message-panel {
+  border: 1px solid rgba(241, 228, 201, 0.1);
+  background: var(--panel);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(3px);
+}
+
+.hud div {
+  min-width: 118px;
+  padding: 10px 14px;
+  border-radius: 12px;
+}
+
+.hud .portrait {
+  width: 72px;
+  min-width: 72px;
+  height: 72px;
+  padding: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, rgba(241, 228, 201, 0.08), rgba(0, 0, 0, 0.26)),
+    #111317;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.hud span {
+  display: block;
+  color: rgba(241, 228, 201, 0.6);
+  font-size: 0.78rem;
+}
+
+.hud strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.16rem;
+}
+
+.message-panel {
+  position: absolute;
+  top: 42px;
+  right: 42px;
+  left: auto;
+  z-index: 2;
+  width: min(420px, calc(100% - 84px));
+  min-height: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.restart-button {
+  position: absolute;
+  left: 50%;
+  bottom: 232px;
+  z-index: 5;
+  transform: translateX(-50%);
+}
+
+.message-panel p {
+  margin: 0;
+}
+
+#objective {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+#hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+  color: rgba(241, 228, 201, 0.68);
+  font-size: 0.8rem;
+}
+
+@keyframes openEyes {
+  0% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+
+  55% {
+    clip-path: inset(46% 0 46% 0);
+    opacity: 1;
+  }
+
+  100% {
+    clip-path: inset(50% 0 50% 0);
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (max-width: 720px) {
+  .game-shell {
+    padding: 12px;
+  }
+
+  .title-card {
+    inset: 12px;
+    padding: 24px;
+  }
+
+  .hud {
+    right: 22px;
+    bottom: 22px;
+    gap: 6px;
+  }
+
+  .hud div {
+    min-width: auto;
+    padding: 8px 10px;
+  }
+
+  .message-panel {
+    right: 22px;
+    top: 22px;
+    width: calc(100% - 44px);
+  }
+
+  .hud .portrait {
+    width: 58px;
+    min-width: 58px;
+    height: 58px;
+  }
+}

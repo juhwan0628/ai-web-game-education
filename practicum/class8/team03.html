@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지오메트리 돼지 - 리마스터</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(to bottom, #A0E6FF 70%, #98FB98 70%); /* 밝은 하늘색과 들판 */
+            border: 4px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+        }
+        
+        /* 자연물 디자인 (해와 구름) */
+        #sun {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            font-size: 50px;
+            z-index: 1;
+        }
+        .cloud {
+            position: absolute;
+            font-size: 35px;
+            opacity: 0.85;
+            z-index: 1;
+        }
+
+        /* 플레이어 (돼지) */
+        #pig {
+            position: absolute;
+            left: 150px;
+            bottom: 120px;
+            width: 40px;
+            height: 40px;
+            font-size: 36px;
+            line-height: 40px;
+            text-align: center;
+            z-index: 10;
+            transform-origin: center center;
+        }
+
+        /* 게임 요소 공통 CSS */
+        .game-object {
+            position: absolute;
+            bottom: 120px;
+            width: 40px;
+            height: 40px;
+            z-index: 5;
+        }
+
+        /* 삼각형: 장애물 (부딪히면 사망) */
+        .triangle {
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            background: linear-gradient(to top, #FF4500, #FF6347);
+            border-bottom: 2px solid #333;
+        }
+
+        /* 정사각형: 블록 (지형 판정, 밟기 가능) */
+        .square {
+            background: linear-gradient(135deg, #FFB6C1, #FF99AA);
+            border: 3px solid #333;
+            border-radius: 4px;
+            box-shadow: inset -3px -3px 0px rgba(0,0,0,0.1);
+        }
+
+        /* 결승선 */
+        #goal {
+            position: absolute;
+            bottom: 120px;
+            width: 30px;
+            height: 160px;
+            background: linear-gradient(to right, #FFD700, #FFA500);
+            border: 3px solid #333;
+            z-index: 4;
+        }
+
+        /* UI 디자인 */
+        #liveScore {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 26px;
+            font-weight: bold;
+            color: #333;
+            text-shadow: 1px 1px 0px #fff;
+            z-index: 20;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.55);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(2px);
+        }
+        .screen h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 0px #222;
+        }
+        .screen .score-display {
+            font-size: 65px;
+            font-weight: bold;
+            margin: 15px 0;
+            color: #FFD700;
+            text-shadow: 4px 4px 0px #222;
+        }
+        .screen p {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 12px 35px;
+            font-size: 22px;
+            font-weight: bold;
+            background-color: #FFF;
+            color: #333;
+            border: 3px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 5px 0px #333;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0px #333;
+        }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <div id="sun">☀️</div>
+        <div class="cloud" style="top: 40px; left: 80px;">☁️</div>
+        <div class="cloud" style="top: 25px; left: 350px;">☁️</div>
+        <div class="cloud" style="top: 60px; left: 600px;">☁️</div>
+
+        <div id="liveScore">점수: 0</div>
+        
+        <div id="pig">🐽</div>
+        
+        <div id="mapContainer"></div>
+        
+        <div id="goal"></div>
+
+        <div id="startScreen" class="screen">
+            <h1>지오메트리 돼지 🐽</h1>
+            <p>정사각형 블록은 밟을 수 있습니다! 삼각형을 피하세요!</p>
+            <p class="blink" style="color: #FFD700;">[스페이스바] 또는 [클릭]으로 점프 (꾹 누르면 연속 점프)</p>
+            <button class="btn" onclick="startGame()">게임 시작</button>
+        </div>
+
+        <div id="gameOverScreen" class="screen" style="display: none;">
+            <h1 style="color: #FF4500;">실패! 벽에 충돌했습니다.</h1>
+            <div class="score-display" id="failScore">0</div>
+            <button class="btn" onclick="startGame()">다시 도전</button>
+        </div>
+
+        <div id="victoryScreen" class="screen" style="display: none;">
+            <h1 style="color: #ADFF2F;">성공! 완주했습니다!</h1>
+            <div class="score-display" id="successScore">0</div>
+            <button class="btn" onclick="startGame()">다시 하기</button>
+        </div>
+    </div>
+
+    <script>
+        const pig = document.getElementById('pig');
+        const mapContainer = document.getElementById('mapContainer');
+        const goal = document.getElementById('goal');
+        const liveScoreDisplay = document.getElementById('liveScore');
+        
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const victoryScreen = document.getElementById('victoryScreen');
+        
+        const failScore = document.getElementById('failScore');
+        const successScore = document.getElementById('successScore');
+
+        // 상태 변수
+        let isPlaying = false;
+        let pigY = 0; 
+        let velocity = 0;
+        let rotation = 0;
+        let isGrounded = true;
+        let spacePressed = false; // 연속 점프용 입력 감지
+
+        const gravity = -0.7;
+        const jumpStrength = 11;
+        const gameSpeed = 6;
+        let distanceTraveled = 0;
+        const mapLength = 4200; // 확장된 맵 길이
+
+        // 레벨 디자인 (x: 가로 위치, y: 높이 레이어(0=바닥, 1=1단, 2=2단...), type: 종류)
+        // 지오메트리 대시 스타일의 계단식 배치 및 계단 끝에 가시 배치
+        const mapData = [
+            {x: 500, y: 0, type: 'triangle'},
+            
+            // 1단짜리 단독 블록과 가시
+            {x: 800, y: 0, type: 'square'},
+            {x: 840, y: 0, type: 'triangle'},
+            
+            // 2단 계단 구조
+            {x: 1100, y: 0, type: 'square'},
+            {x: 1140, y: 0, type: 'square'},
+            {x: 1140, y: 1, type: 'square'}, // 2단 쌓기
+            {x: 1180, y: 0, type: 'triangle'},
+            
+            // 연속 장애물 점프 구간
+            {x: 1450, y: 0, type: 'triangle'},
+            {x: 1550, y: 0, type: 'triangle'},
+            
+            // 3단 높은 계단 오르기 구조
+            {x: 1800, y: 0, type: 'square'},
+            {x: 1840, y: 0, type: 'square'},
+            {x: 1840, y: 1, type: 'square'},
+            {x: 1880, y: 0, type: 'square'},
+            {x: 1880, y: 1, type: 'square'},
+            {x: 1880, y: 2, type: 'square'}, // 3단 쌓기
+            {x: 1920, y: 0, type: 'triangle'}, // 내려오자마자 가시
+            
+            // 공중 징검다리 타기 구간
+            {x: 2200, y: 1, type: 'square'},
+            {x: 2240, y: 1, type: 'square'},
+            {x: 2360, y: 2, type: 'square'},
+            {x: 2400, y: 2, type: 'square'},
+            {x: 2440, y: 0, type: 'triangle'},
+            
+            // 마지막 복합 난관 구간
+            {x: 2750, y: 0, type: 'square'},
+            {x: 2790, y: 0, type: 'triangle'},
+            {x: 2830, y: 0, type: 'square'},
+            {x: 2950, y: 0, type: 'square'},
+            {x: 2990, y: 1, type: 'square'},
+            {x: 3030, y: 2, type: 'square'},
+            {x: 3070, y: 0, type: 'triangle'},
+            {x: 3110, y: 0, type: 'triangle'},
+
+            // 랜드마크 탑
+            {x: 3400, y: 0, type: 'square'},
+            {x: 3440, y: 1, type: 'square'},
+            {x: 3480, y: 2, type: 'square'},
+            {x: 3600, y: 0, type: 'triangle'}
+        ];
+        
+        let gameObjects = [];
+        let animationId;
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            victoryScreen.style.display = 'none';
+            
+            isPlaying = true;
+            pigY = 0;
+            velocity = 0;
+            rotation = 0;
+            distanceTraveled = 0;
+            isGrounded = true;
+            
+            pig.style.bottom = '120px';
+            pig.style.transform = `rotate(0deg)`;
+            liveScoreDisplay.innerText = "점수: 0";
+            
+            mapContainer.innerHTML = '';
+            gameObjects = [];
+            
+            // 오브젝트 생성 및 초기 배치
+            mapData.forEach(data => {
+                const obj = document.createElement('div');
+                obj.classList.add('game-object', data.type);
+                
+                // y축 레이어 계산 (기본 바닥 120px + 높이 한 칸당 40px)
+                const bottomPos = 120 + (data.y * 40);
+                obj.style.bottom = bottomPos + 'px';
+                obj.style.left = data.x + 'px';
+                mapContainer.appendChild(obj);
+                
+                gameObjects.push({
+                    element: obj,
+                    startX: data.x,
+                    bottomY: bottomPos,
+                    type: data.type,
+                    yLayer: data.y
+                });
+            });
+
+            goal.style.left = mapLength + 'px';
+
+            cancelAnimationFrame(animationId);
+            animationId = requestAnimationFrame(update);
+        }
+
+        // 입력 처리
+        function handleJumpStart() {
+            spacePressed = true;
+            if (isGrounded && isPlaying) {
+                velocity = jumpStrength;
+                isGrounded = false;
+            }
+        }
+
+        function handleJumpEnd() {
+            spacePressed = false;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!isPlaying && (startScreen.style.display !== 'none' || gameOverScreen.style.display !== 'none' || victoryScreen.style.display !== 'none')) {
+                    startGame();
+                } else {
+                    handleJumpStart();
+                }
+            }
+        });
+        window.addEventListener('keyup', (e) => { if(e.code === 'Space') handleJumpEnd(); });
+        
+        gameContainer.addEventListener('mousedown', (e) => { e.preventDefault(); handleJumpStart(); });
+        window.addEventListener('mouseup', handleJumpEnd);
+
+        // 메인 루프
+        function update() {
+            if (!isPlaying) return;
+
+            // 1. 중력 및 Y축 이동 계산
+            velocity += gravity;
+            pigY += velocity;
+
+            // 기본 바닥 착지 처리
+            if (pigY <= 0) {
+                pigY = 0;
+                velocity = 0;
+                isGrounded = true;
+            }
+
+            // 실시간 이동 거리 늘리기
+            distanceTraveled += gameSpeed;
+            liveScoreDisplay.innerText = "점수: " + distanceTraveled;
+
+            // 플레이어 히트박스 (정확도를 높이기 위해 보정치 적용)
+            let pigLeft = 150;
+            let pigRight = 190;
+            let pigBottom = 120 + pigY;
+            let pigTop = pigBottom + 40;
+
+            let highestPlatformY = 0; // 착지 판정용 임시 변수
+            let onPlatform = false;
+
+            // 구름 흐르는 효과 (배경 디테일)
+            const clouds = document.querySelectorAll('.cloud');
+            clouds.forEach((c, idx) => {
+                let offset = (distanceTraveled * (0.1 + idx * 0.05)) % 900;
+                c.style.transform = `translateX(${-offset}px)`;
+            });
+
+            // 2. 오브젝트(지형 및 가시) 상호작용 계산
+            for (let i = 0; i < gameObjects.length; i++) {
+                let obj = gameObjects[i];
+                let currentX = obj.startX - distanceTraveled;
+                obj.element.style.left = currentX + 'px';
+
+                // 히트박스 계산
+                let objLeft = currentX;
+                let objRight = currentX + 40;
+                let objBottom = obj.bottomY;
+                let objTop = objBottom + 40;
+
+                // X축이 겹쳐 있는지 확인
+                if (pigRight > objLeft + 4 && pigLeft < objRight - 4) {
+                    if (obj.type === 'triangle') {
+                        // [삼각형] - 부딪히면 위아래 상관없이 무조건 사망
+                        if (pigTop > objBottom + 6 && pigBottom < objTop - 4) {
+                            endGame(false);
+                            return;
+                        }
+                    } else if (obj.type === 'square') {
+                        // [정사각형 블록] - 지형 판정
+                        
+                        // 발판 위 착지 조건 (플레이어 발이 블록 천장 근처이며 떨어지는 중일 때)
+                        if (velocity <= 0 && pigBottom >= objTop - 12 && pigBottom <= objTop + 4) {
+                            highestPlatformY = objTop - 120;
+                            onPlatform = true;
+                        } 
+                        // 옆면 충돌 조건 (발판 위에 올라타지 못했는데 옆에서 박은 경우)
+                        else if (pigTop > objBottom + 6 && pigBottom < objTop - 6) {
+                            endGame(false);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // 플랫폼 착지 확정 처리
+            if (onPlatform) {
+                pigY = highestPlatformY;
+                velocity = 0;
+                isGrounded = true;
+                
+                // 지오메트리 대시처럼 키를 꾹 누르고 있으면 착지하자마자 즉시 연속 점프
+                if (spacePressed) {
+                    velocity = jumpStrength;
+                    isGrounded = false;
+                }
+            }
+
+            // 3. 회전 애니메이션 처리 (지오메트리 대시 스타일)
+            if (!isGrounded) {
+                rotation += 4; // 공중에 떠 있을 때는 계속 시계방향 회전
+            } else {
+                // 바닥에 붙어있을 때는 가장 가까운 90도 각도로 자연스럽게 정렬
+                rotation = Math.round(rotation / 90) * 90;
+            }
+
+            pig.style.bottom = (120 + pigY) + 'px';
+            pig.style.transform = `rotate(${rotation}deg)`;
+
+            // 4. 완주 체크
+            let goalX = mapLength - distanceTraveled;
+            goal.style.left = goalX + 'px';
+
+            if (goalX <= 150) {
+                endGame(true);
+                return;
+            }
+
+            animationId = requestAnimationFrame(update);
+        }
+
+        function endGame(isSuccess) {
+            isPlaying = false;
+            cancelAnimationFrame(animationId);
+
+            if (isSuccess) {
+                successScore.innerText = distanceTraveled;
+                victoryScreen.style.display = 'flex';
+            } else {
+                failScore.innerText = distanceTraveled;
+                gameOverScreen.style.display = 'flex';
+            }
+        }
+    </script>
+</body>
+</html>

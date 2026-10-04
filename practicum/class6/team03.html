@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>윤우의 야차 클럽</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Gungsuh&family=Noto+Serif+KR:wght@700&display=swap');
+        
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            font-family: 'Gungsuh', '궁서', 'Noto Serif KR', serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bg-text {
+            position: absolute;
+            font-size: 20vw;
+            color: rgba(0, 0, 0, 0.03);
+            font-weight: bold;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        canvas {
+            background: transparent;
+            border-bottom: 5px solid #000000;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 20px;
+            width: 90%;
+            display: flex;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .hp-bar-container {
+            width: 100%;
+            border: 3px solid #000000;
+            padding: 3px;
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        .hp-bar {
+            height: 30px;
+            background: #000000;
+            width: 100%;
+            transition: width 0.1s ease-out;
+        }
+
+        .character-info {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000000;
+            margin-bottom: 5px;
+        }
+
+        .skill-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 40px;
+            z-index: 10;
+        }
+
+        .skill-circle {
+            width: 80px;
+            height: 80px;
+            border: 4px solid #000000;
+            border-radius: 50%;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.1s, background-color 0.2s, color 0.2s;
+        }
+
+        .skill-circle:active {
+            transform: scale(0.9);
+        }
+
+        #ult-gauge-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 0;
+            transition: height 0.2s ease;
+        }
+
+        .skill-text-node {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .skill-label {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        #result-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #result-title {
+            font-size: 120px;
+            font-weight: bold;
+            color: #000000;
+            margin-bottom: 20px;
+            letter-spacing: 10px;
+        }
+
+        .restart-btn {
+            font-family: 'Gungsuh', '궁서';
+            font-size: 28px;
+            padding: 10px 40px;
+            border: 3px solid #000000;
+            background: #ffffff;
+            color: #000000;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .restart-btn:hover {
+            background: #000000;
+            color: #ffffff;
+        }
+
+        .announcement {
+            position: absolute;
+            top: 150px;
+            font-size: 32px;
+            color: #000000;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+            z-index: 5;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="bg-text">夜叉</div>
+    <div class="announcement">오윤우 관장과의 혈투 - 사생결단</div>
+
+    <div class="ui-layer">
+        <div style="width: 40%;">
+            <div class="character-info">플레이어 (모히칸 야차)</div>
+            <div class="hp-bar-container">
+                <div id="player-hp" class="hp-bar"></div>
+            </div>
+        </div>
+        <div style="width: 40%; text-align: right;">
+            <div class="character-info">체육관 관장 (오윤우)</div>
+            <div class="hp-bar-container" style="margin-left: auto;">
+                <div id="enemy-hp" class="hp-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="1000" height="500"></canvas>
+
+    <div class="skill-container">
+        <div id="btn-attack" class="skill-circle">
+            <div class="skill-text-node">
+                F
+                <span class="skill-label">공격</span>
+            </div>
+        </div>
+        <div id="btn-ultimate" class="skill-circle" style="border-width: 5px;">
+            <div id="ult-gauge-fill"></div>
+            <div class="skill-text-node">
+                R
+                <span class="skill-label" id="ult-text">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <div id="result-title">성 공</div>
+        <button class="restart-btn" onclick="resetGame()">다시 도전하기</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 실제 바닥 지면의 Y축 선 고정
+    const ARENA_FLOOR = 460; 
+
+    let playerHp = 100;
+    let enemyHp = 100;
+    let ultGauge = 0;
+    let gameOver = false;
+    let shakeTime = 0;
+
+    // 플레이어 객체 (바닥 계산 식 수정 완료)
+    const player = {
+        x: 150,
+        y: ARENA_FLOOR - 180, // 바닥에서 키(180)를 뺀 정확한 Top 위치
+        vy: 0,
+        isJumping: false,
+        width: 80,
+        height: 180,
+        speed: 8,
+        isAttacking: false,
+        isUltAttacking: false,
+        attackTimer: 0,
+        hitTimer: 0
+    };
+
+    // AI 관장 객체 (이탈 방지 및 방향 전환 연동)
+    const enemy = {
+        x: 750,
+        y: ARENA_FLOOR - 200, // 바닥에서 관장 키(200)를 뺀 정확한 Top 위치
+        width: 100,
+        height: 200, 
+        speed: 5.5, // 역동적인 추격을 위해 소폭 상향
+        isAttacking: false,
+        attackTimer: 0,
+        attackCooldown: 0,
+        hitTimer: 0,
+        dir: -1 // 쳐다보는 방향 (기본 왼쪽)
+    };
+
+    const keys = {
+        ArrowLeft: false,
+        ArrowRight: false
+    };
+
+    const gravity = 1.2; 
+    const jumpForce = -22;
+
+    window.addEventListener('keydown', (e) => {
+        if (gameOver) return;
+        if (e.key === 'ArrowLeft') keys.ArrowLeft = true;
+        if (e.key === 'ArrowRight') keys.ArrowRight = true;
+        if (e.key === 'ArrowUp') {
+            if (!player.isJumping) {
+                player.vy = jumpForce;
+                player.isJumping = true;
+            }
+        }
+        if (e.key.toLowerCase() === 'f') triggerAttack();
+        if (e.key.toLowerCase() === 'r') triggerUltimate();
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft') keys.ArrowLeft = false;
+        if (e.key === 'ArrowRight') keys.ArrowRight = false;
+    });
+
+    document.getElementById('btn-attack').addEventListener('click', triggerAttack);
+    document.getElementById('btn-ultimate').addEventListener('click', triggerUltimate);
+
+    function triggerAttack() {
+        if (gameOver || player.isAttacking || player.isUltAttacking) return;
+        player.isAttacking = true;
+        player.attackTimer = 12; 
+
+        let pCenter = player.x + player.width/2;
+        let eCenter = enemy.x + enemy.width/2;
+        let distanceX = Math.abs(pCenter - eCenter);
+        let distanceY = Math.abs((player.y + player.height/2) - (enemy.y + enemy.height/2));
+
+        if (distanceX < 170 && distanceY < 140) {
+            enemyHp -= 5;
+            if (enemyHp < 0) enemyHp = 0;
+            
+            enemy.hitTimer = 10; 
+            
+            // 넉백 시 우측 벽 너머로 탈출 방지
+            enemy.x += 25; 
+            if (enemy.x > canvas.width - enemy.width) {
+                enemy.x = canvas.width - enemy.width;
+            }
+            
+            ultGauge += 15;
+            if (ultGauge > 100) ultGauge = 100;
+            updateUI();
+            checkVictory();
+        }
+    }
+
+    function triggerUltimate() {
+        if (gameOver || ultGauge < 100 || player.isAttacking || player.isUltAttacking) return;
+        
+        player.isUltAttacking = true;
+        player.attackTimer = 30;
+        shakeTime = 25;
+        ultGauge = 0;
+        
+        let pCenter = player.x + player.width/2;
+        let eCenter = enemy.x + enemy.width/2;
+        let distanceX = Math.abs(pCenter - eCenter);
+        let distanceY = Math.abs((player.y + player.height/2) - (enemy.y + enemy.height/2));
+
+        if (distanceX < 280 && distanceY < 180) { 
+            enemyHp -= 25;
+            if (enemyHp < 0) enemyHp = 0;
+            enemy.hitTimer = 20;
+            
+            // 필살기 강한 넉백 시 우측 벽 이탈 방지
+            enemy.x += 60;
+            if (enemy.x > canvas.width - enemy.width) {
+                enemy.x = canvas.width - enemy.width;
+            }
+        }
+        updateUI();
+        checkVictory();
+    }
+
+    function updateUI() {
+        document.getElementById('player-hp').style.width = playerHp + '%';
+        document.getElementById('enemy-hp').style.width = enemyHp + '%';
+        document.getElementById('ult-gauge-fill').style.height = ultGauge + '%';
+        document.getElementById('ult-text').innerText = ultGauge >= 100 ? "⚡필살⚡" : ultGauge + "%";
+        
+        if(ultGauge >= 100) {
+            document.getElementById('btn-ultimate').style.background = '#000000';
+            document.getElementById('btn-ultimate').style.color = '#ffffff';
+        } else {
+            document.getElementById('btn-ultimate').style.background = '#ffffff';
+            document.getElementById('btn-ultimate').style.color = '#000000';
+        }
+    }
+
+    function checkVictory() {
+        if (enemyHp <= 0 && !gameOver) endGame(true);
+        else if (playerHp <= 0 && !gameOver) endGame(false);
+    }
+
+    function endGame(isWin) {
+        gameOver = true;
+        const screen = document.getElementById('result-screen');
+        const title = document.getElementById('result-title');
+        screen.style.display = 'flex';
+        if (isWin) {
+            title.innerText = "성 공";
+            title.style.color = "#000000";
+        } else {
+            title.innerText = "실 패";
+            title.style.color = "#555555";
+        }
+    }
+
+    function resetGame() {
+        playerHp = 100;
+        enemyHp = 100;
+        ultGauge = 0;
+        gameOver = false;
+        player.x = 150;
+        player.y = ARENA_FLOOR - player.height;
+        player.vy = 0;
+        player.isJumping = false;
+        player.hitTimer = 0;
+        enemy.x = 750;
+        enemy.hitTimer = 0;
+        document.getElementById('result-screen').style.display = 'none';
+        updateUI();
+        gameLoop();
+    }
+
+    // 인공지능 로직 완전 개선
+    function handleEnemyAI() {
+        if (gameOver) return;
+
+        let playerCenter = player.x + player.width / 2;
+        let enemyCenter = enemy.x + enemy.width / 2;
+        let distanceX = Math.abs(playerCenter - enemyCenter);
+        
+        let playerBottom = player.y + player.height;
+        let enemyBottom = enemy.y + enemy.height;
+        let distanceY = Math.abs(playerBottom - enemyBottom);
+
+        // 플레이어 정밀 추격 및 시선 방향 제어
+        if (enemyCenter > playerCenter + 40) {
+            enemy.x -= enemy.speed;
+            enemy.dir = -1; // 플레이어가 왼쪽에 있으면 왼쪽 보기
+        } else if (enemyCenter < playerCenter - 40) {
+            enemy.x += enemy.speed;
+            enemy.dir = 1;  // 플레이어가 오른쪽에 있으면 오른쪽 보기
+        }
+
+        // 관장 벽 밖으로 탈출 방지 (좌우 양쪽 맵 잠금)
+        if (enemy.x < 0) enemy.x = 0;
+        if (enemy.x > canvas.width - enemy.width) enemy.x = canvas.width - enemy.width;
+
+        // 타격 사거리 충족 시 묵직한 카운터 반격
+        if (distanceX < 120 && distanceY < 100 && enemy.attackCooldown <= 0) {
+            enemy.isAttacking = true;
+            enemy.attackTimer = 15;
+            enemy.attackCooldown = 35; 
+
+            playerHp -= 10;
+            if (playerHp < 0) playerHp = 0;
+            player.hitTimer = 10; 
+            
+            // 플레이어 피격 시 관장 반대 방향으로 넉백
+            player.x += (playerCenter > enemyCenter) ? 20 : -20;
+            
+            // 플레이어 역시 맵 밖으로 나가지 못하게 제한
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+            updateUI();
+            checkVictory();
+        }
+
+        if (enemy.attackCooldown > 0) {
+            enemy.attackCooldown--;
+        }
+    }
+
+    function drawHumanoid(ctx, x, y, width, height, isPlayer, isAttacking, isUlt, hitTimer) {
+        ctx.save();
+        
+        if (hitTimer > 0) {
+            ctx.fillStyle = '#ff0000';
+            ctx.strokeStyle = '#ff0000';
+        } else {
+            ctx.fillStyle = isPlayer ? '#000000' : '#222222';
+            ctx.strokeStyle = isPlayer ? '#000000' : '#222222';
+        }
+        ctx.lineWidth = 4;
+
+        // 1. 머리
+        let headRadius = height * 0.12;
+        let headX = x + width / 2;
+        let headY = y + headRadius + 10;
+        ctx.beginPath();
+        ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 모히칸 헤어 스타일링 데코
+        if (isPlayer && hitTimer <= 0) {
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.moveTo(headX - 6, headY - headRadius);
+            ctx.lineTo(headX, headY - headRadius - 22);
+            ctx.lineTo(headX + 6, headY - headRadius);
+            ctx.fill();
+        }
+
+        // 2. 몸통 (관장 근육량 벌크업 피질 스케일 업)
+        let torsoWidth = isPlayer ? width * 0.7 : width * 0.85; 
+        let torsoHeight = height * 0.42;
+        let torsoX = x + (width - torsoWidth) / 2;
+        let torsoY = headY + headRadius;
+        ctx.fillRect(torsoX, torsoY, torsoWidth, torsoHeight);
+
+        // 관장 전용 가슴 복근 데테일 라인 (웅장함 강조)
+        if(!isPlayer && hitTimer <= 0) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(torsoX + 15, torsoY + 25);
+            ctx.lineTo(torsoX + torsoWidth - 15, torsoY + 25);
+            ctx.stroke();
+        }
+
+        // 3. 다리
+        let legY = torsoY + torsoHeight;
+        let legHeight = height - (legY - y);
+        
+        if (hitTimer > 0) ctx.strokeStyle = '#ff0000';
+        else ctx.strokeStyle = isPlayer ? '#000000' : '#222222';
+        ctx.lineWidth = 5;
+
+        ctx.beginPath();
+        ctx.moveTo(torsoX + 12, legY);
+        ctx.lineTo(torsoX - 3, legY + legHeight);
+        ctx.moveTo(torsoX + torsoWidth - 12, legY);
+        ctx.lineTo(torsoX + torsoWidth + 3, legY + legHeight);
+        ctx.stroke();
+
+        // 4. 리얼 격투 모션 팔 위치 구현
+        let armY = torsoY + 20;
+        ctx.beginPath();
+        if (isPlayer) {
+            if (isAttacking) {
+                ctx.moveTo(torsoX + torsoWidth, armY);
+                ctx.lineTo(torsoX + torsoWidth + 65, armY);
+                ctx.fillRect(torsoX + torsoWidth + 65, armY - 8, 16, 16);
+            } else if (isUlt) {
+                ctx.moveTo(torsoX + torsoWidth, armY);
+                ctx.lineTo(torsoX + torsoWidth + 85, armY - 25);
+                ctx.fillRect(torsoX + torsoWidth + 85, armY - 35, 28, 28);
+            } else {
+                ctx.moveTo(torsoX + torsoWidth, armY);
+                ctx.lineTo(torsoX + torsoWidth + 20, armY - 15);
+                ctx.lineTo(torsoX + torsoWidth + 15, armY + 10);
+            }
+        } else {
+            // 관장은 자신이 마주보는 방향(dir)에 연동되어 주먹을 뻗음
+            if (isAttacking) {
+                if(enemy.dir === -1) {
+                    ctx.moveTo(torsoX, armY);
+                    ctx.lineTo(torsoX - 75, armY);
+                    ctx.fillRect(torsoX - 93, armY - 10, 20, 20);
+                } else {
+                    ctx.moveTo(torsoX + torsoWidth, armY);
+                    ctx.lineTo(torsoX + torsoWidth + 75, armY);
+                    ctx.fillRect(torsoX + torsoWidth + 75, armY - 10, 20, 20);
+                }
+            } else {
+                if(enemy.dir === -1) {
+                    ctx.moveTo(torsoX, armY);
+                    ctx.lineTo(torsoX - 22, armY - 15);
+                    ctx.lineTo(torsoX - 17, armY + 10);
+                } else {
+                    ctx.moveTo(torsoX + torsoWidth, armY);
+                    ctx.lineTo(torsoX + torsoWidth + 22, armY - 15);
+                    ctx.lineTo(torsoX + torsoWidth + 17, armY + 10);
+                }
+            }
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        if (gameOver) return;
+
+        // 플레이어 조작 무빙 및 좌우 화면 이탈 잠금
+        if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
+        if (keys.ArrowRight && player.x < canvas.width - player.width) player.x += player.speed;
+
+        // 완벽 점프 착지 알고리즘
+        if (player.isJumping) {
+            player.vy += gravity;
+            player.y += player.vy;
+
+            if (player.y >= ARENA_FLOOR - player.height) {
+                player.y = ARENA_FLOOR - player.height;
+                player.vy = 0;
+                player.isJumping = false;
+            }
+        }
+
+        handleEnemyAI();
+
+        if (player.attackTimer > 0) player.attackTimer--;
+        if (player.attackTimer <= 0) { player.isAttacking = false; player.isUltAttacking = false; }
+        if (enemy.attackTimer > 0) enemy.attackTimer--;
+        if (enemy.attackTimer <= 0) enemy.isAttacking = false;
+        
+        if (player.hitTimer > 0) player.hitTimer--;
+        if (enemy.hitTimer > 0) enemy.hitTimer--;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        
+        if (shakeTime > 0) {
+            ctx.translate((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+            shakeTime--;
+        }
+
+        // 지면 도선 드로잉
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, ARENA_FLOOR);
+        ctx.lineTo(canvas.width, ARENA_FLOOR);
+        ctx.stroke();
+
+        // 서예 타이포그래피 액션 시각화
+        if (player.isAttacking) {
+            ctx.font = "bold 35px 'Gungsuh'";
+            ctx.fillStyle = "#000000";
+            ctx.fillText("拳(권)", player.x + player.width + 10, player.y + 40);
+        }
+        if (player.isUltAttacking) {
+            ctx.font = "bold 55px 'Gungsuh'";
+            ctx.fillStyle = "#000000";
+            ctx.fillText("🔥 擊(격) 🔥", player.x - 10, player.y - 20);
+        }
+        if (enemy.isAttacking) {
+            ctx.font = "bold 35px 'Gungsuh'";
+            ctx.fillStyle = "#000000";
+            let fontX = (enemy.dir === -1) ? enemy.x - 70 : enemy.x + enemy.width + 10;
+            ctx.fillText("殺(살)", fontX, enemy.y + 55);
+        }
+
+        drawHumanoid(ctx, player.x, player.y, player.width, player.height, true, player.isAttacking, player.isUltAttacking, player.hitTimer);
+        drawHumanoid(ctx, enemy.x, enemy.y, enemy.width, enemy.height, false, enemy.isAttacking, false, enemy.hitTimer);
+
+        ctx.restore();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // 초기 로딩 시 동기화 가동
+    updateUI();
+    gameLoop();
+</script>
+</body>
+</html>

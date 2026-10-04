@@ -1,0 +1,2341 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <title>피키의 위험한 모험 | Piki's Dangerous Adventure</title>
+  <meta name="description" content="피키와 함께 사악한 마녀를 피해 모험을 떠나보세요! 선인장과 폭탄을 뛰어넘고 신비로운 마법의 숲을 탈출하는 정적 횡스크롤 RPG 러너 게임입니다.">
+
+  <style>
+    /* =========================================================================
+       CSS 스타일링 (오프라인 모드 최적화: 외부 폰트/CDN 미사용)
+       ========================================================================= */
+    :root {
+      --primary: #ff007f;
+      --primary-hover: #ff3399;
+      --primary-glow: rgba(255, 0, 127, 0.35);
+      --bg-dark: #07080f;
+      --panel-bg: rgba(14, 16, 32, 0.95);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text-main: #ffffff;
+      --text-muted: #8e95b2;
+      --accent-cyan: #00d2ff;
+      --accent-yellow: #ffd700;
+      --accent-purple: #b464ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, #1b203a 0%, var(--bg-dark) 100%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    header {
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    h1.game-title {
+      font-weight: 800;
+      font-size: 2.1rem;
+      margin: 0 0 2px 0;
+      background: linear-gradient(135deg, #ff007f 0%, #00d2ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0px 2px 6px rgba(255, 0, 127, 0.25));
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin: 0;
+      letter-spacing: 0.5px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    /* Game Window size constraints: 800 x 600 */
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      background-color: #05060b;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 
+                  0 0 25px rgba(255, 0, 127, 0.08);
+      border: 1px solid var(--panel-border);
+    }
+
+    canvas#game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Overlay Screens */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      transform: scale(0.97);
+      background: rgba(5, 6, 12, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 10;
+      padding: 30px;
+    }
+
+    .screen.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    /* --- Start Screen --- */
+    #screen-start {
+      background: radial-gradient(circle at center, rgba(22, 14, 40, 0.8) 0%, rgba(5, 6, 12, 0.98) 100%);
+    }
+
+    .avatar-preview-box {
+      width: 110px;
+      height: 110px;
+      margin-bottom: 24px;
+      position: relative;
+      animation: bounceMotion 2.5s ease-in-out infinite;
+    }
+
+    @keyframes bounceMotion {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .action-btn {
+      background: linear-gradient(135deg, var(--primary) 0%, #ff4c94 100%);
+      color: #fff;
+      border: none;
+      padding: 14px 44px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      border-radius: 40px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px var(--primary-glow);
+      transition: all 0.25s ease;
+      letter-spacing: 0.5px;
+      margin-bottom: 24px;
+    }
+
+    .action-btn:hover {
+      transform: scale(1.05) translateY(-2px);
+      box-shadow: 0 12px 25px rgba(255, 0, 127, 0.45);
+    }
+
+    .action-btn:active {
+      transform: scale(0.98) translateY(1px);
+    }
+
+    .instructions-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 14px 20px;
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+    }
+
+    .instructions-title {
+      font-size: 0.9rem;
+      color: var(--accent-cyan);
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .instructions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .instructions-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .instructions-icon {
+      font-size: 1.3rem;
+      color: #fff;
+    }
+
+    /* --- Stage Select Screen --- */
+    #screen-stage-select {
+      background: radial-gradient(circle at center, rgba(14, 24, 40, 0.8) 0%, rgba(5, 6, 12, 0.98) 100%);
+    }
+
+    .stages-layout {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 720px;
+      margin-bottom: 24px;
+    }
+
+    .stage-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+
+    .stage-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--text-muted);
+    }
+
+    .stage-card.lv1::before { background: #8cd64f; }
+    .stage-card.lv2::before { background: #ffa000; }
+    .stage-card.lv3::before { background: #ff007f; }
+
+    .stage-card:hover {
+      transform: translateY(-6px);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .stage-card.lv1:hover { box-shadow: 0 8px 20px rgba(140, 214, 79, 0.12); }
+    .stage-card.lv2:hover { box-shadow: 0 8px 20px rgba(255, 160, 0, 0.12); }
+    .stage-card.lv3:hover { box-shadow: 0 8px 20px rgba(255, 0, 127, 0.12); }
+
+    .stage-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .stage-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin: 0 0 8px 0;
+      color: #fff;
+    }
+
+    .stage-difficulty {
+      color: #ffd700;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .stage-details {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin: 0 0 14px 0;
+      line-height: 1.35;
+      flex-grow: 1;
+    }
+
+    .stage-record {
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 10px;
+      border-radius: 15px;
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    /* --- Bottom HUD Panel (y: 490 to 600) --- */
+    #hud-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 110px;
+      background: var(--panel-bg);
+      border-top: 2px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-sizing: border-box;
+      z-index: 5;
+    }
+
+    /* Portrait box styling */
+    .hud-portrait-box {
+      width: 75px;
+      height: 75px;
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      background: #090a14;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(255, 0, 127, 0.2);
+      position: relative;
+    }
+
+    .hud-portrait-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hud-portrait-box canvas {
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .hud-stats {
+      display: flex;
+      flex-grow: 1;
+      margin: 0 24px;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .hud-stat-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .hud-stat-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .hud-stat-value {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .hud-timer-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 180px;
+    }
+
+    .hud-timer-bar {
+      flex-grow: 1;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .hud-timer-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan) 0%, var(--primary) 100%);
+      border-radius: 4px;
+      transition: width 0.1s linear;
+    }
+
+    /* Inventory Slot */
+    .hud-inventory {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .item-slot {
+      width: 75px;
+      height: 75px;
+      background: #080911;
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+    }
+
+    .item-slot.has-item {
+      border: 2px solid var(--accent-cyan);
+      background: radial-gradient(circle, rgba(0, 210, 255, 0.1) 0%, #080911 100%);
+      box-shadow: 0 0 12px rgba(0, 210, 255, 0.25);
+    }
+
+    .item-slot:hover.has-item {
+      transform: scale(1.05) translateY(-2px);
+    }
+
+    .item-slot-icon {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .item-slot-label {
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .item-slot.has-item .item-slot-label {
+      color: #fff;
+    }
+
+    .item-slot-hint {
+      position: absolute;
+      top: -24px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--accent-yellow);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .item-slot.has-item:hover .item-slot-hint {
+      opacity: 1;
+    }
+
+    .controls-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      z-index: 4;
+      line-height: 1.4;
+    }
+
+    .controls-overlay strong {
+      color: #fff;
+    }
+
+    /* Top utility group */
+    .utility-group {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 4;
+      pointer-events: auto;
+    }
+
+    .utility-btn {
+      width: 32px;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    .utility-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: scale(1.05);
+    }
+
+    /* Shield Glow HUD overlay */
+    #shield-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 4px solid var(--accent-cyan);
+      border-radius: 20px;
+      pointer-events: none;
+      z-index: 4;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      box-shadow: inset 0 0 25px rgba(0, 210, 255, 0.15);
+    }
+
+    #shield-overlay.active {
+      opacity: 1;
+    }
+
+    /* --- Result Screen --- */
+    #screen-result {
+      background: rgba(4, 5, 10, 0.97);
+    }
+
+    .result-panel {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      padding: 30px;
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    }
+
+    .result-badge-icon {
+      font-size: 3.5rem;
+      margin-bottom: 10px;
+    }
+
+    .result-header-text {
+      font-size: 1.9rem;
+      font-weight: 800;
+      margin: 0 0 8px 0;
+    }
+
+    .result-header-text.success {
+      color: #8cd64f;
+      text-shadow: 0 0 10px rgba(140, 214, 79, 0.2);
+    }
+
+    .result-header-text.failure {
+      color: #ff3355;
+      text-shadow: 0 0 10px rgba(255, 51, 85, 0.2);
+    }
+
+    .result-stats-table {
+      width: 100%;
+      margin: 20px 0;
+      background: rgba(255, 255, 255, 0.015);
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .stats-row:last-child {
+      border-bottom: none;
+    }
+
+    .stats-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .stats-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .new-tag {
+      background: linear-gradient(135deg, #ffd700 0%, #ff8800 100%);
+      color: #000;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      margin-left: 5px;
+      display: inline-block;
+    }
+
+    .result-actions-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .result-action-btn {
+      flex: 1;
+      padding: 11px 18px;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.25s ease;
+    }
+
+    .result-action-btn.primary {
+      background: linear-gradient(135deg, var(--primary) 0%, #ff4b93 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .result-action-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(255, 0, 127, 0.4);
+    }
+
+    .result-action-btn.secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .result-action-btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    footer {
+      margin-top: 12px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 class="game-title">피키의 위험한 모험</h1>
+    <p class="subtitle">Piki's Dangerous Adventure</p>
+  </header>
+
+  <main>
+    <!-- Master 800 x 600 Window Frame -->
+    <section id="game-container" aria-label="게임 화면">
+
+      <!-- Dynamic Rendering Canvas (height 600, HUD overlays bottom 110px) -->
+      <canvas id="game-canvas" width="800" height="600"></canvas>
+      
+      <!-- Utility Controls -->
+      <div class="utility-group">
+        <button id="btn-mute" class="utility-btn" onclick="toggleMute(event)" title="음소거">🔊</button>
+        <button id="btn-exit" class="utility-btn" onclick="exitGame(event)" title="포기">❌</button>
+      </div>
+
+      <!-- Left controls guide overlay -->
+      <div class="controls-overlay">
+        <strong>방향키 ◀ ▶</strong>: 이동 | <strong>Space</strong>: 점프<br>
+        <strong>아이템 클릭</strong> 또는 키보드 <strong>Shift</strong>로 사용!
+      </div>
+
+      <!-- Shield Overlay Glow -->
+      <div id="shield-overlay"></div>
+
+      <!-- Start Screen Screen -->
+      <div id="screen-start" class="screen active">
+        <div class="avatar-preview-box">
+          <canvas id="piki-preview-canvas" width="110" height="110"></canvas>
+        </div>
+        <button id="btn-start" class="action-btn" onclick="goToStageSelect()">모험 떠나기</button>
+        
+        <div class="instructions-card">
+          <h2 class="instructions-title">기본 조작 안내</h2>
+          <div class="instructions-grid">
+            <div class="instructions-item">
+              <span class="instructions-icon">◀ ▶</span>
+              <span>수평 이동</span>
+            </div>
+            <div class="instructions-item">
+              <span class="instructions-icon">⎵</span>
+              <span>장애물 점프</span>
+            </div>
+            <div class="instructions-item">
+              <span class="instructions-icon">🖱️</span>
+              <span>아이템 작동</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage Selection Screen -->
+      <div id="screen-stage-select" class="screen">
+        <h2 style="font-size: 1.6rem; margin-top: 0; margin-bottom: 20px; font-weight: 800; letter-spacing: 0.5px;">스테이지 선택</h2>
+        <div class="stages-layout">
+          <!-- Stage 1 Card -->
+          <div class="stage-card lv1" onclick="startGame(1)">
+            <div class="stage-badge">STAGE 01</div>
+            <h3 class="stage-name">LV 1 (튜토리얼)</h3>
+            <div class="stage-difficulty">★☆☆☆☆</div>
+            <p class="stage-details">기본 조작을 익힙니다. 장애물 속도가 느리고 단순한 맵으로 구성되어 있습니다.</p>
+            <div id="record-stage-1" class="stage-record">최고 기록: 0</div>
+          </div>
+          <!-- Stage 2 Card -->
+          <div class="stage-card lv2" onclick="startGame(2)">
+            <div class="stage-badge">STAGE 02</div>
+            <h3 class="stage-name">LV 2 (일반)</h3>
+            <div class="stage-difficulty">★★★☆☆</div>
+            <p class="stage-details">장애물 속도가 증가하고, 강력한 방어 아이템이 공중에 등장하기 시작합니다.</p>
+            <div id="record-stage-2" class="stage-record">최고 기록: 0</div>
+          </div>
+          <!-- Stage 3 Card -->
+          <div class="stage-card lv3" onclick="startGame(3)">
+            <div class="stage-badge">STAGE 03</div>
+            <h3 class="stage-name">LV 3 (최종)</h3>
+            <div class="stage-difficulty">★★★★★</div>
+            <p class="stage-details">거대한 장애물이 등장하며, 불규칙하고 다양화된 패턴으로 난이도가 상승합니다.</p>
+            <div id="record-stage-3" class="stage-record">최고 기록: 0</div>
+          </div>
+        </div>
+        <button class="result-action-btn secondary" style="max-width: 140px;" onclick="goToStart()">메인으로</button>
+      </div>
+
+      <!-- Game Finish Result Screen -->
+      <div id="screen-result" class="screen">
+        <div class="result-panel">
+          <span id="result-badge-icon" class="result-badge-icon">🏆</span>
+          <h2 id="result-header-text" class="result-header-text success">STAGE CLEAR!</h2>
+          
+          <div class="result-stats-table">
+            <div class="stats-row">
+              <span class="stats-label">최종 획득 점수</span>
+              <div>
+                <span id="result-score" class="stats-value">0</span>
+                <span id="new-record-tag" class="new-tag" style="display: none;">NEW</span>
+              </div>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">생존 시간</span>
+              <span id="result-time" class="stats-value">0.0초</span>
+            </div>
+            <div class="stats-row">
+              <span class="stats-label">개인 최고 기록</span>
+              <span id="result-best" class="stats-value">0</span>
+            </div>
+          </div>
+
+          <div class="result-actions-row">
+            <button id="result-primary-action" class="result-action-btn primary" onclick="handleResultAction()">다음 스테이지</button>
+            <button class="result-action-btn secondary" onclick="goToStageSelect()">스테이지 선택</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom HUD overlay bar (y: 490 to 600) -->
+      <div id="hud-bar">
+        <!-- 1. Player Portrait Area -->
+        <div class="hud-portrait-box">
+          <img id="hud-portrait" src="assets/images/player.png" alt="Player Portrait">
+          <canvas id="hud-portrait-fallback" width="75" height="75"></canvas>
+        </div>
+
+        <!-- 2. Middle HUD Stats group -->
+        <div class="hud-stats">
+          <div class="hud-stat-cell" style="min-width: 90px;">
+            <span class="hud-stat-label">STAGE</span>
+            <span id="hud-stage-val" class="hud-stat-value" style="color: var(--accent-cyan);">LV 1</span>
+          </div>
+
+          <div class="hud-stat-cell hud-timer-wrap">
+            <span class="hud-stat-label">TIME</span>
+            <div class="hud-timer-bar">
+              <div id="hud-timer-fill" class="hud-timer-fill"></div>
+            </div>
+            <span id="hud-timer-val" class="hud-stat-value" style="min-width: 50px; text-align: right;">60.0s</span>
+          </div>
+
+          <div class="hud-stat-cell" style="min-width: 100px;">
+            <span class="hud-stat-label">SCORE</span>
+            <span id="hud-score-val" class="hud-stat-value" style="color: var(--accent-yellow);">0</span>
+          </div>
+        </div>
+
+        <!-- 3. Right Inventory Slot -->
+        <div class="hud-inventory">
+          <span class="hud-stat-label">ITEM SLOT</span>
+          <div id="item-slot" class="item-slot empty" onclick="useHeldItem(event)">
+            <span id="item-slot-icon" class="item-slot-icon"></span>
+            <span id="item-slot-label" class="item-slot-label">EMPTY</span>
+            <span class="item-slot-hint">CLICK TO USE (SHIFT)</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 피키의 위험한 모험. AI 협업 기반 게임 개발 프로젝트.</p>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // 1. 전역 에셋 경로 상수 (나중에 디자이너/사운드 조원 파일과 연동)
+    // =========================================================================
+    const PATH_PLAYER_IMAGE = 'assets/images/player.png';
+    const PATH_BACKGROUND = 'assets/images/background.png';
+    const PATH_CACTUS = 'assets/images/cactus.png';
+    const PATH_BOMB = 'assets/images/bomb.png';
+    const PATH_ITEM = 'assets/images/item.png';
+
+    const PATH_BGM = 'assets/audio/bgm.mp3';
+    const PATH_SFX_JUMP = 'assets/audio/sfx_jump.mp3';
+    const PATH_SFX_ITEM = 'assets/audio/sfx_item.mp3';
+    const PATH_SFX_GAMEOVER = 'assets/audio/sfx_gameover.mp3';
+
+    const GRAVITY = 0.58;
+
+    // =========================================================================
+    // 2. 색상 보간(낮밤 그라데이션)용 헬퍼 함수 (버그 극복 핵심 정의)
+    // =========================================================================
+    function lerpColorHex(color1, color2, factor) {
+      try {
+        const c1 = hexToRgb(color1);
+        const c2 = hexToRgb(color2);
+        const r = Math.round(c1.r + (c2.r - c1.r) * factor);
+        const g = Math.round(c1.g + (c2.g - c1.g) * factor);
+        const b = Math.round(c1.b + (c2.b - c1.b) * factor);
+        return `rgb(${r}, ${g}, ${b})`;
+      } catch (e) {
+        return color1; // 에러 시 기본 색상 리턴
+      }
+    }
+
+    function hexToRgb(hex) {
+      const bigint = parseInt(hex.replace('#', ''), 16);
+      return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255
+      };
+    }
+
+    // =========================================================================
+    // 3. 이미지 에셋 로딩 상태 체크 (onload 리스너를 src 설정 전에 바인딩하는 최적화 구조)
+    // =========================================================================
+    const playerImg = new Image();
+    let playerImgLoaded = false;
+    playerImg.onload = () => { 
+      playerImgLoaded = true;
+      updateHUDPortrait();
+    };
+    playerImg.onerror = () => {
+      console.warn("player.png 로드 실패 -> 벡터 Fallback 모드로 실행");
+      playerImgLoaded = false;
+      updateHUDPortrait();
+    };
+    playerImg.src = PATH_PLAYER_IMAGE;
+
+    const bgImg = new Image();
+    let bgImgLoaded = false;
+    bgImg.onload = () => { bgImgLoaded = true; };
+    bgImg.onerror = () => { bgImgLoaded = false; };
+    bgImg.src = PATH_BACKGROUND;
+
+    const cactusImg = new Image();
+    let cactusImgLoaded = false;
+    cactusImg.onload = () => { cactusImgLoaded = true; };
+    cactusImg.onerror = () => { cactusImgLoaded = false; };
+    cactusImg.src = PATH_CACTUS;
+
+    const bombImg = new Image();
+    let bombImgLoaded = false;
+    bombImg.onload = () => { bombImgLoaded = true; };
+    bombImg.onerror = () => { bombImgLoaded = false; };
+    bombImg.src = PATH_BOMB;
+
+    const itemImg = new Image();
+    let itemImgLoaded = false;
+    itemImg.onload = () => { itemImgLoaded = true; };
+    itemImg.onerror = () => { itemImgLoaded = false; };
+    itemImg.src = PATH_ITEM;
+
+    // =========================================================================
+    // 4. 오디오 에셋 설정 및 자동재생 정책 우회 / 로컬 누락 예외 처리
+    // =========================================================================
+    const bgmAudio = new Audio();
+    bgmAudio.src = PATH_BGM;
+    bgmAudio.loop = true;
+    bgmAudio.volume = 0.5;
+
+    const sfxJump = new Audio(PATH_SFX_JUMP);
+    const sfxItem = new Audio(PATH_SFX_ITEM);
+    const sfxGameOver = new Audio(PATH_SFX_GAMEOVER);
+
+    // 프리로드 시작
+    try {
+      bgmAudio.load();
+      sfxJump.load();
+      sfxItem.load();
+      sfxGameOver.load();
+    } catch (e) {
+      console.warn("Audio preloading blocked:", e);
+    }
+
+    // 로컬 폴더에 mp3 파일이 누락되어 있을 시 게임 중지를 막기 위한 Web Audio 합성 예외 처리 (Fallback)
+    class SynthFallback {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (this.ctx) return;
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            this.ctx = new AudioContextClass();
+          }
+        } catch (e) {
+          console.warn("Web Audio API not supported:", e);
+        }
+      }
+      playJump() {
+        this.init();
+        if (!this.ctx || audioMuted) return;
+        try {
+          const time = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(140, time);
+          osc.frequency.exponentialRampToValueAtTime(680, time + 0.15);
+          gain.gain.setValueAtTime(0.12, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(time);
+          osc.stop(time + 0.16);
+        } catch (e) {
+          console.warn("Synth playJump failed:", e);
+        }
+      }
+      playItem() {
+        this.init();
+        if (!this.ctx || audioMuted) return;
+        try {
+          const time = this.ctx.currentTime;
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const gain1 = this.ctx.createGain();
+          const gain2 = this.ctx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(523.25, time); // C5
+          gain1.gain.setValueAtTime(0.12, time);
+          gain1.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(659.25, time + 0.06); // E5
+          gain2.gain.setValueAtTime(0.12, time + 0.06);
+          gain2.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+          osc1.connect(gain1); gain1.connect(this.ctx.destination);
+          osc2.connect(gain2); gain2.connect(this.ctx.destination);
+          osc1.start(time); osc1.stop(time + 0.13);
+          osc2.start(time + 0.06); osc2.stop(time + 0.19);
+        } catch (e) {
+          console.warn("Synth playItem failed:", e);
+        }
+      }
+      playGameOver() {
+        this.init();
+        if (!this.ctx || audioMuted) return;
+        try {
+          const time = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, time);
+          osc.frequency.linearRampToValueAtTime(20, time + 0.45);
+          gain.gain.setValueAtTime(0.15, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.45);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(time);
+          osc.stop(time + 0.46);
+        } catch (e) {
+          console.warn("Synth playGameOver failed:", e);
+        }
+      }
+    }
+    const synth = new SynthFallback();
+
+    let audioMuted = false;
+
+    // 안전한 BGM 재생 (currentTime의 InvalidStateError 예외 방어 설계)
+    function playBGM() {
+      if (audioMuted) return;
+      try {
+        if (bgmAudio.readyState >= 1) { // 메타데이터가 불러와진 상태에서만 세팅
+          bgmAudio.currentTime = 0;
+        }
+      } catch (err) {
+        console.warn("BGM currentTime 설정 불가 (아직 로드되지 않음):", err);
+      }
+      bgmAudio.play().catch(err => {
+        console.warn("BGM mp3 자동재생 차단 또는 파일 없음:", err.message);
+      });
+    }
+
+    function pauseBGM() {
+      try {
+        bgmAudio.pause();
+      } catch (e) {
+        console.warn("BGM pause failed:", e);
+      }
+    }
+
+    function triggerJumpSFX() {
+      if (audioMuted) return;
+      sfxJump.play().catch(() => synth.playJump());
+    }
+
+    function triggerItemSFX() {
+      if (audioMuted) return;
+      sfxItem.play().catch(() => synth.playItem());
+    }
+
+    function triggerGameOverSFX() {
+      if (audioMuted) return;
+      sfxGameOver.play().catch(() => synth.playGameOver());
+    }
+
+    function playReadyGoVoice() {
+      if (audioMuted) return;
+      const voiceAudio = new Audio('assets/audio/voice_readygo.mp3');
+      voiceAudio.play().catch(() => {
+        // Fallback: Web Speech API
+        try {
+          if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance("Ready, Go!");
+            utterance.lang = "en-US";
+            utterance.pitch = 1.3;
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (e) {
+          console.warn("Web Speech API blocked or failed:", e);
+        }
+      });
+    }
+
+    // =========================================================================
+    // 5. 로컬/정적 크롬의 file:// 접근 보안제약 극복 localStorage 도우미
+    // =========================================================================
+    function getRecord(stage) {
+      try {
+        return localStorage.getItem(`piki_record_stage_${stage}`) || 0;
+      } catch (e) {
+        console.warn("로컬 보안 정책으로 localStorage 접근 제한됨:", e.message);
+        if (!window.tempRecords) window.tempRecords = {};
+        return window.tempRecords[stage] || 0;
+      }
+    }
+
+    function setRecord(stage, val) {
+      try {
+        localStorage.setItem(`piki_record_stage_${stage}`, val);
+      } catch (e) {
+        console.warn("로컬 보안 정책으로 localStorage 쓰기 제한됨:", e.message);
+        if (!window.tempRecords) window.tempRecords = {};
+        window.tempRecords[stage] = val;
+      }
+    }
+
+    // =========================================================================
+    // 6. 캐릭터 및 배경 절차적(Vector) 그래픽 렌더러 (폴백 및 장식용)
+    // =========================================================================
+    function drawPiki(ctx, x, y, frame, state, glowShield) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      if (state === 'dead') {
+        ctx.translate(20, 50);
+        ctx.rotate(Math.PI / 2);
+        ctx.translate(-20, -50);
+      }
+
+      let bounceY = 0;
+      let legAngle = 0;
+      let hairWiggle = 0;
+
+      if (state === 'run') {
+        bounceY = Math.abs(Math.sin(frame * 0.2)) * 5;
+        legAngle = Math.sin(frame * 0.2) * 0.7;
+        hairWiggle = Math.sin(frame * 0.15) * 0.15;
+      } else if (state === 'jump') {
+        legAngle = -0.4;
+        hairWiggle = -0.15;
+      }
+
+      ctx.translate(0, bounceY);
+
+      // 1. 양갈래 머리 (뒤편)
+      ctx.fillStyle = '#ff69b4';
+      ctx.save();
+      ctx.translate(4, 24);
+      ctx.rotate(-Math.PI / 4 + hairWiggle);
+      ctx.beginPath(); ctx.ellipse(0, 0, 7, 20, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(41, 24);
+      ctx.rotate(Math.PI / 4 - hairWiggle);
+      ctx.beginPath(); ctx.ellipse(0, 0, 7, 20, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // 2. 몸체 (분홍 원피스)
+      ctx.fillStyle = '#ff007f';
+      ctx.beginPath();
+      ctx.moveTo(12, 40);
+      ctx.lineTo(33, 40);
+      ctx.lineTo(37, 60);
+      ctx.lineTo(8, 60);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. 다리
+      ctx.strokeStyle = '#ffe0bd';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+
+      ctx.save();
+      ctx.translate(16, 59);
+      ctx.rotate(legAngle);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,8); ctx.stroke();
+      ctx.fillStyle = '#ff007f';
+      ctx.beginPath(); ctx.arc(0,8,4,0,Math.PI,true); ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(29, 59);
+      ctx.rotate(-legAngle);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,8); ctx.stroke();
+      ctx.fillStyle = '#ff007f';
+      ctx.beginPath(); ctx.arc(0,8,4,0,Math.PI,true); ctx.fill();
+      ctx.restore();
+
+      // 4. 얼굴
+      ctx.fillStyle = '#ffe0bd';
+      ctx.beginPath(); ctx.arc(22, 22, 16, 0, Math.PI * 2); ctx.fill();
+
+      // 머리카락 (앞)
+      ctx.fillStyle = '#ff69b4';
+      ctx.beginPath(); ctx.arc(22, 18, 17, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(5, 18);
+      ctx.quadraticCurveTo(12, 23, 16, 16);
+      ctx.quadraticCurveTo(22, 25, 27, 16);
+      ctx.quadraticCurveTo(32, 23, 39, 18);
+      ctx.lineTo(39, 8);
+      ctx.lineTo(5, 8);
+      ctx.closePath();
+      ctx.fill();
+
+      // 5. 표정
+      if (state === 'dead') {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(12, 18); ctx.lineTo(17, 23); ctx.moveTo(17, 18); ctx.lineTo(12, 23);
+        ctx.moveTo(27, 18); ctx.lineTo(32, 23); ctx.moveTo(32, 18); ctx.lineTo(27, 23);
+        ctx.stroke();
+        ctx.beginPath(); ctx.arc(22, 31, 3, Math.PI, 0); ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(14, 21, 3, 0, Math.PI, true); ctx.stroke();
+        ctx.beginPath(); ctx.arc(30, 21, 3, 0, Math.PI, true); ctx.stroke();
+        
+        ctx.fillStyle = 'rgba(255,100,120,0.5)';
+        ctx.beginPath(); ctx.arc(10, 25, 2.5, 0, Math.PI*2); ctx.arc(34, 25, 2.5, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#cc2255';
+        ctx.beginPath(); ctx.arc(22, 27, 2.5, 0, Math.PI); ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCactusFallback(ctx, x, y, width, height) {
+      ctx.save();
+      const grad = ctx.createLinearGradient(x, y, x + width, y);
+      grad.addColorStop(0, '#2e8b57');
+      grad.addColorStop(0.5, '#3cb371');
+      grad.addColorStop(1, '#1e5f3c');
+      ctx.fillStyle = grad;
+      ctx.strokeStyle = '#0f3d23';
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      ctx.roundRect(x + width/2 - 10, y, 20, height, 8);
+      ctx.fill(); ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x + width/2 - 10, y + height*0.55);
+      ctx.quadraticCurveTo(x + 3, y + height*0.55, x + 3, y + height*0.3);
+      ctx.lineTo(x + 11, y + height*0.3);
+      ctx.quadraticCurveTo(x + 11, y + height*0.46, x + width/2 - 10, y + height*0.46);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x + width/2 + 10, y + height*0.62);
+      ctx.quadraticCurveTo(x + width - 3, y + height*0.62, x + width - 3, y + height*0.38);
+      ctx.lineTo(x + width - 11, y + height*0.38);
+      ctx.quadraticCurveTo(x + width - 11, y + height*0.52, x + width/2 + 10, y + height*0.52);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawBombFallback(ctx, x, y, width, height, frame) {
+      ctx.save();
+      const cx = x + width / 2;
+      const cy = y + height / 2;
+      const r = width / 2 - 3;
+
+      ctx.strokeStyle = '#d2b48c';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r);
+      ctx.quadraticCurveTo(cx + 6, cy - r - 10, cx + 10, cy - r - 6);
+      ctx.stroke();
+
+      const sx = cx + 10;
+      const sy = cy - r - 6;
+      const fR = 4 + Math.sin(frame * 0.45) * 2;
+      const fGrad = ctx.createRadialGradient(sx, sy, 1, sx, sy, fR + 5);
+      fGrad.addColorStop(0, '#fff');
+      fGrad.addColorStop(0.3, '#ffcc00');
+      fGrad.addColorStop(0.8, '#ff3300');
+      fGrad.addColorStop(1, 'rgba(255,51,0,0)');
+      ctx.fillStyle = fGrad;
+      ctx.beginPath(); ctx.arc(sx, sy, fR + 5, 0, Math.PI * 2); ctx.fill();
+
+      const body = ctx.createRadialGradient(cx - r/3, cy - r/3, 1, cx, cy, r);
+      body.addColorStop(0, '#4f5263');
+      body.addColorStop(0.6, '#181921');
+      body.addColorStop(1, '#05060a');
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#101116';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath(); ctx.ellipse(cx - r/3, cy - r/3, r/3.5, r/5, -Math.PI / 4, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = '#ff2b55';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', cx, cy);
+
+      ctx.restore();
+    }
+
+    function drawItemFallback(ctx, x, y, width, height, type, frame) {
+      ctx.save();
+      const cx = x + width / 2;
+      const cy = y + height / 2 + Math.sin(frame * 0.1) * 4;
+      const r = width / 2;
+
+      const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, r * 1.5);
+      glow.addColorStop(0, 'rgba(0, 210, 255, 0.45)');
+      glow.addColorStop(1, 'rgba(0, 210, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(cx, cy, r * 1.5, 0, Math.PI*2); ctx.fill();
+
+      ctx.fillStyle = '#00d2ff';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 10);
+      ctx.lineTo(cx + 5, cy - 10);
+      ctx.lineTo(cx + 5, cy - 4);
+      ctx.lineTo(cx + 12, cy + 6);
+      ctx.quadraticCurveTo(cx, cy + 12, cx - 12, cy + 6);
+      ctx.lineTo(cx - 5, cy - 4);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = '#a0e5ff';
+      ctx.fillRect(cx - 8, cy - 14, 16, 4);
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // 7. 게임 코어 루프 및 상태 엔진
+    // =========================================================================
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const CANVAS_WIDTH = 800;
+    const CANVAS_HEIGHT = 600;
+    const GROUND_Y = 490; // y=490 이상 하단 110px은 HTML HUD가 덮음
+
+    let animationId = null;
+    let isRunning = false;
+    let currentStage = 1;
+    let stageTimer = 60.0;
+    let score = 0;
+    let gameFrame = 0;
+
+    // 플레이어 캐릭터 데이터 모델
+    const player = {
+      x: 120,
+      y: GROUND_Y - 25, // y=465 (grounded)
+      radius: 25,       // 원형 영역 반지름
+      vy: 0,
+      isGrounded: true,
+      state: 'run',     // 'run', 'jump', 'dead'
+      heldItem: false,  // 아이템 소지 여부
+      shieldActive: false,
+      shieldTime: 0,
+      invincibleTime: 0,
+      speed: 6.2
+    };
+
+    // 키 맵
+    const keys = {
+      ArrowLeft: false,
+      ArrowRight: false
+    };
+
+    // 장식용 패럴랙스 배경 레이어
+    class ProceduralForestLayer {
+      constructor(speed, colorDay, colorNight, count) {
+        this.speed = speed;
+        this.colorDay = colorDay;
+        this.colorNight = colorNight;
+        this.items = [];
+        for (let i = 0; i < count; i++) {
+          this.items.push({
+            x: Math.random() * CANVAS_WIDTH * 1.5 + (i * (CANVAS_WIDTH / count)),
+            width: 60 + Math.random() * 80,
+            height: 100 + Math.random() * 150,
+            type: Math.random() > 0.4 ? 'tree' : 'mushroom'
+          });
+        }
+      }
+      update(baseSpeed) {
+        this.items.forEach(el => {
+          el.x -= this.speed * baseSpeed;
+          if (el.x + el.width < -100) {
+            el.x = CANVAS_WIDTH + 100 + Math.random() * 200;
+            el.height = 100 + Math.random() * 150;
+          }
+        });
+      }
+      draw(ctx, t) {
+        ctx.save();
+        ctx.fillStyle = lerpColorHex(this.colorDay, this.colorNight, t);
+        this.items.forEach(el => {
+          if (el.type === 'tree') {
+            ctx.beginPath();
+            ctx.moveTo(el.x, GROUND_Y);
+            ctx.lineTo(el.x + el.width / 2, GROUND_Y - el.height);
+            ctx.lineTo(el.x + el.width, GROUND_Y);
+            ctx.closePath(); ctx.fill();
+          } else {
+            ctx.beginPath();
+            ctx.fillRect(el.x + el.width * 0.4, GROUND_Y - el.height * 0.5, el.width * 0.2, el.height * 0.5);
+            ctx.arc(el.x + el.width / 2, GROUND_Y - el.height * 0.5, el.width * 0.35, Math.PI, 0);
+            ctx.closePath(); ctx.fill();
+          }
+        });
+        ctx.restore();
+      }
+    }
+
+    const bgFar = new ProceduralForestLayer(0.4, '#1b2c48', '#070a14', 5);
+    const bgMid = new ProceduralForestLayer(1.0, '#2c4e33', '#0c1712', 4);
+    const bgNear = new ProceduralForestLayer(2.0, '#3a6833', '#112513', 3);
+
+    let groundScrollX = 0;
+    let obstacles = [];
+    let stageItems = [];
+    let particles = [];
+
+    // 파티클 (노란 스파클, 디케이 먼지 등)
+    class SparkleParticle {
+      constructor(x, y, dx, dy, color, size, maxLife) {
+        this.x = x;
+        this.y = y;
+        this.dx = dx;
+        this.dy = dy;
+        this.color = color;
+        this.size = size;
+        this.life = maxLife;
+        this.maxLife = maxLife;
+      }
+      update() {
+        this.x += this.dx;
+        this.y += this.dy;
+        this.dy += 0.08; // 중력
+        this.life--;
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+        ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // =========================================================================
+    // 8. UI 제어 및 화면 갱신 함수 (방어적 요소 가드)
+    // =========================================================================
+    function setScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById(screenId);
+      if (target) target.classList.add('active');
+    }
+
+    function goToStart() {
+      setScreen('screen-start');
+      drawStartPreview();
+    }
+
+    function goToStageSelect() {
+      setScreen('screen-stage-select');
+      for (let s = 1; s <= 3; s++) {
+        const hs = getRecord(s);
+        const el = document.getElementById(`record-stage-${s}`);
+        if (el) el.innerText = `최고 기록: ${hs}`;
+      }
+    }
+
+    function updateHUDPortrait() {
+      const portraitImg = document.getElementById('hud-portrait');
+      const fallbackCanvas = document.getElementById('hud-portrait-fallback');
+      if (!portraitImg || !fallbackCanvas) return;
+      
+      if (playerImgLoaded) {
+        portraitImg.src = PATH_PLAYER_IMAGE;
+        portraitImg.style.display = 'block';
+        fallbackCanvas.style.display = 'none';
+      } else {
+        portraitImg.style.display = 'none';
+        fallbackCanvas.style.display = 'block';
+        
+        const pCtx = fallbackCanvas.getContext('2d');
+        pCtx.clearRect(0, 0, 75, 75);
+        pCtx.fillStyle = '#0a0b16';
+        pCtx.fillRect(0, 0, 75, 75);
+        drawPiki(pCtx, 17, 7, 0, 'run', false);
+      }
+    }
+
+    function drawStartPreview() {
+      const pCanvas = document.getElementById('piki-preview-canvas');
+      if (!pCanvas) return;
+      const pCtx = pCanvas.getContext('2d');
+      pCtx.clearRect(0, 0, 110, 110);
+      pCtx.fillStyle = '#0c0d1b';
+      pCtx.fillRect(0, 0, 110, 110);
+      drawPiki(pCtx, 35, 20, Date.now() / 80, 'run', true);
+    }
+
+    let previewTicker = setInterval(drawStartPreview, 30);
+
+    // =========================================================================
+    // 9. 게임 루프 시작 및 갱신 논리
+    // =========================================================================
+    let lastTimestamp = 0;
+
+    function startGame(stageNum) {
+      clearInterval(previewTicker);
+      audio.init(); // 오디오 객체 확보
+      playBGM(); // Autoplay 우회 재생
+      playReadyGoVoice(); // 시작 보이스
+
+      currentStage = stageNum;
+      stageTimer = 60.0;
+      score = 0;
+      gameFrame = 0;
+
+      obstacles = [];
+      stageItems = [];
+      particles = [];
+
+      // 플레이어 리셋
+      player.x = 120;
+      player.y = GROUND_Y - player.radius;
+      player.vy = 0;
+      player.isGrounded = true;
+      player.state = 'run';
+      player.heldItem = false;
+      player.shieldActive = false;
+      player.shieldTime = 0;
+      player.invincibleTime = 0;
+
+      updateInventoryUI();
+      
+      const shieldOverlay = document.getElementById('shield-overlay');
+      if (shieldOverlay) shieldOverlay.classList.remove('active');
+
+      const stageNames = {1: 'LV 1 (튜토리얼)', 2: 'LV 2 (일반)', 3: 'LV 3 (최종)'};
+      const stageValEl = document.getElementById('hud-stage-val');
+      if (stageValEl) stageValEl.innerText = stageNames[stageNum];
+      
+      const scoreValEl = document.getElementById('hud-score-val');
+      if (scoreValEl) scoreValEl.innerText = '0';
+
+      setScreen('screen-hud'); // 게임 UI 활성화
+
+      isRunning = true;
+      lastTimestamp = performance.now();
+
+      if (animationId) cancelAnimationFrame(animationId);
+      animationId = requestAnimationFrame(gameMainLoop);
+    }
+
+    function exitGame(event) {
+      if (event) event.stopPropagation();
+      isRunning = false;
+      pauseBGM();
+      goToStageSelect();
+    }
+
+    function toggleMute(event) {
+      if (event) event.stopPropagation();
+      audioMuted = !audioMuted;
+      const btn = document.getElementById('btn-mute');
+      if (btn) btn.innerText = audioMuted ? '🔇' : '🔊';
+      if (audioMuted) {
+        pauseBGM();
+      } else {
+        if (isRunning) playBGM();
+      }
+    }
+
+    function gameMainLoop(timestamp) {
+      if (!isRunning) return;
+      const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+      lastTimestamp = timestamp;
+
+      updatePhysics(dt);
+      drawGraphics();
+
+      animationId = requestAnimationFrame(gameMainLoop);
+    }
+
+    // =========================================================================
+    // 10. 게임 물리 시뮬레이션 및 데이터 프레임 갱신
+    // =========================================================================
+    let spawnCounter = 0;
+    let itemSpawnCounter = 0;
+
+    function updatePhysics(dt) {
+      gameFrame++;
+
+      // 1. 스테이지 타이머 연산
+      stageTimer -= dt;
+      if (stageTimer <= 0) {
+        stageTimer = 0;
+        stageCleared();
+        return;
+      }
+
+      // 2. 점수 증가
+      score += Math.round(15 * dt);
+      const scoreValEl = document.getElementById('hud-score-val');
+      if (scoreValEl) scoreValEl.innerText = score;
+
+      // 3. 타이머 UI 동기화
+      const percent = (stageTimer / 60) * 100;
+      const fillEl = document.getElementById('hud-timer-fill');
+      if (fillEl) fillEl.style.width = `${percent}%`;
+      
+      const valEl = document.getElementById('hud-timer-val');
+      if (valEl) valEl.innerText = `${stageTimer.toFixed(1)}s`;
+
+      // 4. 버프 상태 연산
+      if (player.invincibleTime > 0) {
+        player.invincibleTime -= dt;
+      }
+      if (player.shieldActive) {
+        player.shieldTime -= dt;
+        if (player.shieldTime <= 0) {
+          player.shieldActive = false;
+          const overlay = document.getElementById('shield-overlay');
+          if (overlay) overlay.classList.remove('active');
+        }
+      }
+
+      // BGA 그라데이션 낮밤 페이드 보간 변수(0~1)
+      let nightT = 0;
+      if (stageTimer > 35) {
+        nightT = 0;
+      } else if (stageTimer >= 25) {
+        nightT = (35 - stageTimer) / 10;
+      } else {
+        nightT = 1;
+      }
+
+      // 밤(nightT > 0.5)일 때의 밤하늘 장식 파티클(반딧불이)
+      if (nightT > 0.3 && Math.random() < 0.06 * nightT) {
+        particles.push(new SparkleParticle(
+          Math.random() * CANVAS_WIDTH,
+          GROUND_Y - 20 - Math.random() * 200,
+          (Math.random() - 0.5) * 0.4,
+          -0.3 - Math.random() * 0.4,
+          'rgba(180, 255, 120, 0.75)',
+          2 + Math.random() * 2,
+          100 + Math.random() * 80
+        ));
+      }
+
+      // 5. 스피드 계수 계산
+      let baseSpeed = 5.0;
+      if (currentStage === 2) baseSpeed = 6.8;
+      else if (currentStage === 3) baseSpeed = 8.5;
+
+      // 패럴랙스 스크롤링
+      bgFar.update(baseSpeed);
+      bgMid.update(baseSpeed);
+      bgNear.update(baseSpeed);
+
+      groundScrollX += baseSpeed;
+
+      // 6. 플레이어 컨트롤 및 중력 물리
+      let moveDx = 0;
+      if (keys.ArrowLeft) moveDx = -player.speed;
+      if (keys.ArrowRight) moveDx = player.speed;
+
+      player.x += moveDx;
+      // 좌우 이동 제한 바운더리
+      if (player.x < 50) player.x = 50;
+      if (player.x > 450) player.x = 450;
+
+      if (!player.isGrounded) {
+        player.vy += GRAVITY;
+        player.y += player.vy;
+
+        if (player.y >= GROUND_Y - player.radius) {
+          player.y = GROUND_Y - player.radius;
+          player.vy = 0;
+          player.isGrounded = true;
+          player.state = 'run';
+        }
+      }
+
+      // 달리는 흙먼지 파티클
+      if (player.isGrounded && Math.random() < 0.2) {
+        particles.push(new SparkleParticle(
+          player.x - 5,
+          GROUND_Y - 2,
+          -1 - Math.random() * 1.5,
+          -0.1 - Math.random() * 0.3,
+          'rgba(220, 220, 220, 0.25)',
+          3 + Math.random() * 3,
+          15 + Math.random() * 10
+        ));
+      }
+
+      // 7. 장애물 및 아이템 생성 (LV에 최적화된 기획 설계 반영)
+      spawnEntities(dt, baseSpeed);
+
+      // 8. 장애물 충돌 연산
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.x -= obs.speed;
+
+        // Stage 3 파이어볼 낙하
+        if (obs.type === 'fireball') {
+          obs.y += obs.vy;
+        }
+
+        // 범위 아웃 시 해제
+        if (obs.x + obs.width < -100) {
+          obstacles.splice(i, 1);
+          continue;
+        }
+
+        // 충돌 검사 (원형-박스 충돌 간소화)
+        if (checkCircleBoxCollision(player, obs)) {
+          if (player.invincibleTime <= 0) {
+            if (player.shieldActive) {
+              // 실드가 켜진 경우 충돌을 무효화하고 보호막 즉시 소모
+              player.shieldActive = false;
+              const overlay = document.getElementById('shield-overlay');
+              if (overlay) overlay.classList.remove('active');
+              
+              player.invincibleTime = 1.0; // 짧은 무적 프레임
+              triggerGameOverSFX(); // 콰광 효과음
+              spawnExplosion(obs.x + obs.width/2, obs.y + obs.height/2, obs.type === 'bomb' ? '#ff4f22' : '#2e8b57');
+              obstacles.splice(i, 1);
+            } else {
+              triggerGameOver();
+              return;
+            }
+          }
+        }
+      }
+
+      // 9. 아이템 수집 연산
+      for (let i = stageItems.length - 1; i >= 0; i--) {
+        const itm = stageItems[i];
+        itm.x -= baseSpeed;
+
+        if (itm.x + itm.width < -100) {
+          stageItems.splice(i, 1);
+          continue;
+        }
+
+        // 플레이어 수집 확인
+        if (checkCircleBoxCollision(player, itm)) {
+          collectItem();
+          stageItems.splice(i, 1);
+        }
+      }
+
+      // 10. 파티클 물리 갱신
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update();
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 11. 장애물 및 아이템 스포너
+    // =========================================================================
+    function spawnEntities(dt, baseSpeed) {
+      spawnCounter -= dt * 60;
+      if (spawnCounter <= 0) {
+        let cooldown = 110 + Math.random() * 80;
+        
+        let type = 'cactus';
+        let width = 34 + Math.random() * 8;
+        let height = 50 + Math.random() * 12;
+        let y = GROUND_Y - height;
+        let vy = 0;
+        let speed = baseSpeed;
+
+        if (currentStage === 1) {
+          type = 'cactus';
+          speed = baseSpeed * 0.9;
+        } else if (currentStage === 2) {
+          cooldown = 80 + Math.random() * 70;
+          if (Math.random() < 0.6) {
+            type = 'cactus';
+          } else {
+            type = 'bomb';
+            width = 40; height = 40;
+            if (Math.random() < 0.3) {
+              y = GROUND_Y - 110; // 공중 폭탄
+            } else {
+              y = GROUND_Y - height; // 지상 폭탄
+            }
+          }
+        } else if (currentStage === 3) {
+          cooldown = 55 + Math.random() * 55;
+          const rand = Math.random();
+          if (rand < 0.4) {
+            type = 'cactus';
+            if (Math.random() < 0.3) {
+              width = 54;
+              height = 80;
+              y = GROUND_Y - height;
+            }
+          } else if (rand < 0.7) {
+            type = 'bomb';
+            width = 42; height = 42;
+            if (Math.random() < 0.25) {
+              y = GROUND_Y - 115;
+            } else {
+              y = GROUND_Y - height;
+            }
+          } else {
+            type = 'fireball';
+            width = 35; height = 35;
+            y = 30 + Math.random() * 120;
+            vy = 1.6 + Math.random() * 1.5;
+            speed = baseSpeed * 1.1;
+          }
+        }
+
+        obstacles.push({ type, x: CANVAS_WIDTH + 50, y, width, height, speed, vy });
+        spawnCounter = cooldown;
+      }
+
+      // 아이템 생성 (LV 2, 3에서만 스폰)
+      if (currentStage >= 2) {
+        itemSpawnCounter -= dt * 60;
+        if (itemSpawnCounter <= 0) {
+          stageItems.push({
+            x: CANVAS_WIDTH + 50,
+            y: GROUND_Y - 115 - Math.random() * 70,
+            width: 32,
+            height: 32
+          });
+          itemSpawnCounter = 650 + Math.random() * 400;
+        }
+      }
+    }
+
+    function checkCircleBoxCollision(circle, rect) {
+      const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+      const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+      const distanceX = circle.x - closestX;
+      const distanceY = circle.y - closestY;
+      const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+      return distanceSquared < (circle.radius * circle.radius);
+    }
+
+    function spawnExplosion(x, y, color) {
+      for (let i = 0; i < 15; i++) {
+        const dx = (Math.random() - 0.5) * 5;
+        const dy = -1 - Math.random() * 4;
+        particles.push(new SparkleParticle(x, y, dx, dy, color, 3 + Math.random() * 3, 25 + Math.random() * 15));
+      }
+    }
+
+    // =========================================================================
+    // 12. 아이템 수집 및 사용
+    // =========================================================================
+    function collectItem() {
+      player.heldItem = true;
+      triggerItemSFX();
+
+      for (let i = 0; i < 12; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 3;
+        particles.push(new SparkleParticle(
+          player.x, player.y,
+          Math.cos(angle)*speed, Math.sin(angle)*speed,
+          '#ffd700',
+          3 + Math.random()*2,
+          20 + Math.random()*15
+        ));
+      }
+      updateInventoryUI();
+    }
+
+    function updateInventoryUI() {
+      const slot = document.getElementById('item-slot');
+      const icon = document.getElementById('item-slot-icon');
+      const label = document.getElementById('item-slot-label');
+      if (!slot || !icon || !label) return;
+
+      slot.className = 'item-slot';
+
+      if (player.heldItem) {
+        slot.classList.add('has-item');
+        icon.innerText = '🛡️';
+        label.innerText = 'SHIELD';
+      } else {
+        slot.classList.add('empty');
+        icon.innerText = '';
+        label.innerText = 'EMPTY';
+      }
+    }
+
+    function useHeldItem(event) {
+      if (event) event.stopPropagation();
+      if (!isRunning || !player.heldItem) return;
+
+      player.heldItem = false;
+      updateInventoryUI();
+
+      player.shieldActive = true;
+      player.shieldTime = 5.0;
+      
+      const overlay = document.getElementById('shield-overlay');
+      if (overlay) overlay.classList.add('active');
+
+      triggerItemSFX();
+
+      for (let i = 0; i < 20; i++) {
+        const angle = (i * Math.PI * 2) / 20;
+        particles.push(new SparkleParticle(
+          player.x, player.y,
+          Math.cos(angle)*2.5, Math.sin(angle)*2.5,
+          '#00d2ff',
+          3.5,
+          30
+        ));
+      }
+    }
+
+    // =========================================================================
+    // 13. 승리 및 패배 결과 처리
+    // =========================================================================
+    function triggerGameOver() {
+      isRunning = false;
+      pauseBGM();
+      triggerGameOverSFX();
+
+      player.state = 'dead';
+      drawGraphics();
+
+      setTimeout(() => {
+        const hsKey = `piki_record_stage_${currentStage}`;
+        const prevBest = getRecord(currentStage);
+        let recordBroken = false;
+        if (score > prevBest) {
+          setRecord(currentStage, score);
+          recordBroken = true;
+        }
+
+        const badge = document.getElementById('result-badge-icon');
+        if (badge) badge.innerText = '💀';
+        
+        const txt = document.getElementById('result-header-text');
+        if (txt) {
+          txt.innerText = 'GAME OVER';
+          txt.className = 'result-header-text failure';
+        }
+
+        const scoreEl = document.getElementById('result-score');
+        if (scoreEl) scoreEl.innerText = score;
+        
+        const timeEl = document.getElementById('result-time');
+        if (timeEl) timeEl.innerText = `${(60.0 - stageTimer).toFixed(1)}초`;
+        
+        const bestEl = document.getElementById('result-best');
+        if (bestEl) bestEl.innerText = Math.max(score, prevBest);
+        
+        const tagEl = document.getElementById('new-record-tag');
+        if (tagEl) tagEl.style.display = recordBroken ? 'inline-block' : 'none';
+
+        const actBtn = document.getElementById('result-primary-action');
+        if (actBtn) {
+          actBtn.innerText = '다시 도전';
+          actBtn.className = 'result-action-btn primary';
+        }
+
+        setScreen('screen-result');
+      }, 900);
+    }
+
+    function stageCleared() {
+      isRunning = false;
+      pauseBGM();
+
+      const time = audio.ctx ? audio.ctx.currentTime : 0;
+      synth.playItem();
+      if (audio.ctx) {
+        setTimeout(() => synth.playJump(), 120);
+        setTimeout(() => synth.playItem(), 240);
+      }
+
+      for (let j = 0; j < 3; j++) {
+        setTimeout(() => {
+          const fx = 150 + Math.random() * 500;
+          const fy = 100 + Math.random() * 150;
+          for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const sp = 1.5 + Math.random() * 4;
+            particles.push(new SparkleParticle(
+              fx, fy,
+              Math.cos(angle)*sp, Math.sin(angle)*sp,
+              ['#ffd700', '#00d2ff', '#ff007f'][Math.floor(Math.random()*3)],
+              3 + Math.random()*2,
+              35 + Math.random()*25
+            ));
+          }
+        }, j * 180);
+      }
+
+      setTimeout(() => {
+        const hsKey = `piki_record_stage_${currentStage}`;
+        const prevBest = getRecord(currentStage);
+        let recordBroken = false;
+        if (score > prevBest) {
+          setRecord(currentStage, score);
+          recordBroken = true;
+        }
+
+        const badge = document.getElementById('result-badge-icon');
+        if (badge) badge.innerText = '🏆';
+        
+        const txt = document.getElementById('result-header-text');
+        if (txt) {
+          txt.innerText = 'STAGE CLEARED!';
+          txt.className = 'result-header-text success';
+        }
+
+        const scoreEl = document.getElementById('result-score');
+        if (scoreEl) scoreEl.innerText = score;
+        
+        const timeEl = document.getElementById('result-time');
+        if (timeEl) timeEl.innerText = '60.0초';
+        
+        const bestEl = document.getElementById('result-best');
+        if (bestEl) bestEl.innerText = Math.max(score, prevBest);
+        
+        const tagEl = document.getElementById('new-record-tag');
+        if (tagEl) tagEl.style.display = recordBroken ? 'inline-block' : 'none';
+
+        const actBtn = document.getElementById('result-primary-action');
+        if (actBtn) {
+          if (currentStage < 3) {
+            actBtn.innerText = '다음 스테이지';
+          } else {
+            actBtn.innerText = '다시 하기';
+          }
+          actBtn.className = 'result-action-btn primary';
+        }
+
+        setScreen('screen-result');
+      }, 900);
+    }
+
+    function handleResultAction() {
+      const btnText = document.getElementById('result-primary-action').innerText;
+      if (btnText === '다음 스테이지') {
+        startGame(currentStage + 1);
+      } else {
+        startGame(currentStage);
+      }
+    }
+
+    // =========================================================================
+    // 14. 드로잉 및 렌더러 엔진
+    // =========================================================================
+    function drawGraphics() {
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      let nightT = 0;
+      if (stageTimer > 35) {
+        nightT = 0;
+      } else if (stageTimer >= 25) {
+        nightT = (35 - stageTimer) / 10;
+      } else {
+        nightT = 1;
+      }
+
+      // 1. 배경 아트 그리기 (BGA)
+      drawBackground(ctx, nightT);
+
+      // 밤하늘의 별 반짝임
+      if (nightT > 0) {
+        ctx.save();
+        ctx.globalAlpha = nightT;
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 30; i++) {
+          const sx = (i * 29) % CANVAS_WIDTH;
+          const sy = (i * 17) % 230;
+          const size = 0.8 + (Math.sin(gameFrame * 0.06 + i) + 1) * 0.7;
+          ctx.beginPath(); ctx.arc(sx, sy, size, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 2. 패럴랙스 나무/버섯 장식
+      if (!bgImgLoaded) {
+        bgFar.draw(ctx, nightT);
+        bgMid.draw(ctx, nightT);
+        bgNear.draw(ctx, nightT);
+      }
+
+      // 3. 지면 그리기
+      drawGround(ctx, groundScrollX, nightT);
+
+      // 4. 아이템 그리기
+      stageItems.forEach(itm => {
+        if (itemImgLoaded) {
+          ctx.drawImage(itemImg, itm.x, itm.y, itm.width, itm.height);
+        } else {
+          drawItemFallback(ctx, itm.x, itm.y, itm.width, itm.height, 'shield', gameFrame);
+        }
+      });
+
+      // 5. 장애물 그리기
+      obstacles.forEach(obs => {
+        if (obs.type === 'cactus') {
+          if (cactusImgLoaded) {
+            ctx.drawImage(cactusImg, obs.x, obs.y, obs.width, obs.height);
+          } else {
+            drawCactusFallback(ctx, obs.x, obs.y, obs.width, obs.height);
+          }
+        } else if (obs.type === 'bomb') {
+          if (bombImgLoaded) {
+            ctx.drawImage(bombImg, obs.x, obs.y, obs.width, obs.height);
+          } else {
+            drawBombFallback(ctx, obs.x, obs.y, obs.width, obs.height, gameFrame);
+          }
+        } else if (obs.type === 'fireball') {
+          ctx.save();
+          const cx = obs.x + obs.width/2;
+          const cy = obs.y + obs.height/2;
+          const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, obs.width/2);
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.3, '#ffaa00');
+          grad.addColorStop(0.8, '#ff1100');
+          grad.addColorStop(1, 'rgba(255,17,0,0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(cx, cy, obs.width/2, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+        }
+      });
+
+      // 6. 플레이어 캐릭터 이미지 렌더링 (Circle 영역 내 원형 자르기)
+      if (player.state !== 'dead' || gameFrame % 6 < 3) {
+        drawPlayer(ctx);
+      }
+
+      // 7. 파티클 레이어 그리기
+      particles.forEach(p => {
+        p.draw(ctx);
+      });
+    }
+
+    function drawPlayer(ctx) {
+      ctx.save();
+
+      if (player.state === 'dead') {
+        ctx.translate(player.x, player.y);
+        ctx.rotate(Math.PI / 2);
+        ctx.translate(-player.x, -player.y);
+      }
+
+      // 원형 클리핑 영역 빌드
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip(); // 마스킹 클리핑 처리
+
+      if (playerImgLoaded) {
+        const diameter = player.radius * 2;
+        const imgW = playerImg.naturalWidth;
+        const imgH = playerImg.naturalHeight;
+        
+        let drawW, drawH;
+        if (imgW > imgH) {
+          drawH = diameter;
+          drawW = (imgW / imgH) * diameter;
+        } else {
+          drawW = diameter;
+          drawH = (imgH / imgW) * diameter;
+        }
+
+        const dx = player.x - drawW / 2;
+        const dy = player.y - drawH / 2;
+        ctx.drawImage(playerImg, dx, dy, drawW, drawH);
+      } else {
+        drawPiki(ctx, player.x - 22, player.y - 30, gameFrame, player.state, false);
+      }
+
+      ctx.restore();
+
+      // 원형 핑크색 외곽 테두리
+      ctx.strokeStyle = '#ff007f';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 보호막 활성화 버블 링
+      if (player.shieldActive && player.state !== 'dead') {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 210, 255, 0.8)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00d2ff';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius + 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawBackground(ctx, nightT) {
+      const skyTop = lerpColorHex('#367fc0', '#060817', nightT);
+      const skyBottom = lerpColorHex('#b5e0ff', '#1a103c', nightT);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+      grad.addColorStop(0, skyTop);
+      grad.addColorStop(1, skyBottom);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, GROUND_Y);
+
+      ctx.save();
+      if (nightT < 1) {
+        ctx.globalAlpha = 1 - nightT;
+        const sunX = 140 + (60 - stageTimer) * 8.5;
+        const sunY = 110 + Math.sin((60 - stageTimer) * 0.04) * 60;
+        const sunGrad = ctx.createRadialGradient(sunX, sunY, 3, sunX, sunY, 40);
+        sunGrad.addColorStop(0, '#ffffff');
+        sunGrad.addColorStop(0.3, '#fffcda');
+        sunGrad.addColorStop(1, 'rgba(255, 204, 68, 0)');
+        ctx.fillStyle = sunGrad;
+        ctx.beginPath(); ctx.arc(sunX, sunY, 40, 0, Math.PI*2); ctx.fill();
+      }
+      if (nightT > 0) {
+        ctx.globalAlpha = nightT;
+        const moonX = 660 - (30 - stageTimer) * 6.5;
+        const moonY = 90 + Math.sin((30 - stageTimer) * 0.05) * 40;
+        
+        ctx.shadowColor = '#d9eaff';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#f7faff';
+        ctx.beginPath(); ctx.arc(moonX, moonY, 24, 0, Math.PI*2); ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(moonX - 8, moonY - 3, 24, 0, Math.PI*2); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
+
+      if (bgImgLoaded) {
+        const bgSpeed = 1.0;
+        const offset = -(groundScrollX * bgSpeed) % CANVAS_WIDTH;
+        ctx.drawImage(bgImg, offset, 0, CANVAS_WIDTH, GROUND_Y);
+        ctx.drawImage(bgImg, offset + CANVAS_WIDTH, 0, CANVAS_WIDTH, GROUND_Y);
+
+        if (nightT > 0) {
+          ctx.save();
+          ctx.globalAlpha = nightT * 0.6;
+          ctx.fillStyle = '#0a0d24';
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, GROUND_Y);
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawGround(ctx, scrollX, nightT) {
+      ctx.save();
+      const floorColor = lerpColorHex('#3d692c', '#0d2613', nightT);
+      ctx.fillStyle = floorColor;
+      ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
+
+      ctx.strokeStyle = lerpColorHex('#4d8b3c', '#15381a', nightT);
+      ctx.lineWidth = 3.5;
+      const modX = scrollX % 70;
+
+      for (let x = -70; x < CANVAS_WIDTH + 70; x += 70) {
+        ctx.beginPath();
+        ctx.moveTo(x - modX, GROUND_Y + 4);
+        ctx.lineTo(x - modX + 45, GROUND_Y + 4);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x - modX + 20, GROUND_Y);
+        ctx.lineTo(x - modX + 16, GROUND_Y - 8);
+        ctx.moveTo(x - modX + 20, GROUND_Y);
+        ctx.lineTo(x - modX + 20, GROUND_Y - 11);
+        ctx.moveTo(x - modX + 20, GROUND_Y);
+        ctx.lineTo(x - modX + 24, GROUND_Y - 7);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = lerpColorHex('#60b343', '#1c4923', nightT);
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(CANVAS_WIDTH, GROUND_Y); ctx.stroke();
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // 15. 오디오 제어 매니저
+    // =========================================================================
+    const audio = {
+      init() {
+        synth.init();
+      }
+    };
+
+    // =========================================================================
+    // 16. 키보드 바인딩 제어
+    // =========================================================================
+    window.addEventListener('keydown', e => {
+      if (['ArrowLeft', 'ArrowRight', ' ', 'Shift', 'ArrowUp'].includes(e.key)) {
+        e.preventDefault();
+      }
+
+      if (e.key === 'ArrowLeft') keys.ArrowLeft = true;
+      if (e.key === 'ArrowRight') keys.ArrowRight = true;
+      if (e.key === ' ' || e.key === 'ArrowUp') {
+        if (player.isGrounded && player.state !== 'dead' && isRunning) {
+          player.vy = -14.2;
+          player.isGrounded = false;
+          player.state = 'jump';
+          triggerJumpSFX();
+        }
+      }
+      if (e.key === 'Shift') {
+        useHeldItem();
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      if (e.key === 'ArrowLeft') keys.ArrowLeft = false;
+      if (e.key === 'ArrowRight') keys.ArrowRight = false;
+    });
+
+    // 마우스 클릭 시 사운드 컨텍스트 잠금 해제
+    window.addEventListener('click', () => {
+      audio.init();
+    });
+
+    // 최초 인트로 빌드
+    goToStart();
+  </script>
+</body>
+</html>

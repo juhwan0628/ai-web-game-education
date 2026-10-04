@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>molemole.io - 업그레이드 두더지</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #2c1d11; font-family: sans-serif; user-select: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 20px; font-weight: bold; text-shadow: 2px 2px 2px #000; pointer-events: none; }
+        #leaderboard { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 15px; border-radius: 8px; min-width: 160px; pointer-events: none; text-align:right; }
+        #leaderboard h3 { margin: 0 0 10px 0; border-bottom: 1px solid #fff; padding-bottom: 5px; font-size: 16px; text-align:center;}
+        #leaderboard div { margin: 4px 0; font-size: 14px; }
+        #game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: white; padding: 30px; border-radius: 10px; text-align: center; display: none; }
+        #btn-restart { background: #ff9800; border: none; color: white; padding: 10px 25px; font-size: 16px; cursor: pointer; border-radius: 5px; margin-top: 15px; font-weight: bold; }
+        #controls-guide { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; padding: 8px 20px; border-radius: 20px; font-size: 14px; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">점수: <span id="score">0</span> | 에너지통: <span id="size-val">20</span></div>
+    <div id="leaderboard"><h3>🏆 순위</h3><div id="leaderboard-list"></div></div>
+    <div id="game-over"><h1>게임 오버!</h1><p>최종 점수: <span id="final-size">0</span></p><button id="btn-restart" onclick="restartGame()">다시 시작</button></div>
+    <div id="controls-guide">🖱️ 좌클릭: 대시(에너지 소모) | 우클릭: 멈춰서 회복</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 우클릭 메뉴 방지
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        // --- 설정 ---
+        const MAP_SIZE = 5000; // 맵 크기 대폭 확장
+        const START_R = 20;    // 시작 크기
+        const BOT_COUNT = 60;  // 봇 마리수 증가
+        const MINERAL_COUNT = 1000; // 광물 개수 증가
+
+        let player, moles, minerals, isGameOver = false;
+        let mx = canvas.width / 2, my = canvas.height / 2;
+        let mouseButtons = { left: false, right: false };
+
+        // --- 입력 감지 ---
+        window.addEventListener('mousemove', (e) => { mx = e.clientX; my = e.clientY; });
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0) mouseButtons.left = true;
+            if (e.button === 2) mouseButtons.right = true;
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) mouseButtons.left = false;
+            if (e.button === 2) mouseButtons.right = false;
+        });
+
+        // --- 두더지 클래스 ---
+        class Mole {
+            constructor(x, y, r, name, isBot) {
+                this.x = x; this.y = y;
+                this.peakR = r; // 먹어서 키운 최대 크기 (에너지 총량)
+                this.r = r;     // 현재 크기 (현재 에너지)
+                this.name = name; this.isBot = isBot;
+                // 두더지 색상 (갈색 계열)
+                this.color = isBot ? `hsl(${30 + Math.random() * 20}, 60%, ${40 + Math.random() * 20}%)` : '#A52A2A';
+                this.angle = Math.random() * Math.PI * 2;
+                this.timer = 0;
+                this.speed = 0;
+            }
+
+            update() {
+                // 기본 속도 (크기가 클수록 느려짐)
+                let baseSpeed = Math.max(1.5, 5 - (this.peakR / 70));
+                this.speed = 0; // 기본 정지
+
+                if (!this.isBot) {
+                    // --- 플레이어 조작 로직 ---
+                    if (mouseButtons.right) {
+                        // 1. 우클릭: 멈춰서 회복
+                        this.r = Math.min(this.peakR, this.r + 0.2); // 현재 에너지를 최대치까지 회복
+                    } else {
+                        let isDashing = mouseButtons.left && this.r > START_R * 0.7; // 최소 에너지 이상일때만 대시
+                        
+                        this.speed = isDashing ? baseSpeed * 1.8 : baseSpeed;
+
+                        if (isDashing) {
+                            this.r -= 0.06; // 대시 중 현재 에너지(크기) 감소
+                        }
+
+                        // 이동 방향 계산
+                        let dx = mx - canvas.width / 2;
+                        let dy = my - canvas.height / 2;
+                        if (Math.hypot(dx, dy) > 10) {
+                            this.angle = Math.atan2(dy, dx);
+                            this.x += Math.cos(this.angle) * this.speed;
+                            this.y += Math.sin(this.angle) * this.speed;
+                        }
+                    }
+                } else {
+                    // --- 봇 인공지능 (간단) ---
+                    this.timer--;
+                    if (this.timer <= 0) {
+                        this.angle = Math.random() * Math.PI * 2;
+                        this.timer = 30 + Math.random() * 60;
+                        this.isBotDashing = Math.random() < 0.15; // 봇도 가끔 대시
+                    }
+                    
+                    let bSpeed = isGameOver ? 0 : baseSpeed;
+                    if(this.isBotDashing && this.r > START_R){
+                        bSpeed *= 1.6;
+                        this.r -= 0.03;
+                    }
+
+                    this.x += Math.cos(this.angle) * bSpeed;
+                    this.y += Math.sin(this.angle) * bSpeed;
+                }
+
+                // 맵 밖으로 나가지 못하게
+                this.x = Math.max(this.peakR, Math.min(MAP_SIZE - this.peakR, this.x));
+                this.y = Math.max(this.peakR, Math.min(MAP_SIZE - this.peakR, this.y));
+            }
+
+            // --- ✨ 두더지 외형 그리기 ---
+            draw(cx, cy) {
+                let sx = this.x - cx + canvas.width / 2;
+                let sy = this.y - cy + canvas.height / 2;
+                
+                // 화면 안에 있을 때만 그리기
+                let drawR = this.peakR + 10;
+                if (sx+drawR<0 || sx-drawR>canvas.width || sy+drawR<0 || sy-drawR>canvas.height) return;
+
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.rotate(this.angle);
+
+                // 1. 앞발 (Digging Paws)
+                ctx.fillStyle = '#FFD1DC'; // 분홍색 발
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                // 왼쪽 발
+                ctx.beginPath(); ctx.ellipse(-this.r*0.7, -this.r*0.8, this.r*0.4, this.r*0.6, 0.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                // 오른쪽 발
+                ctx.beginPath(); ctx.ellipse(-this.r*0.7, this.r*0.8, this.r*0.4, this.r*0.6, -0.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                
+                // 발가락/발톱 표현
+                ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+                for(let i=0; i<3; i++){
+                    // 왼발톱
+                    ctx.beginPath(); ctx.moveTo(-this.r*0.8, -this.r*0.9 + i*this.r*0.1); ctx.lineTo(-this.r*1.1, -this.r*1.0 + i*this.r*0.15); ctx.stroke();
+                    // 오른발톱
+                    ctx.beginPath(); ctx.moveTo(-this.r*0.8, this.r*0.9 - i*this.r*0.1); ctx.lineTo(-this.r*1.1, this.r*1.0 - i*this.r*0.15); ctx.stroke();
+                }
+
+                // 2. 몸통
+                ctx.beginPath();
+                // 약간 타원형으로 만들어 두더지 느낌 부여
+                ctx.ellipse(0, 0, this.r, this.r * 0.85, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.strokeStyle = '#111';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 3. 얼굴 요소 (코, 눈)
+                // 코
+                ctx.beginPath();
+                ctx.arc(this.r * 0.8, 0, this.r * 0.25, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFC0CB'; // 분홍코
+                ctx.fill();
+                ctx.stroke();
+                // 콧구멍
+                ctx.fillStyle = '#333';
+                ctx.beginPath(); ctx.arc(this.r * 0.9, -this.r*0.05, this.r*0.05, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(this.r * 0.9, this.r*0.05, this.r*0.05, 0, Math.PI*2); ctx.fill();
+
+                // 눈
+                ctx.fillStyle = 'black';
+                ctx.beginPath(); ctx.arc(this.r * 0.4, -this.r * 0.3, this.r * 0.08, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(this.r * 0.4, this.r * 0.3, this.r * 0.08, 0, Math.PI * 2); ctx.fill();
+
+                ctx.restore();
+
+                // 4. 이름 및 ✨ 에너지바 그리기
+                // 이름
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${Math.max(12, this.r * 0.35)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText(this.name, sx, sy - this.r - 20);
+
+                // 에너지바 (현재 r / 최대 peakR)
+                let barW = this.r * 1.6;
+                let barH = 6;
+                let barX = sx - barW / 2;
+                let barY = sy - this.r - 12;
+
+                ctx.fillStyle = 'rgba(0,0,0,0.5)'; // 배경
+                ctx.fillRect(barX, barY, barW, barH);
+
+                let energyRatio = this.r / this.peakR;
+                // 에너지 양에 따라 색상 변경 (녹색 -> 주황 -> 빨강)
+                ctx.fillStyle = `hsl(${energyRatio * 120}, 70%, 50%)`;
+                if(this.speed > this.peakR*0.1) ctx.fillStyle = '#ff9800'; // 대시중엔 주황 고정
+
+                ctx.fillRect(barX, barY, barW * energyRatio, barH);
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barW, barH);
+            }
+        }
+
+        // --- 광물 초기화 ---
+        function createMinerals() {
+            minerals = [];
+            for (let i = 0; i < MINERAL_COUNT; i++) {
+                minerals.push({
+                    x: Math.random() * MAP_SIZE,
+                    y: Math.random() * MAP_SIZE,
+                    c: ['#ff3366', '#ffd700', '#00e5ff', '#fff'][Math.floor(Math.random() * 4)],
+                    r: Math.random() < 0.1 ? 6 : 4 // 10% 확률로 큰 광물
+                });
+            }
+        }
+
+        // --- 게임 초기화 ---
+        function init() {
+            isGameOver = false;
+            document.getElementById('game-over').style.display = 'none';
+            player = new Mole(MAP_SIZE / 2, MAP_SIZE / 2, START_R, "나(Mole)", false);
+            moles = [player];
+            createMinerals();
+            for (let i = 0; i < BOT_COUNT; i++) {
+                moles.push(new Mole(Math.random() * MAP_SIZE, Math.random() * MAP_SIZE, START_R * (0.8 + Math.random() * 1.5), "봇_" + Math.floor(Math.random() * 1000), true));
+            }
+        }
+
+        // --- 메인 루프 ---
+        function loop() {
+            // 1. 업데이트
+            moles.forEach(m => m.update());
+
+            // 2. 충돌 처리 (광물 먹기)
+            for (let i = minerals.length - 1; i >= 0; i--) {
+                let min = minerals[i];
+                if (Math.hypot(player.x - min.x, player.y - min.y) < player.r + min.r) {
+                    // 광물 먹으면 에너지총량(peakR)과 현재에너지(r) 둘다 증가
+                    let gain = min.r === 6 ? 0.8 : 0.4;
+                    player.peakR += gain;
+                    player.r = Math.min(player.peakR, player.r + gain); 
+                    minerals[i] = { x: Math.random() * MAP_SIZE, y: Math.random() * MAP_SIZE, c: min.c, r: min.r }; // 재생성
+                }
+                // 봇들도 광물 먹기 처리 (성능을 위해 5개당 1개만 체크)
+                if(i % 5 === 0){
+                    moles.forEach(m => {
+                        if(m.isBot && Math.hypot(m.x-min.x, m.y-min.y) < m.r + min.r){
+                            m.peakR += 0.3; m.r = Math.min(m.peakR, m.r+0.3);
+                        }
+                    });
+                }
+            }
+
+            // 3. 충돌 처리 (전투)
+            if(!isGameOver){
+                for (let i = moles.length - 1; i >= 0; i--) {
+                    for (let j = moles.length - 1; j >= 0; j--) {
+                        if (i === j || !moles[i] || !moles[j]) continue;
+                        let a = moles[i], b = moles[j];
+                        // 몸집(현재 r)이 10% 이상 큰 경우에만 먹기 가능
+                        if (Math.hypot(a.x - b.x, a.y - b.y) < a.r * 0.9 && a.r > b.r * 1.1) {
+                            // 먹은 두더지의 에너지 일부 흡수
+                            a.peakR += b.peakR * 0.3;
+                            a.r = Math.min(a.peakR, a.r + b.r * 0.3);
+
+                            if (b === player) {
+                                isGameOver = true;
+                                document.getElementById('final-size').innerText = Math.floor(player.peakR * 10);
+                                document.getElementById('game-over').style.display = 'block';
+                            }
+                            moles.splice(j, 1);
+                            // 봇 부활
+                            if (b.isBot) setTimeout(() => moles.push(new Mole(Math.random() * MAP_SIZE, Math.random() * MAP_SIZE, START_R * (0.9 + Math.random()), "부활_" + Math.floor(Math.random() * 100), true)), 3000);
+                        }
+                    }
+                }
+            }
+
+            // UI 업데이트
+            document.getElementById('score').innerText = Math.floor(player.peakR * 10);
+            document.getElementById('size-val').innerText = Math.floor(player.peakR);
+
+            // 리더보드
+            let sorted = [...moles].sort((a, b) => b.peakR - a.peakR).slice(0, 5);
+            let html = "";
+            sorted.forEach((m, i) => html += `<div style="${m === player ? 'color:#ffeb3b;font-weight:bold' : ''}">${i + 1}. ${m.name} (${Math.floor(m.peakR)})</div>`);
+            document.getElementById('leaderboard-list').innerHTML = html;
+
+            // --- 그리기 ---
+            ctx.fillStyle = '#4e3629'; ctx.fillRect(0, 0, canvas.width, canvas.height); // 배경
+
+            let cx = player.x, cy = player.y; // 카메라 기준
+
+            // 맵 타일/격자 무늬 (넓어진 맵을 느끼게)
+            ctx.strokeStyle = 'rgba(67, 46, 34, 0.5)'; ctx.lineWidth = 1;
+            for(let x=0; x<MAP_SIZE; x+=150){
+                let sx = x - cx + canvas.width/2;
+                if(sx > 0 && sx < canvas.width){ ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, canvas.height); ctx.stroke(); }
+            }
+            for(let y=0; y<MAP_SIZE; y+=150){
+                let sy = y - cy + canvas.height/2;
+                if(sy > 0 && sy < canvas.height){ ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(canvas.width, sy); ctx.stroke(); }
+            }
+
+            // 맵 테두리 외곽선
+            ctx.strokeStyle = '#ff4a4a'; ctx.lineWidth = 10;
+            ctx.strokeRect(canvas.width / 2 - cx, canvas.height / 2 - cy, MAP_SIZE, MAP_SIZE);
+
+            // 광물 그리기
+            minerals.forEach(m => {
+                let sx = m.x - cx + canvas.width / 2, sy = m.y - cy + canvas.height / 2;
+                if (sx > 0 && sx < canvas.width && sy > 0 && sy < canvas.height) {
+                    ctx.beginPath(); ctx.arc(sx, sy, m.r, 0, Math.PI * 2); ctx.fillStyle = m.c; ctx.fill();
+                    if(m.r === 6){ ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke();} // 큰광물 테두리
+                }
+            });
+
+            // 두더지 그리기 (크기 순 정렬하여 작은 것부터 그리기)
+            [...moles].sort((a, b) => a.peakR - b.peakR).forEach(m => m.draw(cx, cy));
+
+            requestAnimationFrame(loop);
+        }
+
+        function restartGame() { init(); }
+        init(); loop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>무한의 등산</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            overflow: hidden;
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 450px;
+            height: 650px;
+            /* 초기 상태: 맑은 낮 하늘과 초록 산의 그라데이션 */
+            background: linear-gradient(to bottom, #87CEEB 0%, #228B22 100%);
+            border: 4px solid #1a661a;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: background 1s linear; /* 배경 전환을 부드럽게 */
+        }
+
+        /* UI 영역 */
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        #guide {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 15px;
+            border-radius: 20px;
+            z-index: 10;
+            text-align: center;
+            width: 85%;
+            line-height: 1.4;
+        }
+
+        /* 카메라 스크롤용 월드 */
+        #world {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            bottom: 0;
+            left: 0;
+            transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        /* 계단 */
+        .step {
+            position: absolute;
+            width: 70px;
+            height: 20px;
+            background: #8B4513;
+            border-bottom: 5px solid #5c2d0c;
+            border-radius: 3px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        /* 방해물 고유 스타일 (위험 표시 붉은 오라) */
+        .obstacle {
+            position: absolute;
+            font-size: 24px;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: float 0.5s ease-in-out infinite alternate;
+            background: rgba(255, 0, 0, 0.25);
+            border-radius: 50%;
+            padding: 2px;
+            box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
+        }
+
+        @keyframes float {
+            from { transform: translateX(-50%) translateY(0); }
+            to { transform: translateX(-50%) translateY(-6px); }
+        }
+
+        /* 플레이어 */
+        #player {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            font-size: 42px;
+            text-align: center;
+            line-height: 50px;
+            z-index: 5;
+            transition: left 0.1s ease-out, bottom 0.1s ease-out, transform 0.1s ease-out;
+        }
+
+        /* 결과 화면 */
+        .screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .screen h1 { font-size: 45px; margin-bottom: 10px; }
+        .screen p { font-size: 20px; margin-bottom: 30px; }
+        .screen button {
+            padding: 12px 35px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 71, 87, 0.4);
+        }
+        .screen button:hover { transform: scale(1.05); }
+        
+        #fail-emojis { 
+            font-size: 38px; 
+            margin-top: 15px; 
+            letter-spacing: 2px; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <div id="score-display">점수: 0 / 1000</div>
+            <div id="timer-display">남은 시간: 05:00</div>
+        </div>
+
+        <div id="world">
+            <div id="player">🧗</div>
+        </div>
+
+        <div id="guide">
+            [A] 전진 | [D] 방향 전환<br>
+            <span style="color: #fffa65; font-weight: bold;">⚠️ 장애물이 바로 앞에 있을 때만 연속 2번 눌러 점프 가능!</span>
+        </div>
+
+        <div id="victory-screen" class="screen">
+            <h1 style="color: #2ed573;">🎉 등산 성공! 🎉</h1>
+            <p>5분 안에 1000점 도달 완료!</p>
+            <button onclick="resetGame()">다시 산 오르기</button>
+        </div>
+
+        <div id="fail-screen" class="screen">
+            <h1 style="color: #ff4757;">❌ 등산 실패 ❌</h1>
+            <p>지정된 시간 내에 정상을 밟지 못했습니다.</p>
+            <div id="fail-emojis">🥵🥵🥵🥵🥵🥵🥵</div>
+            <button onclick="resetGame()" style="margin-top: 30px;">재시도</button>
+        </div>
+    </div>
+
+    <script>
+        const world = document.getElementById('world');
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const victoryScreen = document.getElementById('victory-screen');
+        const failScreen = document.getElementById('fail-screen');
+
+        let score = 0;
+        const targetScore = 1000;
+        let timeLeft = 300; // 5분
+        let gameInterval;
+        let isGameOver = false;
+
+        const stepXDiff = 50; 
+        const stepYDiff = 50; 
+        let steps = [];
+        let currentStepIndex = 0;
+        
+        let lastStepX = 190;  
+        let lastStepY = 150; 
+        let currentDirection = 1; 
+
+        const obstacleTypes = ['🐍', '🐦', '🌿', '🦉'];
+
+        // 더블 탭 감지 변수
+        let lastKeyTime = 0;
+        let lastKeyName = '';
+        const doublePressThreshold = 230; 
+
+        // 계단 생성 알고리즘
+        function generateSteps(count) {
+            for (let i = 0; i < count; i++) {
+                if (steps.length > 0) {
+                    if (Math.random() < 0.45) {
+                        currentDirection *= -1;
+                    }
+                    
+                    let nextX = lastStepX + (stepXDiff * currentDirection);
+
+                    if (nextX < 40) {
+                        currentDirection = 1; 
+                        nextX = lastStepX + (stepXDiff * currentDirection);
+                    } else if (nextX > 340) {
+                        currentDirection = -1; 
+                        nextX = lastStepX + (stepXDiff * currentDirection);
+                    }
+
+                    lastStepX = nextX;
+                    lastStepY += stepYDiff;
+                }
+
+                const step = document.createElement('div');
+                step.className = 'step';
+                step.style.left = lastStepX + 'px';
+                step.style.bottom = lastStepY + 'px';
+
+                // 25% 확률로 장애물 생성
+                let hasObstacle = false;
+                if (steps.length > 4 && Math.random() < 0.25 && !steps[steps.length-1].hasObstacle) { 
+                    hasObstacle = true;
+                    const obsDiv = document.createElement('div');
+                    obsDiv.className = 'obstacle';
+                    obsDiv.innerText = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                    step.appendChild(obsDiv);
+                }
+
+                world.appendChild(step);
+                steps.push({
+                    element: step,
+                    x: lastStepX,
+                    y: lastStepY,
+                    hasObstacle: hasObstacle
+                });
+            }
+        }
+
+        // 판정 및 이동 처리 엔진
+        function handleMove(action, isJump = false) {
+            if (isGameOver) return;
+
+            let nextDirection = currentDirection;
+            if (action === 'TURN') {
+                nextDirection = currentDirection * -1; 
+            }
+
+            // [조건 반영] 점프는 바로 앞(1칸 전방) 계단에 장애물이 있을 때만 작동 가능!
+            const firstStepIndex = currentStepIndex + 1;
+            const hasFrontObstacle = steps[firstStepIndex] ? steps[firstStepIndex].hasObstacle : false;
+
+            if (isJump && !hasFrontObstacle) {
+                // 장애물이 없는데 점프를 뛰려고 연타하면 헛디딤 페널티 부여
+                triggerMissPenalty();
+                return;
+            }
+
+            const increment = isJump ? 2 : 1;
+            const nextStepIndex = currentStepIndex + increment;
+
+            if (nextStepIndex >= steps.length) return;
+            const nextStep = steps[nextStepIndex];
+
+            // 예상 디딤 좌표 계산
+            let expectedX = steps[currentStepIndex].x;
+            if (isJump) {
+                expectedX = nextStep.x; // 점프 시 2번째 칸의 목표 가로축 확인
+            } else {
+                expectedX = steps[currentStepIndex].x + (stepXDiff * nextDirection);
+            }
+
+            // 계단 방향 판정 검사
+            if (Math.abs(nextStep.x - expectedX) > 5) {
+                triggerMissPenalty();
+                return; 
+            }
+
+            // 그냥 전진했는데 장애물을 밟은 경우 (대미지)
+            if (!isJump && nextStep.hasObstacle) {
+                score = Math.max(0, score - 60);
+                scoreDisplay.innerText = `점수: ${score} / ${targetScore}`;
+                
+                const obsIcon = nextStep.element.querySelector('.obstacle');
+                if (obsIcon) obsIcon.remove();
+                nextStep.hasObstacle = false;
+                
+                player.style.opacity = '0.4';
+                setTimeout(() => player.style.opacity = '1', 150);
+            }
+
+            // 점프 성공 시 보너스 비주얼 설정
+            if (isJump) {
+                score += 15; 
+                player.style.transition = 'left 0.1s ease-out, bottom 0.12s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+            } else {
+                player.style.transition = 'left 0.1s ease-out, bottom 0.1s ease-out';
+            }
+
+            // 캐릭터 시선 방향 동기화
+            if (isJump) {
+                if (steps[nextStepIndex].x > steps[nextStepIndex-1].x) currentDirection = 1;
+                else currentDirection = -1;
+            } else {
+                currentDirection = nextDirection;
+            }
+            
+            currentStepIndex = nextStepIndex;
+            player.style.transform = currentDirection === 1 ? 'scaleX(1)' : 'scaleX(-1)';
+
+            score += 10;
+            if (score > targetScore) score = targetScore;
+            scoreDisplay.innerText = `점수: ${score} / ${targetScore}`;
+
+            player.style.left = (nextStep.x + 10) + 'px';
+            player.style.bottom = (nextStep.y + 20) + 'px';
+
+            world.style.transform = `translateY(${currentStepIndex * stepYDiff}px)`;
+
+            if (steps.length - currentStepIndex < 25) {
+                generateSteps(25);
+            }
+
+            if (score >= targetScore) {
+                endGame(true);
+            }
+        }
+
+        // 박자 실책/헛디딤 페널티 공통 함수
+        function triggerMissPenalty() {
+            score = Math.max(0, score - 20);
+            scoreDisplay.innerText = `점수: ${score} / ${targetScore}`;
+            player.style.opacity = '0.3';
+            setTimeout(() => player.style.opacity = '1', 100);
+        }
+
+        // 키보드 연타 디텍터
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            
+            const key = e.key.toLowerCase();
+            if (key !== 'a' && key !== 'd' && key !== 'ㅁ' && key !== 'ㅇ') return;
+
+            const currentTime = new Date().getTime();
+            const timeDiff = currentTime - lastKeyTime;
+            
+            if (key === lastKeyName && timeDiff < doublePressThreshold) {
+                // 연타 입력 발생
+                if (key === 'a' || key === 'ㅁ') handleMove('GO', true);
+                else if (key === 'd' || key === 'ㅇ') handleMove('TURN', true);
+                
+                lastKeyTime = 0; 
+                lastKeyName = '';
+            } else {
+                lastKeyTime = currentTime;
+                lastKeyName = key;
+                
+                setTimeout(() => {
+                    if (lastKeyTime === currentTime) {
+                        if (key === 'a' || key === 'ㅁ') handleMove('GO', false);
+                        else if (key === 'd' || key === 'ㅇ') handleMove('TURN', false);
+                    }
+                }, 150); 
+            }
+        });
+
+        // [조건 반영] 시간에 따른 자연스러운 해 뜨고 지는 연출 (낮 -> 노을 -> 밤 -> 새벽)
+        function updateSunCycle() {
+            const totalDuration = 300; // 전체 5분(300초)
+            const elapsedTime = totalDuration - timeLeft; // 경과 시간
+
+            // 시간에 따른 그라데이션 변화 스케줄링
+            if (elapsedTime <= 75) {
+                // 1단계: 맑은 낮 (하늘색 -> 초록산)
+                gameContainer.style.background = "linear-gradient(to bottom, #87CEEB 0%, #228B22 100%)";
+            } else if (elapsedTime <= 150) {
+                // 2단계: 노을이 지기 시작함 (주황빛 하늘 -> 붉은 산)
+                gameContainer.style.background = "linear-gradient(to bottom, #FF7F50 0%, #B22222 100%)";
+            } else if (elapsedTime <= 225) {
+                // 3단계: 완전한 밤 (어두운 남색 밤하늘 -> 짙은 산실루엣)
+                gameContainer.style.background = "linear-gradient(to bottom, #000033 0%, #113311 100%)";
+            } else {
+                // 4단계: 동이 트는 새벽 (보랏빛 감도는 새벽하늘 -> 새벽녘 푸른 산)
+                gameContainer.style.background = "linear-gradient(to bottom, #4B0082 0%, #2E8B57 100%)";
+            }
+        }
+
+        // 타이머 루프
+        function startTimer() {
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                const secs = (timeLeft % 60).toString().padStart(2, '0');
+                timerDisplay.innerText = `남은 시간: ${mins}:${secs}`;
+
+                // 시간에 맞춰 하늘색 변경 호출
+                updateSunCycle();
+
+                if (timeLeft <= 0) {
+                    endGame(false);
+                }
+            }, 1000);
+        }
+
+        function endGame(isVictory) {
+            isGameOver = true;
+            clearInterval(gameInterval);
+            if (isVictory) victoryScreen.style.display = 'flex';
+            else failScreen.style.display = 'flex';
+        }
+
+        function resetGame() {
+            const oldSteps = world.querySelectorAll('.step');
+            oldSteps.forEach(s => s.remove());
+
+            steps = [];
+            score = 0;
+            timeLeft = 300;
+            currentStepIndex = 0;
+            lastStepX = 190;
+            lastStepY = 150;
+            currentDirection = 1;
+            isGameOver = false;
+            lastKeyTime = 0;
+            lastKeyName = '';
+
+            scoreDisplay.innerText = `점수: 0 / 1000`;
+            timerDisplay.innerText = `남은 시간: 05:00`;
+            gameContainer.style.background = "linear-gradient(to bottom, #87CEEB 0%, #228B22 100%)";
+            world.style.transform = 'translateY(0px)';
+
+            const firstStep = document.createElement('div');
+            firstStep.className = 'step';
+            firstStep.style.left = lastStepX + 'px';
+            firstStep.style.bottom = lastStepY + 'px';
+            world.appendChild(firstStep);
+            steps.push({ element: firstStep, x: lastStepX, y: lastStepY, hasObstacle: false });
+
+            player.style.left = (lastStepX + 10) + 'px';
+            player.style.bottom = (lastStepY + 20) + 'px';
+            player.style.transform = 'scaleX(1)';
+
+            generateSteps(40);
+
+            victoryScreen.style.display = 'none';
+            failScreen.style.display = 'none';
+
+            clearInterval(gameInterval);
+            startTimer();
+        }
+
+        resetGame();
+    </script>
+</body>
+</html>

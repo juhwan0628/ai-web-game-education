@@ -1,0 +1,103 @@
+{
+  "maxTeams": 13,
+  "activeTeams": [
+    {
+      "id": "team01",
+      "label": "1팀",
+      "status": "submitted",
+      "title": "파도의 왕자",
+      "intro": "파도를 타며 적을 해치우는 로그라이크 게임"
+    },
+    {
+      "id": "team02",
+      "label": "2팀",
+      "status": "submitted",
+      "title": "교사(死)",
+      "intro": "교육실습 마지막 날, 새벽 2시의 기괴한 학교에서 괴물이 된 학생들과 한선생을 피해 탈출하는 2D 공포  게임."
+    },
+    {
+      "id": "team03",
+      "label": "3팀",
+      "status": "submitted",
+      "title": "캠퍼스 런: 마감 탈출",
+      "intro": "과제 마감에 쫓기는 대학생이 캠퍼스를 달리며 장애물을 피하고 아이템을 모아 제한 시간 안에 과제를 제출하는 캐주얼 러닝 게임이다."
+    },
+    {
+      "id": "team04-1",
+      "label": "4-1팀",
+      "status": "submitted",
+      "title": "교실 파이터",
+      "intro": "교실에서 싸우는 게임"
+    },
+    {
+      "id": "team04-2",
+      "label": "4-2팀",
+      "status": "submitted",
+      "title": "우주 고양이의 별 수집 대작전",
+      "intro": "장애물을 피하며 별을 수집하는 게임입니다."
+    },
+    {
+      "id": "team05",
+      "label": "5팀",
+      "status": "submitted",
+      "title": "스페이스 워",
+      "intro": "wasd를 방향키로 사용하는 fps게임입니다"
+    },
+    {
+      "id": "team06",
+      "label": "6팀",
+      "status": "inactive",
+      "title": "",
+      "intro": ""
+    },
+    {
+      "id": "team07",
+      "label": "7팀",
+      "status": "submitted",
+      "title": "슈퍼개미",
+      "intro": "방향키로 빨간 화살표는 먹고 파란 화살표는 피하며 30초 동안 진행한 후, 최고 기록 달성하는 게임입니다."
+    },
+    {
+      "id": "team08",
+      "label": "8팀",
+      "status": "submitted",
+      "title": "피키의 위험한 모험",
+      "intro": "스페이스바로 뛰어서 장애물을 피하는 게임입니다."
+    },
+    {
+      "id": "team09",
+      "label": "9팀",
+      "status": "submitted",
+      "title": "비둘기 헬리콥터 게임",
+      "intro": "머리돌아감"
+    },
+    {
+      "id": "team10",
+      "label": "10팀",
+      "status": "submitted",
+      "title": "Mini Battleground",
+      "intro": "전장에서 살아남으며 적을 피하고 점수를 올리는 미니 배틀 게임"
+    },
+    {
+      "id": "team11",
+      "label": "11팀",
+      "status": "submitted",
+      "title": "막아라",
+      "intro": "키커 정보를 보고 방향을 예측하여 패널티킥을 막는게임"
+    },
+    {
+      "id": "team12",
+      "label": "12팀",
+      "status": "submitted",
+      "title": "그래비티 젤리",
+      "intro": "수박게임 + 중력기믹"
+    },
+    {
+      "id": "team13",
+      "label": "13팀",
+      "status": "submitted",
+      "title": "똥 피하기 게임",
+      "intro": "방향키로 날아오는 똥을 피하며 버티는 게임입니다."
+    }
+  ]
+}

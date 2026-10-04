@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>비둘기 헬리콥터 - 횡스크롤 지하철 모험</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #121214;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    main {
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 15px;
+      letter-spacing: 1px;
+    }
+
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border: 4px solid #2d2d30;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      background-color: #000000;
+    }
+
+    canvas {
+      display: block;
+      width: 800px;
+      height: 600px;
+      background-color: #1e1e24;
+    }
+  </style>
+</head>
+<body>
+
+  <main>
+    <h1>비둘기 헬리콥터</h1>
+    <div id="game-container">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+  </main>
+
+  <script>
+    // ==========================================
+    // 1. 리소스 경로 설정 (최상단 전역 상수 분리)
+    // ==========================================
+    
+    // 이미지 파일 경로 (assets/images/)
+    const PATH_IMG_PLAYER = 'assets/images/player.png';
+    const PATH_IMG_HANDLE = 'assets/images/handle.png';
+    const PATH_IMG_CAT = 'assets/images/cat.png';
+    const PATH_IMG_DANSO = 'assets/images/danso.png';
+    const PATH_IMG_SNACK = 'assets/images/snack.png';
+
+    // 오디오 파일 경로 (assets/audio/)
+    const PATH_AUDIO_BGM = 'assets/audio/bgm.mp3';
+    const PATH_AUDIO_START = 'assets/audio/racing_start_bbam.wav';
+    const PATH_AUDIO_UP = 'assets/audio/pigeon_up_cute_helicopter.wav';
+    const PATH_AUDIO_DOWN = 'assets/audio/pigeon_down_tired.wav';
+    const PATH_AUDIO_HIT = 'assets/audio/pigeon_hit_cute_ouch.wav';
+    const PATH_AUDIO_CLEAR = 'assets/audio/pigeon_death_bbambba_tired.wav';
+
+    // ==========================================
+    // 2. 오디오 객체 생성 및 기본 세팅
+    // ==========================================
+    const audioBgm = new Audio(PATH_AUDIO_BGM);
+    audioBgm.loop = true;
+    audioBgm.volume = 0.5;
+
+    const audioStart = new Audio(PATH_AUDIO_START);
+    const audioUp = new Audio(PATH_AUDIO_UP);
+    const audioDown = new Audio(PATH_AUDIO_DOWN);
+    const audioHit = new Audio(PATH_AUDIO_HIT);
+    const audioClear = new Audio(PATH_AUDIO_CLEAR);
+
+    // 오디오 재생 안전 함수 (파일 부재 및 브라우저 차단 우회)
+    function playAudio(audioObj) {
+      if (audioObj) {
+        audioObj.play().catch(err => {
+          console.warn("오디오 재생 실패 (파일 미존재 또는 브라우저 자동 재생 차단):", err);
+        });
+      }
+    }
+
+    function stopAudio(audioObj) {
+      if (audioObj) {
+        audioObj.pause();
+        audioObj.currentTime = 0;
+      }
+    }
+
+    // ==========================================
+    // 3. 이미지 객체 생성 및 기본 세팅
+    // ==========================================
+    const imgPlayer = new Image();
+    imgPlayer.src = PATH_IMG_PLAYER;
+
+    const imgHandle = new Image();
+    imgHandle.src = PATH_IMG_HANDLE;
+
+    const imgCat = new Image();
+    imgCat.src = PATH_IMG_CAT;
+
+    const imgDanso = new Image();
+    imgDanso.src = PATH_IMG_DANSO;
+
+    const imgSnack = new Image();
+    imgSnack.src = PATH_IMG_SNACK;
+
+    // ==========================================
+    // 4. 게임 상태 및 데이터 초기화
+    // ==========================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let gameState = 'START'; // START, PLAYING, GAMEOVER, CLEAR
+    let currentStage = 1;
+    let totalTime = 0.0;
+    let distanceRemaining = 3000;
+    const STAGE_MAX_DISTANCE = 3000;
+    let scoreSnacks = 0; // 획득한 새우깡 수
+
+    const keys = {};
+
+    let pigeon = {
+      x: 150,
+      y: 250,
+      radius: 25,
+      vx: 0,
+      vy: 0,
+      propellerAngle: 0,
+      propellerSpeed: 0.15
+    };
+
+    let obstacles = [];
+    let items = [];
+    let bgScrollX = 0;
+    let tunnelScrollX = 0;
+    
+    // 최종 보스 새우깡 정보
+    let finalCracker = null;
+
+    // 스테이지 정보 정의
+    const stageInfoMap = {
+      1: {
+        name: '지하철 4호선 (튜토리얼)',
+        color: '#00a2e8', // 하늘색
+        bgColor: '#1b3a4b',
+        start: '충무로',
+        dest: '사당',
+        scrollSpeed: 4,
+        obstacleRate: 0.015,
+        spawnType: 'handle'
+      },
+      2: {
+        name: '지하철 2호선 (일반)',
+        color: '#22b14c', // 초록색
+        bgColor: '#1f3d24',
+        start: '신도림',
+        dest: '성수',
+        scrollSpeed: 5.5,
+        obstacleRate: 0.02,
+        spawnType: 'cat'
+      },
+      3: {
+        name: '지하철 1호선 (보스/최종)',
+        color: '#0d3692', // 남색
+        bgColor: '#131e3d',
+        start: '서울역',
+        dest: '청량리',
+        scrollSpeed: 7,
+        obstacleRate: 0.025,
+        spawnType: 'danso'
+      }
+    };
+
+    // ==========================================
+    // 5. 핵심 물리 및 업데이트 로직
+    // ==========================================
+    function initPlayer() {
+      pigeon.x = 150;
+      pigeon.y = 250;
+      pigeon.vx = 0;
+      pigeon.vy = 0;
+      pigeon.propellerAngle = 0;
+      pigeon.propellerSpeed = 0.15;
+    }
+
+    function initStage(stage) {
+      currentStage = stage;
+      distanceRemaining = STAGE_MAX_DISTANCE;
+      obstacles = [];
+      items = [];
+      finalCracker = null;
+      bgScrollX = 0;
+      tunnelScrollX = 0;
+      initPlayer();
+    }
+
+    function startGame() {
+      gameState = 'PLAYING';
+      totalTime = 0.0;
+      scoreSnacks = 0;
+      initStage(1);
+      
+      // BGM 오디오 재생 (오토플레이 우회 처리 포함)
+      stopAudio(audioBgm);
+      audioBgm.currentTime = 0;
+      playAudio(audioBgm);
+
+      // 카운트다운 시작 사운드 재생
+      playAudio(audioStart);
+    }
+
+    function restartGame() {
+      startGame();
+    }
+
+    function triggerGameOver() {
+      gameState = 'GAMEOVER';
+      
+      // BGM 일시정지 (Pause)
+      audioBgm.pause();
+
+      // 충돌/사망 효과음 재생
+      playAudio(audioHit);
+    }
+
+    function triggerStageClear() {
+      if (currentStage < 3) {
+        initStage(currentStage + 1);
+        playAudio(audioStart);
+      } else {
+        gameState = 'CLEAR';
+        audioBgm.pause();
+        playAudio(audioClear);
+      }
+    }
+
+    function updatePhysics(dt) {
+      if (gameState !== 'PLAYING') return;
+
+      totalTime += dt;
+
+      // 1. 관성 기반 플레이어 물리
+      const accel = 0.4;
+      const friction = 0.93;
+      const gravity = 0.15;
+
+      if (keys['ArrowUp']) {
+        pigeon.vy -= accel;
+        pigeon.propellerSpeed = 0.45; // 상승 시 프로펠러 회전 속도 증가
+      } else if (keys['ArrowDown']) {
+        pigeon.vy += accel;
+        pigeon.propellerSpeed = 0.15;
+      } else {
+        pigeon.propellerSpeed = 0.25;
+      }
+
+      if (keys['ArrowLeft']) {
+        pigeon.vx -= accel;
+      }
+      if (keys['ArrowRight']) {
+        pigeon.vx += accel;
+      }
+
+      pigeon.vy += gravity; // 자연 중력 적용
+
+      pigeon.vx *= friction;
+      pigeon.vy *= friction;
+
+      pigeon.x += pigeon.vx;
+      pigeon.y += pigeon.vy;
+      pigeon.propellerAngle += pigeon.propellerSpeed;
+
+      // 2. 화면 밖 이탈 처리 (GDD: 화면 밖으로 나가면 게임 오버)
+      // 상하 경계 판정 (HUD 영역 제외한 y=0~500px 기준)
+      if (pigeon.y - pigeon.radius < 0 || pigeon.y + pigeon.radius > 500) {
+        triggerGameOver();
+        return;
+      }
+      // 좌우 화면 한계 클램프
+      pigeon.x = Math.max(pigeon.radius, Math.min(pigeon.x, 800 - pigeon.radius));
+
+      // 3. 거리 차감 및 스크롤
+      const currentStageInfo = stageInfoMap[currentStage];
+      const scrollSpeed = currentStageInfo.scrollSpeed;
+      
+      bgScrollX -= scrollSpeed * 0.4;
+      tunnelScrollX -= scrollSpeed * 1.2;
+
+      if (distanceRemaining > 0) {
+        distanceRemaining -= scrollSpeed * 0.1;
+        if (distanceRemaining < 0) distanceRemaining = 0;
+      }
+
+      // 4. 장애물 및 아이템 스폰/업데이트
+      if (distanceRemaining > 100) {
+        // 장애물 스폰
+        if (Math.random() < currentStageInfo.obstacleRate) {
+          spawnObstacle(currentStageInfo.spawnType);
+        }
+
+        // 2, 3스테이지에서 새우깡 아이템 스폰
+        if (currentStage >= 2 && Math.random() < 0.008) {
+          items.push({
+            x: 820,
+            y: 80 + Math.random() * 320,
+            w: 35,
+            h: 40,
+            rot: 0
+          });
+        }
+      } else if (distanceRemaining <= 0 && currentStage === 3 && !finalCracker) {
+        // 최종 3단계에서 거리가 다 닳았을 경우 골인 지점 새우깡 봉지 생성
+        finalCracker = {
+          x: 850,
+          y: 220,
+          w: 80,
+          h: 90
+        };
+      }
+
+      // 장애물 업데이트 및 충돌 판정
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        
+        if (obs.type === 'handle') {
+          obs.x -= scrollSpeed;
+          obs.currentAngle = Math.sin(Date.now() * 0.003 + obs.angleOffset) * 0.45;
+        } else if (obs.type === 'cat') {
+          obs.x -= scrollSpeed + 1.5;
+        } else if (obs.type === 'danso') {
+          obs.x -= scrollSpeed + 2.0;
+        }
+
+        // 화면 밖 제거
+        if (obs.x < -100) {
+          obstacles.splice(i, 1);
+          continue;
+        }
+
+        // 충돌 검사 (원형 충돌 판정 - 플레이어 반지름 + 보정 충돌 반경)
+        if (checkCollision(pigeon, obs)) {
+          triggerGameOver();
+          return;
+        }
+      }
+
+      // 아이템 업데이트 및 획득 판정
+      for (let j = items.length - 1; j >= 0; j--) {
+        const item = items[j];
+        item.x -= scrollSpeed;
+        item.rot += 0.05;
+
+        if (item.x < -50) {
+          items.splice(j, 1);
+          continue;
+        }
+
+        if (checkCollision(pigeon, item)) {
+          scoreSnacks++;
+          items.splice(j, 1);
+          // 아이템 획득 효과음 재생
+          playAudio(audioStart); // 획득음 대용으로 start 피치 연동 또는 효과음 재생
+        }
+      }
+
+      // 최종 목적지 새우깡 도달 검사
+      if (finalCracker) {
+        finalCracker.x -= scrollSpeed * 0.5;
+        if (checkCollision(pigeon, finalCracker)) {
+          triggerStageClear();
+        }
+      }
+
+      // 1, 2스테이지는 거리가 다 되었고 화면에 장애물이 남지 않았을 때 스테이지 클리어
+      if (currentStage < 3 && distanceRemaining <= 0 && obstacles.length === 0) {
+        triggerStageClear();
+      }
+    }
+
+    function spawnObstacle(type) {
+      if (type === 'handle') {
+        obstacles.push({
+          type: 'handle',
+          x: 820,
+          y: 0,
+          w: 40,
+          h: 150 + Math.random() * 80,
+          angleOffset: Math.random() * Math.PI,
+          currentAngle: 0
+        });
+      } else if (type === 'cat') {
+        obstacles.push({
+          type: 'cat',
+          x: 820,
+          y: 430, // 바닥 부근
+          w: 60,
+          h: 50
+        });
+      } else if (type === 'danso') {
+        // 단소 아저씨 공중 비행 형태
+        obstacles.push({
+          type: 'danso',
+          x: 820,
+          y: 60 + Math.random() * 320,
+          w: 70,
+          h: 80
+        });
+      }
+    }
+
+    // AABB 및 서클 결합 보정 충돌 감지
+    function checkCollision(player, obj) {
+      const px = player.x;
+      const py = player.y;
+      const r = player.radius;
+
+      // 물체 중심 구하기
+      let ox = obj.x;
+      let oy = obj.y;
+      let ow = obj.w;
+      let oh = obj.h;
+
+      if (obj.type === 'handle') {
+        // 손잡이는 회전하므로 대략적인 하단 링 영역 기준
+        const angle = obj.currentAngle;
+        ox = obj.x + Math.sin(angle) * (obj.h - 15);
+        oy = obj.y + Math.cos(angle) * (obj.h - 15);
+        ow = obj.w;
+        oh = 30;
+        
+        const dx = px - ox;
+        const dy = py - oy;
+        return Math.sqrt(dx*dx + dy*dy) < (r + 15);
+      }
+
+      // AABB 와 원형 충돌
+      const closestX = Math.max(ox, Math.min(px, ox + ow));
+      const closestY = Math.max(oy, Math.min(py, oy + oh));
+
+      const dx = px - closestX;
+      const dy = py - closestY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+
+      return dist < r - 2; // 보정 적용
+    }
+
+    // ==========================================
+    // 6. 그래픽 및 캔버스 렌더링
+    // ==========================================
+    function drawGame() {
+      // 화면 초기화
+      ctx.clearRect(0, 0, 800, 600);
+
+      // 1. 지하철 전동차 배경 렌더링
+      drawSubwayBackground();
+
+      // 2. 장애물 및 아이템 렌더링
+      obstacles.forEach(obs => {
+        if (obs.type === 'handle') {
+          ctx.save();
+          ctx.translate(obs.x + obs.w/2, obs.y);
+          ctx.rotate(obs.currentAngle);
+          
+          // 손잡이 끈
+          ctx.strokeStyle = '#cccccc';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, obs.h - 30);
+          ctx.stroke();
+
+          // 손잡이 헤드
+          if (imgHandle.complete && imgHandle.naturalWidth > 0) {
+            ctx.drawImage(imgHandle, -obs.w/2, obs.h - 30, obs.w, 35);
+          } else {
+            // 대체 벡터
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            ctx.arc(0, obs.h - 15, 15, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#1e1e24';
+            ctx.beginPath();
+            ctx.arc(0, obs.h - 15, 8, 0, Math.PI*2);
+            ctx.fill();
+          }
+          ctx.restore();
+
+        } else if (obs.type === 'cat') {
+          if (imgCat.complete && imgCat.naturalWidth > 0) {
+            ctx.drawImage(imgCat, obs.x, obs.y, obs.w, obs.h);
+          } else {
+            ctx.fillStyle = '#e67e22';
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText("🐱 고양이", obs.x + 5, obs.y + 30);
+          }
+
+        } else if (obs.type === 'danso') {
+          if (imgDanso.complete && imgDanso.naturalWidth > 0) {
+            ctx.drawImage(imgDanso, obs.x, obs.y, obs.w, obs.h);
+          } else {
+            ctx.fillStyle = '#9b59b6';
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText("👴 단소아저씨", obs.x + 5, obs.y + 40);
+          }
+        }
+      });
+
+      // 아이템 그리기
+      items.forEach(item => {
+        if (imgSnack.complete && imgSnack.naturalWidth > 0) {
+          ctx.save();
+          ctx.translate(item.x + item.w/2, item.y + item.h/2);
+          ctx.rotate(item.rot);
+          ctx.drawImage(imgSnack, -item.w/2, -item.h/2, item.w, item.h);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#f1c40f';
+          ctx.beginPath();
+          ctx.arc(item.x + item.w/2, item.y + item.h/2, 12, 0, Math.PI*2);
+          ctx.fill();
+        }
+      });
+
+      // 최종 새우깡 그리기
+      if (finalCracker) {
+        if (imgSnack.complete && imgSnack.naturalWidth > 0) {
+          ctx.drawImage(imgSnack, finalCracker.x, finalCracker.y, finalCracker.w, finalCracker.h);
+        } else {
+          ctx.fillStyle = '#ff4757';
+          ctx.fillRect(finalCracker.x, finalCracker.y, finalCracker.w, finalCracker.h);
+          ctx.fillStyle = '#fff';
+          ctx.fillText("최종 목적지 새우깡", finalCracker.x + 5, finalCracker.y + 45);
+        }
+      }
+
+      // 3. 플레이어 캐릭터 원형 클리핑 렌더링 (Circle Clipping)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pigeon.x, pigeon.y, pigeon.radius, 0, Math.PI * 2);
+      ctx.clip(); // 원형 자르기 활성화
+
+      if (imgPlayer.complete && imgPlayer.naturalWidth > 0) {
+        // 이미지가 찌그러지지 않고 원형 한계 안에 꽉 채워지도록 비율 계산 및 출력
+        ctx.drawImage(imgPlayer, pigeon.x - pigeon.radius, pigeon.y - pigeon.radius, pigeon.radius * 2, pigeon.radius * 2);
+      } else {
+        // 대체 도형
+        ctx.fillStyle = '#8e8e93';
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("비둘기", pigeon.x, pigeon.y + 4);
+      }
+      ctx.restore(); // 클리핑 영역 다른 사물에 지장 주지 않도록 복원
+
+      // 헬리콥터 머리 위 프로펠러 (클리핑 바깥에 그리기 위해 save/restore 완료 후 렌더링)
+      ctx.save();
+      // 머리 꼭대기 기준 회전 중심점 설정
+      ctx.translate(pigeon.x, pigeon.y - pigeon.radius + 3);
+      ctx.rotate(pigeon.propellerAngle);
+      ctx.strokeStyle = '#d2d2d7';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-28, 0);
+      ctx.lineTo(28, 0);
+      ctx.stroke();
+      // 날개 끝 지지구
+      ctx.fillStyle = '#8e8e93';
+      ctx.beginPath();
+      ctx.arc(-28, 0, 3, 0, Math.PI*2);
+      ctx.arc(28, 0, 3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // 4. 하단 HUD 그리기
+      drawHUD();
+
+      // 5. 오버레이 연출 (시작화면, 게임오버, 스테이지 클리어)
+      drawOverlays();
+    }
+
+    function drawSubwayBackground() {
+      const stageInfo = stageInfoMap[currentStage];
+      
+      // 내부 조명 분위기 배경
+      ctx.fillStyle = stageInfo.bgColor;
+      ctx.fillRect(0, 0, 800, 500);
+
+      // 1. 창 밖 터널 패럴랙스
+      ctx.fillStyle = '#0a0a0f';
+      // 창문 2개
+      const winW = 280;
+      const winH = 180;
+      const winY = 100;
+      
+      for (let i = 0; i < 3; i++) {
+        const wx = (bgScrollX % 450) + i * 450 - 50;
+        ctx.fillRect(wx, winY, winW, winH);
+
+        // 창 밖 터널 통과 라이트/케이블 표현
+        ctx.strokeStyle = '#2d2d30';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(wx, winY + 50 + (tunnelScrollX % 30));
+        ctx.lineTo(wx + winW, winY + 60 + (tunnelScrollX % 30));
+        ctx.stroke();
+
+        const lightX = wx + ((tunnelScrollX * -1.5) % (winW + 100));
+        if (lightX > wx && lightX < wx + winW - 8) {
+          ctx.fillStyle = '#f1c40f';
+          ctx.fillRect(lightX, winY + 30, 8, 15);
+        }
+
+        // 창틀 유리 반사광
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+        ctx.fillRect(wx, winY, winW / 2, winH);
+        
+        // 창틀 프레임
+        ctx.strokeStyle = '#4e4e52';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(wx, winY, winW, winH);
+      }
+
+      // 2. 지하철 노선 전철 노선띠 장식
+      ctx.fillStyle = '#2d2d30';
+      ctx.fillRect(0, 40, 800, 30);
+      ctx.strokeStyle = stageInfo.color;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 55);
+      ctx.lineTo(800, 55);
+      ctx.stroke();
+
+      // 전철 안내 텍스트
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${stageInfo.name} | 목적지: ${stageInfo.dest}`, 20, 30);
+
+      // 3. 지지 메탈 기둥 봉
+      ctx.fillStyle = '#7a7a7d';
+      ctx.fillRect(100, 70, 10, 430);
+      ctx.fillRect(700, 70, 10, 430);
+
+      // 기둥 하이라이트
+      ctx.fillStyle = '#a8a8ab';
+      ctx.fillRect(103, 70, 2, 430);
+      ctx.fillRect(703, 70, 2, 430);
+
+      // 4. 시트 의자 (색상 매칭)
+      ctx.fillStyle = stageInfo.color + '44'; // 25% 반투명 시트 색상
+      ctx.fillRect(80, 440, 220, 60);
+      ctx.fillRect(500, 440, 220, 60);
+      ctx.strokeStyle = '#4e4e52';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(80, 440, 220, 60);
+      ctx.strokeRect(500, 440, 220, 60);
+    }
+
+    function drawHUD() {
+      // HUD 하단 영역 드로잉
+      ctx.fillStyle = '#202124';
+      ctx.fillRect(0, 500, 800, 100);
+
+      ctx.strokeStyle = '#5f6368';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 500);
+      ctx.lineTo(800, 500);
+      ctx.stroke();
+
+      // 1. HUD 초상화 영역 (사각형, 플레이어 이미지 자동 비율 맞춤)
+      const px = 20;
+      const py = 510;
+      const pw = 80;
+      const ph = 80;
+
+      ctx.fillStyle = '#3c4043';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeRect(px, py, pw, ph);
+
+      if (imgPlayer.complete && imgPlayer.naturalWidth > 0) {
+        ctx.drawImage(imgPlayer, px, py, pw, ph);
+      } else {
+        // 초상화 로드 전 대체 실루엣
+        ctx.fillStyle = '#8e8e93';
+        ctx.beginPath();
+        ctx.arc(px + pw/2, py + ph/2, 25, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("Portrait", px + pw/2, py + ph - 10);
+      }
+
+      // 2. 정보 출력
+      const stageInfo = stageInfoMap[currentStage];
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${currentStage}단계: ${stageInfo.name}`, 120, 532);
+
+      // 프로그레스 바
+      const barX = 120;
+      const barY = 544;
+      const barW = 380;
+      const barH = 12;
+
+      ctx.fillStyle = '#3c4043';
+      ctx.fillRect(barX, barY, barW, barH);
+
+      const progress = (STAGE_MAX_DISTANCE - distanceRemaining) / STAGE_MAX_DISTANCE;
+      ctx.fillStyle = stageInfo.color;
+      ctx.fillRect(barX, barY, barW * progress, barH);
+      ctx.strokeStyle = '#5f6368';
+      ctx.strokeRect(barX, barY, barW, barH);
+
+      // 정거장 명칭
+      ctx.fillStyle = '#9aa0a6';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(stageInfo.start, barX, 574);
+      ctx.textAlign = 'right';
+      ctx.fillText(stageInfo.dest, barX + barW, 574);
+
+      // 남은 거리 및 재화
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(`남은 거리: ${Math.round(distanceRemaining)}m`, barX + 110, 574);
+      ctx.fillText(`획득 새우깡: ${scoreSnacks}개`, barX + 240, 574);
+
+      // 3. 시간 타이머 출력 (오른쪽 배치)
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#00f0ff';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText(`${totalTime.toFixed(2)}초`, 780, 550);
+      
+      ctx.fillStyle = '#9aa0a6';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('경과 시간 타이머', 780, 572);
+    }
+
+    function drawOverlays() {
+      if (gameState === 'START') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.fillRect(0, 0, 800, 600);
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.fillText("비둘기 헬리콥터", 400, 180);
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#00a2e8';
+        ctx.fillText("SUBWAY HELI-PIGEON ADVENTURE", 400, 215);
+
+        // 조작법 설명
+        ctx.fillStyle = '#9aa0a6';
+        ctx.font = '15px sans-serif';
+        ctx.fillText("조작법: 키보드 방향키 [ ▲ ▼ ◀ ▶ ]로 이동", 400, 270);
+        ctx.fillText("룰: 화면 밖 탈출 또는 장애물 충돌 시 즉시 게임 오버", 400, 300);
+
+        // 시작 버튼
+        ctx.fillStyle = '#00a2e8';
+        ctx.fillRect(300, 350, 200, 50);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(300, 350, 200, 50);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText("게임 시작 (Start)", 400, 381);
+
+      } else if (gameState === 'GAMEOVER') {
+        ctx.fillStyle = 'rgba(139, 0, 0, 0.4)';
+        ctx.fillRect(0, 0, 800, 500); // 플레이 영역 어둡게
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff4757';
+        ctx.font = 'bold 44px sans-serif';
+        ctx.fillText("GAME OVER", 400, 200);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`충돌 또는 화면 밖 이탈로 추락했습니다.`, 400, 250);
+        ctx.fillText(`버틴 시간: ${totalTime.toFixed(2)}초`, 400, 280);
+
+        // 재시작 버튼
+        ctx.fillStyle = '#ff4757';
+        ctx.fillRect(300, 350, 200, 50);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(300, 350, 200, 50);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText("다시 시작 (Restart)", 400, 381);
+
+      } else if (gameState === 'CLEAR') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(0, 0, 800, 600);
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 42px sans-serif';
+        ctx.fillText("★ 최종 미션 클리어 ★", 400, 180);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '18px sans-serif';
+        ctx.fillText("단소 아저씨를 피해 무사히 새우깡에 도달했습니다!", 400, 240);
+        
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText(`총 소요 시간: ${totalTime.toFixed(2)}초`, 400, 310);
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`수집한 새우깡 조각: ${scoreSnacks}개`, 400, 340);
+
+        // 홈 버튼
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(300, 420, 200, 50);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(300, 420, 200, 50);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText("처음으로 (Main)", 400, 451);
+      }
+    }
+
+    // ==========================================
+    // 7. 마우스 클릭 및 키보드 조작 처리
+    // ==========================================
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
+      
+      if (gameState === 'START') {
+        // Start Button [300, 350, 200, 50]
+        if (clickX >= 300 && clickX <= 500 && clickY >= 350 && clickY <= 400) {
+          startGame();
+        }
+      } else if (gameState === 'GAMEOVER') {
+        // Restart Button [300, 350, 200, 50]
+        if (clickX >= 300 && clickX <= 500 && clickY >= 350 && clickY <= 400) {
+          restartGame();
+        }
+      } else if (gameState === 'CLEAR') {
+        // Main Button [300, 420, 200, 50]
+        if (clickX >= 300 && clickX <= 500 && clickY >= 420 && clickY <= 470) {
+          gameState = 'START';
+          stopAudio(audioBgm);
+        }
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      // 헬리콥터 조작 사운드 트리거 (처음 한 번 눌렀을 때 작동)
+      if (e.key === 'ArrowUp' && !keys['ArrowUp'] && gameState === 'PLAYING') {
+        audioUp.currentTime = 0;
+        playAudio(audioUp);
+      }
+      if (e.key === 'ArrowDown' && !keys['ArrowDown'] && gameState === 'PLAYING') {
+        audioDown.currentTime = 0;
+        playAudio(audioDown);
+      }
+
+      keys[e.key] = true;
+      
+      // 스크롤 방지
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.key] = false;
+    });
+
+    // ==========================================
+    // 8. 게임 루프 실행
+    // ==========================================
+    let lastTime = 0;
+
+    function loop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+      lastTime = timestamp;
+
+      // 물리 업데이트
+      updatePhysics(dt);
+
+      // 그래픽 드로우
+      drawGame();
+
+      requestAnimationFrame(loop);
+    }
+
+    // 루프 즉시 시작
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

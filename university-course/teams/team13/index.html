@@ -1,0 +1,1731 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>똥피하기 2026</title>
+  
+  <style>
+    :root {
+      --primary: #00f0ff;
+      --secondary: #ff0055;
+      --accent: #ffea00;
+      --success: #39ff14;
+      --bg-dark: #06060e;
+      --bg-light: #0d0d21;
+      --surface: rgba(13, 13, 33, 0.85);
+      /* Use web-safe monospace and system fonts to run completely offline without CDNs */
+      --font-display: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      --font-arcade: 'Courier New', Courier, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, #1b1b3a 0%, #05050f 100%);
+      color: #ffffff;
+      font-family: var(--font-display);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Game Cabinet Frame (400px x 600px as per SPEC.md) */
+    #cabinet-wrapper {
+      position: relative;
+      padding: 16px;
+      background: linear-gradient(135deg, #1f1f3a, #0b0b1a);
+      border-radius: 20px;
+      box-shadow: 
+        0 20px 50px rgba(0,0,0,0.8),
+        0 0 30px rgba(0, 240, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.05);
+    }
+
+    #game-cabinet {
+      position: relative;
+      width: 400px;
+      height: 600px;
+      background-color: var(--bg-dark);
+      border: 4px solid #121225;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #game-cabinet.playing {
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), inset 0 0 40px rgba(0, 0, 0, 0.9);
+    }
+    
+    #game-cabinet.danger {
+      animation: emergency-flash 0.5s infinite alternate;
+    }
+
+    @keyframes emergency-flash {
+      from { border-color: #121225; }
+      to { border-color: var(--secondary); }
+    }
+
+    /* Scanlines and CRT curve reflection */
+    .scanlines {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.25) 50%
+      );
+      background-size: 100% 4px;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .crt-reflection {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
+      z-index: 101;
+      pointer-events: none;
+    }
+
+    /* Screen Elements */
+    .screen {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 30px 24px;
+      z-index: 10;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      background: linear-gradient(to bottom, rgba(10, 10, 25, 0.5) 0%, rgba(5, 5, 15, 0.8) 100%);
+    }
+
+    .screen.hidden {
+      opacity: 0;
+      transform: scale(0.95);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Typography */
+    h1.title {
+      font-family: var(--font-arcade);
+      font-size: 24px;
+      text-align: center;
+      margin: 40px 0 10px 0;
+      line-height: 1.4;
+      color: #ffffff;
+      text-shadow: 0 0 10px var(--primary);
+    }
+
+    .subtitle {
+      font-family: var(--font-display);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-align: center;
+      color: var(--accent);
+      margin-bottom: 30px;
+    }
+
+    /* Cyber Buttons */
+    .cyber-btn {
+      width: 100%;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--primary);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-weight: bold;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 14px 20px;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .cyber-btn:hover {
+      background: var(--primary);
+      color: var(--bg-dark);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .cyber-btn:active {
+      transform: translateY(1px);
+    }
+
+    .cyber-btn.sec-btn {
+      border-color: var(--secondary);
+      background: rgba(255, 0, 85, 0.1);
+    }
+
+    .cyber-btn.sec-btn:hover {
+      background: var(--secondary);
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+    }
+
+    /* Menu Visual */
+    .menu-visual {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-logo-box {
+      border: 1px dashed rgba(0, 240, 255, 0.3);
+      padding: 24px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    .high-score-board {
+      font-size: 12px;
+      font-family: var(--font-arcade);
+      color: var(--accent);
+      margin-top: 10px;
+    }
+
+    /* Stage Select List */
+    .stage-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .stage-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .stage-item:hover {
+      border-color: var(--primary);
+      background: rgba(0, 240, 255, 0.08);
+      transform: translateX(4px);
+    }
+
+    .stage-info {
+      text-align: left;
+    }
+
+    .stage-num {
+      font-family: var(--font-arcade);
+      font-size: 11px;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .stage-name {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .stage-diff {
+      font-size: 10px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-family: var(--font-arcade);
+      font-weight: bold;
+    }
+
+    .diff-easy { background: rgba(57, 255, 20, 0.2); color: var(--success); border: 1px solid var(--success); }
+    .diff-medium { background: rgba(255, 234, 0, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+    .diff-hard { background: rgba(255, 0, 85, 0.2); color: var(--secondary); border: 1px solid var(--secondary); }
+
+    /* Play Screen Container */
+    #screen-play {
+      padding: 0;
+      overflow: hidden;
+      background: #020207;
+    }
+
+    /* Gameplay Canvas */
+    #gameCanvas {
+      width: 100%;
+      height: 520px; /* Game Canvas occupies upper space */
+      display: block;
+    }
+
+    /* Bottom HUD (Y: 520px to 600px, height: 80px) */
+    #bottom-hud {
+      width: 100%;
+      height: 80px;
+      background: rgba(10, 10, 25, 0.95);
+      border-top: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      box-shadow: 0 -4px 15px rgba(0, 240, 255, 0.2);
+    }
+
+    .hud-portrait {
+      width: 52px;
+      height: 52px;
+      border: 2px solid var(--primary);
+      background: #000;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hud-portrait img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* Fill the square portrait box without breaking aspect ratio */
+    }
+
+    .hud-portrait-fallback {
+      font-family: var(--font-arcade);
+      font-size: 11px;
+      color: var(--primary);
+      text-shadow: 0 0 5px var(--primary);
+    }
+
+    .hud-center {
+      flex-grow: 1;
+      margin: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hud-stage-label {
+      font-family: var(--font-arcade);
+      font-size: 10px;
+      color: var(--primary);
+    }
+
+    .hud-progress-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .hud-progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--success));
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    .hud-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .hud-timer-text {
+      font-family: var(--font-arcade);
+      font-size: 10px;
+      color: var(--accent);
+      text-shadow: 0 0 5px var(--accent);
+    }
+
+    .hud-hearts-container {
+      display: flex;
+      gap: 4px;
+    }
+
+    .hud-heart {
+      font-size: 18px;
+      color: var(--secondary);
+      text-shadow: 0 0 5px var(--secondary);
+      transition: all 0.2s ease;
+    }
+
+    .hud-heart.lost {
+      color: #222238;
+      text-shadow: none;
+    }
+
+    /* Play Overlay (Countdown, Banner) */
+    .play-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 520px; /* bounds to canvas size */
+      background: rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+    }
+
+    .countdown-text {
+      font-family: var(--font-arcade);
+      font-size: 32px;
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent);
+      animation: pulse-countdown 0.5s infinite alternate;
+    }
+
+    @keyframes pulse-countdown {
+      from { transform: scale(0.9); }
+      to { transform: scale(1.1); }
+    }
+
+    /* Result Details */
+    .result-icon {
+      font-size: 60px;
+      margin: 20px 0;
+      text-align: center;
+      animation: float-icon 2s ease-in-out infinite;
+    }
+
+    @keyframes float-icon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .stats-box {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      padding: 20px;
+      width: 100%;
+      margin-bottom: 30px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .stat-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stat-value {
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .stat-value.highlight {
+      color: var(--accent);
+      text-shadow: 0 0 5px var(--accent);
+    }
+
+    .controls-guide {
+      font-size: 10px;
+      color: #7f7f9c;
+      text-align: center;
+      line-height: 1.6;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 15px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  
+  <div id="cabinet-wrapper">
+    <div id="game-cabinet">
+      <!-- CRT scanline effect overlays -->
+      <div class="scanlines"></div>
+      <div class="crt-reflection"></div>
+
+      <!-- SCREEN: MAIN MENU -->
+      <div id="screen-menu" class="screen">
+        <div>
+          <h1 class="title">CYBER POOP<br>DODGE 2026</h1>
+          <div class="subtitle">똥피하기 2026</div>
+        </div>
+
+        <div class="menu-visual">
+          <div class="menu-logo-box">
+            <div style="font-size: 40px; margin-bottom: 10px;">💩🤖✨</div>
+            <div class="high-score-board">HIGH SCORE: <span id="menu-highscore" style="color: var(--primary);">0.00</span>s</div>
+          </div>
+        </div>
+
+        <div>
+          <button class="cyber-btn" id="btn-start-game">GAME START</button>
+          <button class="cyber-btn sec-btn" id="btn-select-stage">STAGE SELECT</button>
+          
+          <div class="controls-guide">
+            조작법: 방향키 [←] [→] / A, D 키 / 드래그<br>
+            피하고 아이템을 획득하며 60초간 생존하세요!
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN: STAGE SELECT -->
+      <div id="screen-stage" class="screen hidden">
+        <div>
+          <h1 class="title" style="margin-top: 20px;">SELECT LEVEL</h1>
+          <div class="subtitle">스테이지 선택</div>
+        </div>
+
+        <div class="stage-list">
+          <div class="stage-item" data-stage="1">
+            <div class="stage-info">
+              <div class="stage-num">LV.1</div>
+              <div class="stage-name">사이버 튜토리얼</div>
+            </div>
+            <span class="stage-diff diff-easy">TUTORIAL</span>
+          </div>
+
+          <div class="stage-item" data-stage="2">
+            <div class="stage-info">
+              <div class="stage-num">LV.2</div>
+              <div class="stage-name">인베이전 노멀</div>
+            </div>
+            <span class="stage-diff diff-medium">NORMAL</span>
+          </div>
+
+          <div class="stage-item" data-stage="3">
+            <div class="stage-info">
+              <div class="stage-num">LV.3</div>
+              <div class="stage-name">종말의 카오스</div>
+            </div>
+            <span class="stage-diff diff-hard">BOSS</span>
+          </div>
+        </div>
+
+        <div>
+          <button class="cyber-btn sec-btn" id="btn-back-menu">BACK TO MENU</button>
+        </div>
+      </div>
+
+      <!-- SCREEN: GAMEPLAY VIEW -->
+      <div id="screen-play" class="screen hidden">
+        <!-- Upper Area: Canvas rendering game entities -->
+        <canvas id="gameCanvas" width="400" height="520"></canvas>
+
+        <!-- Bottom Area: HTML HUD with Portrait (Auto fitting player.png image) -->
+        <div id="bottom-hud">
+          <!-- Portrait box (automatically filled by player.png or text fallback) -->
+          <div class="hud-portrait">
+            <img id="hud-portrait-img" src="" alt="Player Portrait" style="display: none;">
+            <div id="hud-portrait-fallback" class="hud-portrait-fallback">PC</div>
+          </div>
+
+          <!-- Stage Level and surviving bar -->
+          <div class="hud-center">
+            <div class="hud-stage-label" id="hud-stage-name">LV.1 TUTORIAL</div>
+            <div class="hud-progress-container">
+              <div class="hud-progress-bar" id="hud-timer-bar"></div>
+            </div>
+          </div>
+
+          <!-- Hearts and Timer values -->
+          <div class="hud-right">
+            <div class="hud-timer-text" id="hud-timer-text">20.0s</div>
+            <div class="hud-hearts-container" id="hud-hearts-container">
+              <!-- Dynamically populated hearts -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Countdown / Ready Go Overlay -->
+        <div id="countdown-overlay" class="play-overlay hidden">
+          <div class="countdown-text" id="countdown-display">3</div>
+        </div>
+      </div>
+
+      <!-- SCREEN: GAME OVER -->
+      <div id="screen-gameover" class="screen hidden">
+        <div>
+          <h1 class="title" style="color: var(--secondary); text-shadow: 0 0 10px var(--secondary);">SYSTEM FAILED</h1>
+          <div class="subtitle" style="color: #ff3377;">미션 실패</div>
+        </div>
+
+        <div class="result-icon">💀</div>
+
+        <div class="stats-box">
+          <div class="stat-row">
+            <span>최종 스테이지</span>
+            <span class="stat-value" id="over-stage">STAGE 1</span>
+          </div>
+          <div class="stat-row">
+            <span>생존 시간</span>
+            <span class="stat-value" id="over-time">0.00s</span>
+          </div>
+          <div class="stat-row">
+            <span>개인 최고 기록</span>
+            <span class="stat-value highlight" id="over-best">0.00s</span>
+          </div>
+        </div>
+
+        <div>
+          <button class="cyber-btn" id="btn-retry">RETRY</button>
+          <button class="cyber-btn sec-btn" id="btn-menu-over">MAIN MENU</button>
+        </div>
+      </div>
+
+      <!-- SCREEN: VICTORY / GAME CLEAR -->
+      <div id="screen-victory" class="screen hidden">
+        <div>
+          <h1 class="title" style="color: var(--success); text-shadow: 0 0 10px var(--success);">SYSTEM CLEANSED</h1>
+          <div class="subtitle" style="color: var(--success);">최종 생존 성공!</div>
+        </div>
+
+        <div class="result-icon">🏆</div>
+
+        <div class="stats-box">
+          <div class="stat-row">
+            <span>클리어 상태</span>
+            <span class="stat-value" style="color: var(--success);">ALL CLEAR</span>
+          </div>
+          <div class="stat-row">
+            <span>총 생존 시간</span>
+            <span class="stat-value" id="vic-time">60.00s</span>
+          </div>
+          <div class="stat-row">
+            <span>최고 기록</span>
+            <span class="stat-value highlight" id="vic-best">60.00s</span>
+          </div>
+        </div>
+
+        <div>
+          <button class="cyber-btn" id="btn-menu-vic">MAIN MENU</button>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <script>
+    // ====================================================
+    // 최상단 전역 리소스 경로 설정 (조원들 작업 파일 매칭용)
+    // ====================================================
+    const PATH_PLAYER_IMAGE = 'assets/images/player.png';
+    const PATH_BACKGROUND_IMAGE = 'assets/images/background.png';
+    const PATH_POOP_IMAGE = 'assets/images/poop.png';
+    const PATH_ITEM_IMAGE = 'assets/images/item.png';
+
+    const PATH_BGM = 'assets/audio/bgm.mp3';
+    const PATH_SFX_HIT = 'assets/audio/hit.mp3';           // 목숨 감소 시 '빡'
+    const PATH_SFX_ITEM = 'assets/audio/item.mp3';         // 아이템 먹을 때 '딩동'
+    const PATH_SFX_GAMEOVER = 'assets/audio/gameover.mp3'; // 게임오버 '콰광'
+
+    // ====================================================
+    // IMAGE RESOURCE LOADING & FALLBACK HANDLERS
+    // ====================================================
+    let isPlayerImgLoaded = false;
+    const playerImg = new Image();
+    playerImg.src = PATH_PLAYER_IMAGE;
+    playerImg.onload = () => {
+      isPlayerImgLoaded = true;
+      // Also apply image to HUD portrait
+      const hudPortraitImg = document.getElementById('hud-portrait-img');
+      const hudPortraitFallback = document.getElementById('hud-portrait-fallback');
+      if (hudPortraitImg) {
+        hudPortraitImg.src = PATH_PLAYER_IMAGE;
+        hudPortraitImg.style.display = 'block';
+      }
+      if (hudPortraitFallback) {
+        hudPortraitFallback.style.display = 'none';
+      }
+    };
+    playerImg.onerror = () => {
+      isPlayerImgLoaded = false;
+      const hudPortraitImg = document.getElementById('hud-portrait-img');
+      const hudPortraitFallback = document.getElementById('hud-portrait-fallback');
+      if (hudPortraitImg) hudPortraitImg.style.display = 'none';
+      if (hudPortraitFallback) hudPortraitFallback.style.display = 'block';
+    };
+
+    let isBgImgLoaded = false;
+    const bgImg = new Image();
+    bgImg.src = PATH_BACKGROUND_IMAGE;
+    bgImg.onload = () => { isBgImgLoaded = true; };
+    bgImg.onerror = () => { isBgImgLoaded = false; };
+
+    let isPoopImgLoaded = false;
+    const poopImg = new Image();
+    poopImg.src = PATH_POOP_IMAGE;
+    poopImg.onload = () => { isPoopImgLoaded = true; };
+    poopImg.onerror = () => { isPoopImgLoaded = false; };
+
+    let isItemImgLoaded = false;
+    const itemImg = new Image();
+    itemImg.src = PATH_ITEM_IMAGE;
+    itemImg.onload = () => { isItemImgLoaded = true; };
+    itemImg.onerror = () => { isItemImgLoaded = false; };
+
+    // Try applying portrait immediately in case cache fires onload quickly
+    document.getElementById('hud-portrait-img').onerror = function() {
+      this.style.display = 'none';
+      document.getElementById('hud-portrait-fallback').style.display = 'block';
+    };
+
+    // ====================================================
+    // AUDIO ENGINE & AUTOPLAY POLICY BYPASS SYSTEM
+    // ====================================================
+    let bgm = null;
+    let sfxHit = null;
+    let sfxItem = null;
+    let sfxGameOver = null;
+    let audioInitialized = false;
+
+    function initAudioEngine() {
+      if (audioInitialized) return;
+      
+      bgm = new Audio(PATH_BGM);
+      bgm.loop = true;
+      bgm.volume = 0.5; // loop = true and volume = 0.5 default config
+
+      sfxHit = new Audio(PATH_SFX_HIT);
+      sfxHit.volume = 0.7;
+
+      sfxItem = new Audio(PATH_SFX_ITEM);
+      sfxItem.volume = 0.7;
+
+      sfxGameOver = new Audio(PATH_SFX_GAMEOVER);
+      sfxGameOver.volume = 0.8;
+
+      audioInitialized = true;
+    }
+
+    function playAudio(audioObj, loop = false) {
+      initAudioEngine();
+      if (!audioObj) return;
+      
+      try {
+        audioObj.currentTime = 0;
+        audioObj.loop = loop;
+        audioObj.play().catch(e => console.log("Audio play blocked/failed:", e));
+      } catch (err) {
+        console.warn("Audio exception caught:", err);
+      }
+    }
+
+    function stopBGM() {
+      if (bgm) {
+        bgm.pause();
+      }
+    }
+
+    // AI voice sweep fallbacks ("Ready, Go!")
+    function speakReadyGo() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance("Ready, Go!");
+        utterance.lang = 'en-US';
+        utterance.rate = 1.0;
+        utterance.pitch = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // ====================================================
+    // GAME CANVAS SETUP & PHYSICS ENGINE
+    // ====================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const screens = {
+      menu: document.getElementById('screen-menu'),
+      stage: document.getElementById('screen-stage'),
+      play: document.getElementById('screen-play'),
+      gameover: document.getElementById('screen-gameover'),
+      victory: document.getElementById('screen-victory')
+    };
+
+    const cabinet = document.getElementById('game-cabinet');
+
+    // State Variables
+    let gameState = 'MENU';
+    let highscore = parseFloat(localStorage.getItem('poop_dodge_highscore') || '0');
+    document.getElementById('menu-highscore').innerText = highscore.toFixed(2);
+
+    let currentStageNum = 1;
+    const maxStageNum = 3;
+    let totalSurvivalTime = 0.0;
+    
+    // Level Specific configs matching SPEC.md
+    const stageInfo = {
+      1: { name: 'LV.1 TUTORIAL', target: 20, poopRate: 750, baseSpeed: 2.8, diff: 'easy' },
+      2: { name: 'LV.2 NORMAL', target: 20, poopRate: 480, baseSpeed: 4.5, diff: 'medium' },
+      3: { name: 'LV.3 BOSS', target: 20, poopRate: 350, baseSpeed: 6.0, diff: 'hard' }
+    };
+
+    let stageTimer = 0.0;
+    let inputMode = 'keyboard'; // 'keyboard' or 'pointer'
+
+    // Entity declarations
+    let player = {
+      x: 200,
+      y: 470,          // locked player Y coordinate above bottom HUD
+      radius: 16,      // Circle boundary area for precise collision clipping
+      vx: 0,
+      ax: 1.0,
+      friction: 0.85,
+      speed: 7.5,
+      hp: 3,
+      maxHp: 3,
+      shieldTime: 0,   // invincibility time from shield items (ms)
+      hitFlashTime: 0  // blinking invincibility time when damaged (ms)
+    };
+
+    let keys = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false };
+    let obstacles = [];
+    let items = [];
+    let particles = [];
+    let screenShake = 0;
+    let warningLines = [];
+
+    // Timing trackers
+    let lastTime = 0;
+    let poopSpawnTimer = 0;
+    let itemSpawnTimer = 0;
+    let diagonalSpawnTimer = 0;
+
+    // Pointer variables
+    let isDragging = false;
+    let pointerX = 200;
+
+    // Key Events listeners
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) {
+        keys[e.code] = true;
+        inputMode = 'keyboard';
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) {
+        keys[e.code] = false;
+      }
+    });
+
+    // Touch/Mouse Drag controllers
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      inputMode = 'pointer';
+      updatePointerPos(e);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) updatePointerPos(e);
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    canvas.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      inputMode = 'pointer';
+      updatePointerPos(e.touches[0]);
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (isDragging) updatePointerPos(e.touches[0]);
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    function updatePointerPos(eventSource) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      pointerX = (eventSource.clientX - rect.left) * scaleX;
+    }
+
+    // Screen controllers
+    function changeScreen(screenName) {
+      Object.keys(screens).forEach(name => {
+        if (name === screenName) {
+          screens[name].classList.remove('hidden');
+        } else {
+          screens[name].classList.add('hidden');
+        }
+      });
+      
+      cabinet.className = '';
+      if (screenName === 'play') {
+        cabinet.classList.add('playing');
+      }
+    }
+
+    // ====================================================
+    // PARTICLES & EFFECTS GENERATORS
+    // ====================================================
+    function initStarfield() {
+      particles = [];
+      for (let i = 0; i < 30; i++) {
+        particles.push({
+          type: 'star',
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: Math.random() * 2 + 0.5,
+          speed: Math.random() * 1.2 + 0.3,
+          color: 'rgba(0, 240, 255, 0.3)'
+        });
+      }
+    }
+
+    function createYellowExplosion(x, y, count = 12) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3 + 1;
+        particles.push({
+          type: 'pixel',
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: Math.random() * 3 + 2,
+          life: 1.0,
+          decay: Math.random() * 0.08 + 0.04,
+          color: '#ffea00' // Yellow splash sparkle
+        });
+      }
+    }
+
+    function createHitExplosion(x, y) {
+      for (let i = 0; i < 12; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 1;
+        particles.push({
+          type: 'pixel',
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: Math.random() * 4 + 2,
+          life: 1.0,
+          decay: 0.06,
+          color: '#ff0055' // Red/magenta damage sparks
+        });
+      }
+    }
+
+    function createThrusterSparks(x, y) {
+      particles.push({
+        type: 'spark',
+        x: x + (Math.random() * 10 - 5),
+        y: y + 15,
+        vx: Math.random() * 0.8 - 0.4,
+        vy: Math.random() * 1.5 + 1.5,
+        size: Math.random() * 2.5 + 0.5,
+        life: 1.0,
+        decay: 0.12,
+        color: '#00f0ff'
+      });
+    }
+
+    // ====================================================
+    // GAMEPLAY LOGIC & ENTITY MANAGERS
+    // ====================================================
+    function spawnPoop(type = 'normal') {
+      const stage = stageInfo[currentStageNum];
+      const speedMultiplier = stage.baseSpeed;
+      
+      let newPoop = {
+        type: type,
+        x: Math.random() * (canvas.width - 32) + 16,
+        y: -30,
+        vy: (Math.random() * 1.2 + 0.9) * speedMultiplier,
+        vx: 0,
+        width: 24,
+        height: 24,
+        rotation: 0,
+        rotSpeed: Math.random() * 0.04 - 0.02,
+        color: '#e67e22'
+      };
+
+      if (type === 'zigzag') {
+        newPoop.color = '#ff0055';
+        newPoop.swayRange = Math.random() * 3.5 + 2.5;
+        newPoop.swaySpeed = Math.random() * 0.05 + 0.03;
+        newPoop.angle = Math.random() * Math.PI * 2;
+      } else if (type === 'giant') {
+        newPoop.color = '#39ff14'; // Toxic giant green
+        newPoop.width = 64;
+        newPoop.height = 64;
+        newPoop.x = Math.random() * (canvas.width - 80) + 40;
+        newPoop.vy = 1.6 * speedMultiplier * 0.6;
+      }
+
+      obstacles.push(newPoop);
+    }
+
+    function spawnDiagonalPoop() {
+      const fromLeft = Math.random() > 0.5;
+      const spawnX = fromLeft ? -30 : canvas.width + 30;
+      const targetX = fromLeft ? canvas.width - 80 : 80;
+      const spawnY = Math.random() * 80 + 30;
+      
+      const angle = Math.atan2(450 - spawnY, targetX - spawnX);
+      const speed = 5.5;
+
+      const warningId = Date.now() + Math.random();
+      warningLines.push({
+        id: warningId,
+        x1: fromLeft ? 0 : canvas.width,
+        y1: spawnY,
+        x2: targetX,
+        y2: 450,
+        timer: 1.0
+      });
+
+      setTimeout(() => {
+        if (gameState !== 'PLAYING' || currentStageNum !== 3) return;
+        
+        warningLines = warningLines.filter(line => line.id !== warningId);
+
+        obstacles.push({
+          type: 'diagonal',
+          x: spawnX,
+          y: spawnY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          width: 24,
+          height: 24,
+          rotation: angle,
+          rotSpeed: 0,
+          color: '#ffea00'
+        });
+      }, 1000);
+    }
+
+    function spawnItem() {
+      const type = Math.random() > 0.55 ? 'shield' : 'heart';
+      items.push({
+        type: type,
+        x: Math.random() * (canvas.width - 30) + 15,
+        y: -20,
+        vy: Math.random() * 0.8 + 1.5,
+        width: 18,
+        height: 18,
+        pulseAngle: 0
+      });
+    }
+
+    // ====================================================
+    // COLLISION & RENDERING PIPELINE
+    // ====================================================
+    function drawCyberPlayer(x, y, radius, shieldActive, flashActive) {
+      if (flashActive && Math.floor(Date.now() / 80) % 2 === 0) {
+        return; // blinking effect
+      }
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Draw active shield ring
+      if (shieldActive) {
+        ctx.save();
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00f0ff';
+        ctx.strokeStyle = `rgba(0, 240, 255, ${0.4 + Math.sin(Date.now() / 80) * 0.2})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius + 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Draw avatar clipped inside circular boundaries (as requested)
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.clip(); // Mask subsequent drawings within the player's circle path
+
+      if (isPlayerImgLoaded) {
+        // Draw character.png / player.png clean at central coordinates
+        ctx.drawImage(playerImg, -radius, -radius, radius * 2, radius * 2);
+      } else {
+        // High quality fallback vector: 2D cyan circular pilot
+        ctx.fillStyle = '#0f0f26';
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = '#00f0ff';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#00f0ff';
+        ctx.beginPath();
+        ctx.ellipse(0, -2, radius * 0.7, radius * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.restore(); // Restore context to default canvas setup (cleans clipping mask)
+    }
+
+    function drawVectorPoop(x, y, width, height, type, color, rotation) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+
+      if (isPoopImgLoaded) {
+        ctx.drawImage(poopImg, -width/2, -height/2, width, height);
+      } else {
+        // Vector Poop shape design
+        ctx.shadowBlur = (type === 'giant') ? 20 : 10;
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+
+        ctx.beginPath();
+        ctx.moveTo(0, -height/2);
+        ctx.bezierCurveTo(width*0.25, -height*0.35, width*0.5, -height*0.1, width*0.45, height*0.15);
+        ctx.bezierCurveTo(width*0.55, height*0.45, -width*0.55, height*0.45, -width*0.45, height*0.15);
+        ctx.bezierCurveTo(-width*0.5, -height*0.1, -width*0.25, -height*0.35, 0, -height/2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-width*0.15, -height*0.02, width*0.08, 0, Math.PI*2);
+        ctx.arc(width*0.15, -height*0.02, width*0.08, 0, Math.PI*2);
+        ctx.fill();
+
+        // Pupils
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(-width*0.15, 0, width*0.04, 0, Math.PI*2);
+        ctx.arc(width*0.15, 0, width*0.04, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawItem(x, y, width, height, type, pulseAngle) {
+      ctx.save();
+      ctx.translate(x, y);
+      const scale = 1.0 + Math.sin(pulseAngle) * 0.12;
+      ctx.scale(scale, scale);
+
+      if (isItemImgLoaded) {
+        ctx.drawImage(itemImg, -width/2, -height/2, width, height);
+      } else {
+        ctx.shadowBlur = 10;
+        if (type === 'shield') {
+          // Yellow Shield Star
+          ctx.shadowColor = '#00f0ff';
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            let angle = (i * Math.PI * 2 / 5) - Math.PI/2;
+            ctx.lineTo(Math.cos(angle) * (width/2), Math.sin(angle) * (width/2));
+            angle += Math.PI / 5;
+            ctx.lineTo(Math.cos(angle) * (width/4), Math.sin(angle) * (width/4));
+          }
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          // Pink Recovery Heart
+          ctx.shadowColor = '#ff0055';
+          ctx.beginPath();
+          const r = width / 2;
+          ctx.moveTo(0, -r * 0.35);
+          ctx.bezierCurveTo(-r * 0.6, -r * 1.1, -r * 1.1, -r * 0.6, -r * 1.1, 0);
+          ctx.bezierCurveTo(-r * 1.1, r * 0.5, -r * 0.5, r * 0.9, 0, r * 1.3);
+          ctx.bezierCurveTo(r * 0.5, r * 0.9, r * 1.1, r * 0.5, r * 1.1, 0);
+          ctx.bezierCurveTo(r * 1.1, -r * 0.6, r * 0.6, -r * 1.1, 0, -r * 0.35);
+          ctx.closePath();
+          ctx.fillStyle = '#ff0055';
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // ====================================================
+    // GAME CORE FLOW & LOOP CONTROLLERS
+    // ====================================================
+    let countdownVal = 3;
+    let countdownInterval = null;
+
+    function startStageCountdown() {
+      gameState = 'COUNTDOWN';
+      
+      obstacles = [];
+      items = [];
+      warningLines = [];
+      stageTimer = 0;
+      
+      initStarfield();
+
+      // UI HUD setups
+      updateHUD();
+
+      const overlay = document.getElementById('countdown-overlay');
+      const text = document.getElementById('countdown-display');
+      overlay.classList.remove('hidden');
+      
+      countdownVal = 3;
+      text.innerText = countdownVal;
+
+      if (countdownInterval) clearInterval(countdownInterval);
+      
+      countdownInterval = setInterval(() => {
+        countdownVal--;
+        if (countdownVal > 0) {
+          text.innerText = countdownVal;
+        } else if (countdownVal === 0) {
+          text.innerText = "READY, GO!";
+          speakReadyGo(); // Voice call
+        } else {
+          clearInterval(countdownInterval);
+          overlay.classList.add('hidden');
+          gameState = 'PLAYING';
+        }
+      }, 850);
+    }
+
+    function gameTick(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = timestamp - lastTime;
+      lastTime = timestamp;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameTick);
+    }
+
+    function update(dt) {
+      // Starfield moves continuously
+      particles.forEach(p => {
+        if (p.type === 'star') {
+          p.y += p.speed;
+          if (p.y > canvas.height) {
+            p.y = 0;
+            p.x = Math.random() * canvas.width;
+          }
+        }
+      });
+
+      if (gameState !== 'PLAYING') return;
+
+      const currentStage = stageInfo[currentStageNum];
+
+      // Step Timer updates
+      stageTimer += dt / 1000;
+      totalSurvivalTime += dt / 1000;
+      
+      updateHUD();
+
+      // Check stage clear transitions
+      if (stageTimer >= currentStage.target) {
+        handleStageClear();
+        return;
+      }
+
+      // Invincibility timers decay
+      if (player.shieldTime > 0) {
+        player.shieldTime -= dt;
+        if (player.shieldTime < 0) player.shieldTime = 0;
+      }
+      if (player.hitFlashTime > 0) {
+        player.hitFlashTime -= dt;
+        if (player.hitFlashTime < 0) player.hitFlashTime = 0;
+      }
+
+      // Keyboard Left/Right controllers
+      if (inputMode === 'keyboard') {
+        const left = keys.ArrowLeft || keys.KeyA;
+        const right = keys.ArrowRight || keys.KeyD;
+        
+        if (left) {
+          player.vx -= player.ax;
+        } else if (right) {
+          player.vx += player.ax;
+        }
+        
+        player.vx *= player.friction;
+        
+        if (player.vx > player.speed) player.vx = player.speed;
+        if (player.vx < -player.speed) player.vx = -player.speed;
+        
+        player.x += player.vx;
+      } else {
+        // Mouse touch follow slide physics
+        const dx = pointerX - player.x;
+        player.x += dx * 0.28;
+      }
+
+      // Boundary locking
+      const margin = player.radius;
+      if (player.x < margin) {
+        player.x = margin;
+        player.vx = 0;
+      }
+      if (player.x > canvas.width - margin) {
+        player.x = canvas.width - margin;
+        player.vx = 0;
+      }
+
+      // Thruster spark generation
+      createThrusterSparks(player.x, player.y);
+
+      // Obstacle spawners
+      poopSpawnTimer += dt;
+      if (poopSpawnTimer >= currentStage.poopRate) {
+        poopSpawnTimer = 0;
+        
+        if (currentStageNum === 1) {
+          spawnPoop('normal');
+        } else if (currentStageNum === 2) {
+          Math.random() > 0.82 ? spawnPoop('zigzag') : spawnPoop('normal');
+        } else if (currentStageNum === 3) {
+          const rng = Math.random();
+          if (rng > 0.88) {
+            spawnPoop('giant');
+          } else if (rng > 0.65) {
+            spawnPoop('zigzag');
+          } else {
+            spawnPoop('normal');
+          }
+        }
+      }
+
+      // Diagonal poop sweeps on Stage 3
+      if (currentStageNum === 3) {
+        diagonalSpawnTimer += dt;
+        if (diagonalSpawnTimer >= 4800) {
+          diagonalSpawnTimer = 0;
+          spawnDiagonalPoop();
+        }
+      }
+
+      // Item spawners on Stages 2 and 3 (from SPEC.md: "아이템 등장 시작")
+      if (currentStageNum >= 2) {
+        itemSpawnTimer += dt;
+        if (itemSpawnTimer >= 6500) {
+          itemSpawnTimer = 0;
+          spawnItem();
+        }
+      }
+
+      // Update Obstacles (Poops)
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const p = obstacles[i];
+        p.rotation += p.rotSpeed;
+
+        if (p.type === 'zigzag') {
+          p.angle += p.swaySpeed;
+          p.vx = Math.sin(p.angle) * p.swayRange;
+          p.x += p.vx;
+          p.y += p.vy;
+        } else {
+          p.x += p.vx;
+          p.y += p.vy;
+        }
+
+        // Clean out-of-screen objects
+        if (p.y > canvas.height + 40 || p.x < -80 || p.x > canvas.width + 80) {
+          // Giant poop impact causes camera shake
+          if (p.type === 'giant') {
+            screenShake = 14;
+            playAudio(sfxHit);
+            createYellowExplosion(p.x, canvas.height, 15);
+          }
+          obstacles.splice(i, 1);
+          continue;
+        }
+
+        // AABB Circle Collision checking
+        const distX = Math.abs(p.x - player.x);
+        const distY = Math.abs(p.y - player.y);
+        const hitDistance = (p.width/2 + player.radius) * 0.85;
+
+        if (distX < hitDistance && distY < hitDistance) {
+          obstacles.splice(i, 1);
+          handlePlayerHit(p);
+        }
+      }
+
+      // Update Items
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += item.vy;
+        item.pulseAngle += 0.08;
+
+        if (item.y > canvas.height + 20) {
+          items.splice(i, 1);
+          continue;
+        }
+
+        const distX = Math.abs(item.x - player.x);
+        const distY = Math.abs(item.y - player.y);
+        const collectDistance = (item.width/2 + player.radius) * 0.95;
+
+        if (distX < collectDistance && distY < collectDistance) {
+          items.splice(i, 1);
+          handleItemCollect(item);
+        }
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        if (p.type === 'star') continue;
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // Laser timing updates
+      warningLines.forEach(w => {
+        w.timer -= dt / 1000;
+      });
+
+      // Decay screen shakes
+      if (screenShake > 0) {
+        screenShake *= 0.82;
+        if (screenShake < 0.2) screenShake = 0;
+      }
+    }
+
+    function handlePlayerHit(poop) {
+      if (player.shieldTime > 0 || player.hitFlashTime > 0) {
+        // Safe invincibility
+        createYellowExplosion(poop.x, poop.y, 8);
+        return;
+      }
+
+      player.hp--;
+      player.hitFlashTime = 1200; // 1.2s invincibility frames
+      screenShake = 12;
+      
+      updateHUD();
+      createHitExplosion(player.x, player.y);
+      playAudio(sfxHit); // Play hit sfx ("빡" 소리)
+
+      cabinet.classList.add('danger');
+      setTimeout(() => cabinet.classList.remove('danger'), 1000);
+
+      if (player.hp <= 0) {
+        handleGameOver();
+      }
+    }
+
+    function handleItemCollect(item) {
+      playAudio(sfxItem); // Play item sfx ("딩동" 소리)
+      
+      // SPEC.md requirement: Yellow flashes on gather
+      createYellowExplosion(item.x, item.y, 16);
+      
+      // Temporary screen overlay flash in render
+      playerFlashOverlayColor = 'rgba(255, 234, 0, 0.25)';
+      setTimeout(() => playerFlashOverlayColor = null, 150);
+
+      if (item.type === 'shield') {
+        player.shieldTime = 5000; // 5 seconds shield
+      } else if (item.type === 'heart') {
+        if (player.hp < player.maxHp) {
+          player.hp++;
+          updateHUD();
+        }
+      }
+    }
+
+    let playerFlashOverlayColor = null;
+
+    function updateHUD() {
+      // 1. Stage Name Label
+      const currentStage = stageInfo[currentStageNum];
+      document.getElementById('hud-stage-name').innerText = currentStage ? currentStage.name : '';
+
+      // 2. Progress bar status
+      if (currentStage) {
+        const pct = Math.min((stageTimer / currentStage.target) * 100, 100);
+        document.getElementById('hud-timer-bar').style.width = `${pct}%`;
+        
+        // 3. Time Text
+        const remaining = Math.max(currentStage.target - stageTimer, 0);
+        document.getElementById('hud-timer-text').innerText = `${remaining.toFixed(1)}s`;
+      }
+
+      // 4. Hearts gauge
+      const heartsContainer = document.getElementById('hud-hearts-container');
+      heartsContainer.innerHTML = '';
+      for (let i = 0; i < player.maxHp; i++) {
+        const heartSpan = document.createElement('span');
+        heartSpan.className = `hud-heart ${i < player.hp ? '' : 'lost'}`;
+        heartSpan.innerText = '♥';
+        heartsContainer.appendChild(heartSpan);
+      }
+    }
+
+    function handleStageClear() {
+      gameState = 'STAGE_CLEAR';
+      stopBGM(); // Stop music as required on stage transition or victory
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (currentStageNum < maxStageNum) {
+        currentStageNum++;
+        setTimeout(() => {
+          // Bypass Autoplay again on stage change
+          if (bgm && !isMuted) bgm.play().catch(e => {});
+          startStageCountdown();
+        }, 2200);
+      } else {
+        setTimeout(() => {
+          handleVictory();
+        }, 1200);
+      }
+    }
+
+    function handleGameOver() {
+      gameState = 'GAMEOVER';
+      
+      stopBGM(); // Immediately pause BGM on game over as requested!
+      playAudio(sfxGameOver); // Play '콰광' Gameover sound
+
+      // Update LocalStorage scores
+      if (totalSurvivalTime > highscore) {
+        highscore = totalSurvivalTime;
+        localStorage.setItem('poop_dodge_highscore', highscore.toString());
+        document.getElementById('menu-highscore').innerText = highscore.toFixed(2);
+      }
+
+      // Set score texts
+      document.getElementById('over-stage').innerText = `STAGE ${currentStageNum}`;
+      document.getElementById('over-time').innerText = `${totalSurvivalTime.toFixed(2)}s`;
+      document.getElementById('over-best').innerText = `${highscore.toFixed(2)}s`;
+
+      changeScreen('gameover');
+    }
+
+    function handleVictory() {
+      gameState = 'VICTORY';
+      stopBGM(); // Stop music
+
+      if (totalSurvivalTime > 60.0) totalSurvivalTime = 60.0;
+
+      if (totalSurvivalTime > highscore) {
+        highscore = totalSurvivalTime;
+        localStorage.setItem('poop_dodge_highscore', highscore.toString());
+        document.getElementById('menu-highscore').innerText = highscore.toFixed(2);
+      }
+
+      document.getElementById('vic-time').innerText = `${totalSurvivalTime.toFixed(2)}s`;
+      document.getElementById('vic-best').innerText = `${highscore.toFixed(2)}s`;
+
+      changeScreen('victory');
+    }
+
+    // ====================================================
+    // CANVAS RENDER RENDERING ENGINE
+    // ====================================================
+    function render() {
+      ctx.save();
+
+      // Apply screen shake
+      if (screenShake > 0) {
+        const shakeX = (Math.random() * 2 - 1) * screenShake;
+        const shakeY = (Math.random() * 2 - 1) * screenShake;
+        ctx.translate(shakeX, shakeY);
+      }
+
+      // Draw background
+      if (isBgImgLoaded) {
+        const speedY = (gameState === 'PLAYING') ? (stageTimer * 60) : 0;
+        const yOffset = speedY % canvas.height;
+        ctx.drawImage(bgImg, 0, yOffset, canvas.width, canvas.height);
+        ctx.drawImage(bgImg, 0, yOffset - canvas.height, canvas.width, canvas.height);
+      } else {
+        // Fallback scrolling grids
+        ctx.fillStyle = '#060613';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#12122b';
+        ctx.lineWidth = 1;
+        const gridSize = 40;
+        const speedY = (gameState === 'PLAYING') ? (stageTimer * 50) % gridSize : 0;
+        for (let x = 0; x < canvas.width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, canvas.height);
+          ctx.stroke();
+        }
+        for (let y = -gridSize; y < canvas.height + gridSize; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + speedY);
+          ctx.lineTo(canvas.width, y + speedY);
+          ctx.stroke();
+        }
+      }
+
+      // Draw Starfield particles
+      particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        if (p.type === 'star') {
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+        } else {
+          ctx.save();
+          ctx.globalAlpha = p.life;
+          ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+          ctx.restore();
+        }
+      });
+
+      // Draw Laser Warning lines
+      warningLines.forEach(w => {
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 234, 0, ${0.45 + Math.sin(Date.now() / 40) * 0.35})`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 4]);
+        ctx.beginPath();
+        ctx.moveTo(w.x1, w.y1);
+        ctx.lineTo(w.x2, w.y2);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Draw Items
+      items.forEach(item => {
+        drawItem(item.x, item.y, item.width, item.height, item.type, item.pulseAngle);
+      });
+
+      // Draw Obstacles (Poops)
+      obstacles.forEach(p => {
+        drawVectorPoop(p.x, p.y, p.width, p.height, p.type, p.color, p.rotation);
+      });
+
+      // Draw Player inside locked boundary box Y: 470px
+      if (gameState === 'PLAYING' || gameState === 'COUNTDOWN' || gameState === 'STAGE_CLEAR') {
+        const shieldActive = player.shieldTime > 0;
+        const flashActive = player.hitFlashTime > 0;
+        drawCyberPlayer(player.x, player.y, player.radius, shieldActive, flashActive);
+      }
+
+      // Overlay flashes on Item gather
+      if (playerFlashOverlayColor) {
+        ctx.fillStyle = playerFlashOverlayColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Stage clear transitions rendering
+      if (gameState === 'STAGE_CLEAR') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.font = `bold 22px ${varColor('--font-arcade')}`;
+        ctx.fillStyle = varColor('--primary');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`STAGE ${currentStageNum - 1} CLEARED!`, canvas.width / 2, canvas.height / 2 - 30);
+
+        ctx.font = `11px ${varColor('--font-display')}`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("PREPARING NEXT SECTOR...", canvas.width / 2, canvas.height / 2 + 15);
+      }
+
+      ctx.restore();
+    }
+
+    function varColor(cssVarName) {
+      return getComputedStyle(document.documentElement).getPropertyValue(cssVarName).trim();
+    }
+
+    // ====================================================
+    // GAMEPLAY INITIALIZATION MANAGERS
+    // ====================================================
+    function startNewGame(fromStage = 1) {
+      // Auto Play policy bypass: triggers audio engine on button click (Start/Restart)
+      initAudioEngine();
+      if (bgm) {
+        bgm.currentTime = 0;
+        bgm.play().catch(e => console.log("BGM play request rejected:", e));
+      }
+
+      player.hp = 3;
+      player.shieldTime = 0;
+      player.hitFlashTime = 0;
+      player.x = 200;
+      player.vx = 0;
+      
+      currentStageNum = fromStage;
+      totalSurvivalTime = (fromStage - 1) * 20.0;
+      
+      changeScreen('play');
+      startStageCountdown();
+    }
+
+    // ====================================================
+    // HTML INTERACTION & BTN EVENT BINDERS
+    // ====================================================
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+      startNewGame(1);
+    });
+
+    document.getElementById('btn-select-stage').addEventListener('click', () => {
+      initAudioEngine();
+      changeScreen('stage');
+    });
+
+    document.getElementById('btn-back-menu').addEventListener('click', () => {
+      changeScreen('menu');
+    });
+
+    document.getElementById('btn-retry').addEventListener('click', () => {
+      startNewGame(currentStageNum);
+    });
+
+    document.getElementById('btn-menu-over').addEventListener('click', () => {
+      changeScreen('menu');
+    });
+
+    document.getElementById('btn-menu-vic').addEventListener('click', () => {
+      changeScreen('menu');
+    });
+
+    document.querySelectorAll('.stage-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const stage = parseInt(item.getAttribute('data-stage'));
+        startNewGame(stage);
+      });
+    });
+
+    // Initiate Loop
+    initStarfield();
+    requestAnimationFrame(gameTick);
+
+  </script>
+</body>
+</html>

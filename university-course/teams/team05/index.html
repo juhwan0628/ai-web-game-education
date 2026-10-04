@@ -1,0 +1,2374 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>스페이스 워 (Space War) - 3D FPS</title>
+  
+  <script src="./assets/js/three.min.js"></script>
+
+  <style>
+    :root {
+      --color-bg: #030308;
+      --color-primary: #00f0ff;
+      --color-primary-dim: rgba(0, 240, 255, 0.2);
+      --color-secondary: #ff0055;
+      --color-secondary-dim: rgba(255, 0, 85, 0.2);
+      --color-success: #39ff14;
+      --color-success-dim: rgba(57, 255, 20, 0.2);
+      --color-hud-bg: rgba(10, 15, 30, 0.7);
+      --font-hud: 'Orbitron', 'Share Tech Mono', sans-serif;
+      --font-ui: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: var(--color-bg);
+      background-image: 
+        radial-gradient(circle at 20% 30%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(255, 0, 85, 0.05) 0%, transparent 40%),
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      background-size: 100% 100%, 100% 100%, 100% 4px, 6px 100%;
+      color: #ffffff;
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Main Container representing a sleek ship control console */
+    .console-wrapper {
+      position: relative;
+      padding: 20px;
+      background: rgba(15, 15, 25, 0.85);
+      border: 3px solid #1a2238;
+      border-radius: 16px;
+      box-shadow: 
+        0 0 50px rgba(0, 0, 0, 0.8),
+        inset 0 0 20px rgba(0, 240, 255, 0.1);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .console-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-family: var(--font-hud);
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      color: #4a5c78;
+      border-bottom: 1px solid rgba(74, 92, 120, 0.3);
+      padding-bottom: 6px;
+    }
+    
+    .console-header .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: var(--color-primary);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--color-primary);
+      margin-right: 6px;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* The main 800x600 game viewport container */
+    #game-viewport {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      background: #000000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid #1f2d4a;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Glassmorphism screens (Start, GameOver, Victory, Transition) */
+    .overlay-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(4, 5, 12, 0.85);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      opacity: 1;
+      transition: opacity 0.5s ease, visibility 0.5s;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .overlay-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .glitch-title {
+      font-family: var(--font-hud);
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 6px;
+      margin-bottom: 10px;
+      position: relative;
+      text-shadow: 
+        0 0 10px rgba(0, 240, 255, 0.5),
+        0 0 20px rgba(0, 240, 255, 0.3),
+        0 0 40px rgba(0, 240, 255, 0.2);
+      animation: titleGlow 4s infinite alternate;
+    }
+
+    @keyframes titleGlow {
+      from { text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.2); }
+      to { text-shadow: 0 0 20px rgba(255, 0, 85, 0.6), 0 0 40px rgba(255, 0, 85, 0.3); }
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: #7b8ea8;
+      letter-spacing: 2px;
+      margin-bottom: 40px;
+      font-weight: 300;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .btn-action {
+      font-family: var(--font-hud);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.05) 100%);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      padding: 14px 44px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 3px;
+      transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+      box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.3),
+        inset 0 0 10px rgba(0, 240, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-action::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: all 0.6s ease;
+    }
+
+    .btn-action:hover::before { left: 100%; }
+
+    .btn-action:hover {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.3) 0%, rgba(0, 240, 255, 0.1) 100%);
+      border-color: rgba(0, 240, 255, 0.9);
+      box-shadow: 
+        0 0 25px rgba(0, 240, 255, 0.5),
+        inset 0 0 8px rgba(0, 240, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn-action:active { transform: translateY(1px); }
+    
+    .btn-secondary {
+      background: linear-gradient(135deg, rgba(255, 0, 85, 0.15) 0%, rgba(255, 0, 85, 0.05) 100%);
+      border-color: rgba(255, 0, 85, 0.4);
+    }
+    
+    .btn-secondary:hover {
+      background: linear-gradient(135deg, rgba(255, 0, 85, 0.25) 0%, rgba(255, 0, 85, 0.1) 100%);
+      border-color: rgba(255, 0, 85, 0.9);
+      box-shadow: 0 0 25px rgba(255, 0, 85, 0.5);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      max-width: 480px;
+      margin-bottom: 40px;
+      background: rgba(10, 15, 25, 0.5);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .control-item {
+      display: flex;
+      align-items: center;
+      text-align: left;
+      font-size: 0.85rem;
+      color: #9ab2cf;
+    }
+
+    .key-badge {
+      display: inline-block;
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      line-height: 30px;
+      text-align: center;
+      background: rgba(26, 35, 54, 0.8);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 4px;
+      font-family: var(--font-hud);
+      color: var(--color-primary);
+      margin-right: 12px;
+      font-weight: bold;
+      box-shadow: 0 0 5px rgba(0, 240, 255, 0.1);
+    }
+
+    #hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+      font-family: var(--font-hud);
+      color: #ffffff;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    #hud-overlay.active { opacity: 1; }
+
+    .hud-visor-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 1px solid rgba(0, 240, 255, 0.08);
+      box-shadow: inset 0 0 60px rgba(0, 240, 255, 0.1);
+      pointer-events: none;
+    }
+
+    .hud-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--color-primary);
+    }
+    .hud-corner.tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+    .hud-corner.tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+    .hud-corner.bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+    .hud-corner.br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    .hud-panel {
+      background: var(--color-hud-bg);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      border-radius: 6px;
+      padding: 10px 16px;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .hud-stage-info { display: flex; flex-direction: column; }
+    
+    .hud-stage-label {
+      font-size: 0.65rem;
+      color: #5d7599;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .hud-stage-value {
+      font-size: 1.15rem;
+      color: var(--color-primary);
+      text-shadow: 0 0 5px rgba(0, 240, 255, 0.4);
+    }
+
+    .hud-timer-panel { text-align: center; min-width: 120px; }
+    
+    .hud-timer-val { font-size: 1.5rem; font-weight: bold; color: #ffffff; }
+    .hud-timer-val.critical {
+      color: var(--color-secondary);
+      animation: alertPulse 1s infinite alternate;
+    }
+
+    @keyframes alertPulse {
+      from { text-shadow: 0 0 2px var(--color-secondary); opacity: 0.6; }
+      to { text-shadow: 0 0 10px var(--color-secondary), 0 0 20px var(--color-secondary); opacity: 1; }
+    }
+
+    .hud-stats-panel { text-align: right; }
+    .hud-stat-item {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-bottom: 2px;
+    }
+    .hud-stat-lbl { font-size: 0.7rem; color: #5d7599; margin-right: 8px; }
+    .hud-stat-val {
+      font-size: 1.1rem;
+      color: var(--color-primary);
+      text-shadow: 0 0 5px rgba(0, 240, 255, 0.3);
+    }
+
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    .hud-bars { width: 250px; display: flex; flex-direction: column; gap: 6px; }
+
+    .hud-bar-container { display: flex; align-items: center; justify-content: space-between; }
+
+    .bar-label { width: 40px; font-size: 0.75rem; font-weight: bold; letter-spacing: 1px; }
+
+    .bar-bg {
+      flex: 1;
+      height: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin: 0 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 100%;
+      background-color: var(--color-primary);
+      transition: width 0.15s ease-out;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+    }
+
+    #hp-fill {
+      background-color: var(--color-success);
+      box-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
+    }
+
+    .bar-num {
+      width: 32px;
+      font-size: 0.8rem;
+      text-align: right;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .hud-right-controls { display: flex; align-items: center; gap: 15px; }
+
+    .hud-radar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      background: rgba(0, 240, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+    }
+
+    .radar-sweep {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(from 0deg, rgba(0, 240, 255, 0.2) 0deg, transparent 90deg, transparent 360deg);
+      border-radius: 50%;
+      animation: radarScan 3s linear infinite;
+    }
+
+    .radar-dot {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--color-secondary);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 4px var(--color-secondary);
+    }
+
+    @keyframes radarScan {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .hud-ammo {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      min-width: 120px;
+    }
+
+    .hud-ammo-label { font-size: 0.6rem; color: #5d7599; text-transform: uppercase; }
+
+    .hud-ammo-count {
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: var(--color-primary);
+      font-family: 'Share Tech Mono', monospace;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    .hud-ammo-bars { display: flex; gap: 3px; margin-top: 4px; }
+
+    .ammo-bar-unit {
+      width: 5px;
+      height: 10px;
+      background: var(--color-primary);
+      opacity: 0.8;
+      box-shadow: 0 0 4px var(--color-primary);
+      transition: opacity 0.1s ease;
+    }
+    
+    .ammo-bar-unit.empty { opacity: 0.15; box-shadow: none; }
+
+    #hud-reload-warning {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--font-hud);
+      font-size: 1rem;
+      color: var(--color-secondary);
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px var(--color-secondary);
+      animation: alertPulse 0.5s infinite alternate;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--color-secondary);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    #hud-reload-warning.active { opacity: 1; }
+
+    .hud-crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 6;
+      transition: transform 0.08s ease;
+    }
+
+    .hud-crosshair::before,
+    .hud-crosshair::after {
+      content: '';
+      position: absolute;
+      background-color: var(--color-primary);
+      box-shadow: 0 0 4px var(--color-primary);
+    }
+
+    .hud-crosshair::before { top: 15px; left: 0; width: 32px; height: 2px; }
+    .hud-crosshair::after { top: 0; left: 15px; width: 2px; height: 32px; }
+    
+    .hud-crosshair-center {
+      position: absolute;
+      top: 13px;
+      left: 13px;
+      width: 6px;
+      height: 6px;
+      background: var(--color-primary);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--color-primary);
+    }
+    
+    .hud-crosshair-circle {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: 20px;
+      height: 20px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      border-radius: 50%;
+    }
+
+    #hud-hitmarker {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(45deg);
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+      z-index: 7;
+      opacity: 0;
+      transition: opacity 0.05s ease;
+    }
+
+    #hud-hitmarker::before,
+    #hud-hitmarker::after {
+      content: '';
+      position: absolute;
+      background-color: var(--color-secondary);
+      box-shadow: 0 0 5px var(--color-secondary);
+    }
+    
+    #hud-hitmarker::before { top: 11px; left: 0; width: 24px; height: 2px; }
+    #hud-hitmarker::after { top: 0; left: 11px; width: 2px; height: 24px; }
+    #hud-hitmarker.active { opacity: 1; }
+
+    #hud-damage-vignette {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-shadow: inset 0 0 0px rgba(255, 0, 85, 0);
+      pointer-events: none;
+      z-index: 4;
+      transition: box-shadow 0.1s ease-out;
+    }
+
+    #hud-damage-vignette.hit { box-shadow: inset 0 0 60px rgba(255, 0, 85, 0.6); }
+    
+    #hud-damage-vignette.critical {
+      box-shadow: inset 0 0 40px rgba(255, 0, 85, 0.4);
+      animation: alertVignette 1s infinite alternate;
+    }
+
+    @keyframes alertVignette {
+      from { box-shadow: inset 0 0 20px rgba(255, 0, 85, 0.2); }
+      to { box-shadow: inset 0 0 50px rgba(255, 0, 85, 0.6); }
+    }
+
+    #hud-level-instructions {
+      position: absolute;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.95rem;
+      color: #9ab2cf;
+      text-align: center;
+      background: rgba(5, 10, 20, 0.85);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 4px;
+      padding: 10px 24px;
+      max-width: 80%;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    #hud-level-instructions.active { opacity: 1; }
+
+    #pause-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 4, 10, 0.8);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9;
+      color: #fff;
+      font-family: var(--font-hud);
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    #pause-screen.active { opacity: 1; pointer-events: auto; }
+
+    #warp-screen { background: radial-gradient(circle, rgba(10,25,50,0.95) 0%, rgba(3,3,10,0.98) 100%); }
+
+    .warp-bar-container {
+      width: 300px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 24px 0;
+    }
+
+    .warp-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--color-primary);
+      box-shadow: 0 0 10px var(--color-primary);
+      animation: warpLoad 3s linear forwards;
+    }
+
+    @keyframes warpLoad {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+
+    .warp-text {
+      font-family: var(--font-hud);
+      letter-spacing: 4px;
+      color: var(--color-primary);
+      animation: textPulse 1s infinite alternate;
+    }
+
+    @keyframes textPulse {
+      from { opacity: 0.5; }
+      to { opacity: 1; }
+    }
+
+    .console-footer {
+      width: 100%;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #4a5c78;
+      font-family: var(--font-hud);
+    }
+    
+    .console-footer a { color: var(--color-primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="console-wrapper">
+    <div class="console-header">
+      <div><span class="status-dot"></span>SYS_CONNECTED // 3D_OREGON_WEBGL</div>
+      <div>SECURE_LINE: ACTIVE</div>
+    </div>
+
+    <section id="game-viewport">
+      <!-- 3D Canvas element will be dynamically generated by Three.js -->
+      
+      <!-- Damage Vignette & Low HP Alert -->
+      <div id="hud-damage-vignette"></div>
+
+      <!-- Sci-Fi HUD Overlay -->
+      <div id="hud-overlay">
+        <div class="hud-visor-frame">
+          <div class="hud-corner tl"></div>
+          <div class="hud-corner tr"></div>
+          <div class="hud-corner bl"></div>
+          <div class="hud-corner br"></div>
+        </div>
+
+        <!-- Top Panel: Stage, Timer, Score -->
+        <div class="hud-top">
+          <div class="hud-panel hud-stage-info">
+            <span class="hud-stage-label">SYSTEM STAGE</span>
+            <span class="hud-stage-value" id="hud-stage-text">LV 1 // TUTORIAL</span>
+          </div>
+
+          <div class="hud-panel hud-timer-panel" id="hud-timer-container" style="display: none;">
+            <div class="hud-stage-label">LIMIT TIMER</div>
+            <div class="hud-timer-val" id="hud-timer-text">90.0</div>
+          </div>
+
+          <div class="hud-panel hud-stats-panel">
+            <div class="hud-stat-item">
+              <span class="hud-stat-lbl">SCORE</span>
+              <span class="hud-stat-val" id="hud-score-text">000000</span>
+            </div>
+            <div class="hud-stat-item">
+              <span class="hud-stat-lbl">SECTOR</span>
+              <span class="hud-stat-val" style="color: #ff0055;">XENOS-03</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle: Instruction Prompts & Crosshair -->
+        <div id="hud-level-instructions">
+          조작법을 익히세요. W, A, S, D로 이동하고 마우스로 조준하여 표적을 사격하세요.
+        </div>
+
+        <div class="hud-crosshair" id="hud-crosshair-reticle">
+          <div class="hud-crosshair-center"></div>
+          <div class="hud-crosshair-circle"></div>
+        </div>
+
+        <div id="hud-hitmarker"></div>
+        <div id="hud-reload-warning">RELOADING ENERGY CELLS</div>
+
+        <!-- Bottom Panel: Vital Bars (HP & Shield), Radar, Ammo -->
+        <div class="hud-bottom">
+          <div class="hud-panel hud-bars">
+            <div class="hud-bar-container">
+              <span class="bar-label" style="color: var(--color-success);">HP</span>
+              <div class="bar-bg">
+                <div class="bar-fill" id="hp-fill" style="width: 100%;"></div>
+              </div>
+              <span class="bar-num" id="hp-num">100</span>
+            </div>
+            
+            <div class="hud-bar-container">
+              <span class="bar-label" style="color: var(--color-primary);">SHD</span>
+              <div class="bar-bg">
+                <div class="bar-fill" id="shield-fill" style="width: 100%;"></div>
+              </div>
+              <span class="bar-num" id="shield-num">50</span>
+            </div>
+          </div>
+
+          <div class="hud-right-controls">
+            <!-- Dynamic Minimap/Radar -->
+            <div class="hud-panel hud-radar" id="hud-radar-component">
+              <div class="radar-sweep"></div>
+              <!-- Radar dots will be appended here -->
+            </div>
+
+            <!-- Weapon Ammo -->
+            <div class="hud-panel hud-ammo">
+              <span class="hud-ammo-label">PLASMA CELL</span>
+              <span class="hud-ammo-count" id="hud-ammo-text">15 / 15</span>
+              <div class="hud-ammo-bars" id="hud-ammo-bar-container">
+                <!-- Bars generated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. Start Screen -->
+      <div class="overlay-screen" id="start-screen">
+        <h1 class="glitch-title">스페이스 워</h1>
+        <p class="subtitle">서기 2187년, 침공한 제노스 군단의 지휘관을 처치하라</p>
+        
+        <div class="controls-grid">
+          <div class="control-item">
+            <span class="key-badge">W A S D</span>
+            <span>이동 (상하좌우)</span>
+          </div>
+          <div class="control-item">
+            <span class="key-badge">Mouse</span>
+            <span>시점 조준</span>
+          </div>
+          <div class="control-item">
+            <span class="key-badge">L-Click</span>
+            <span>레이저 발사</span>
+          </div>
+          <div class="control-item">
+            <span class="key-badge">Space</span>
+            <span>점프</span>
+          </div>
+          <div class="control-item" style="grid-column: span 2;">
+            <span class="key-badge">R</span>
+            <span>플라즈마 탄창 재장전</span>
+          </div>
+        </div>
+        
+        <button class="btn-action" id="btn-start">전투 시작</button>
+      </div>
+
+      <!-- 2. Pause Screen -->
+      <div id="pause-screen">
+        <h2 style="font-size: 2rem; margin-bottom: 20px; letter-spacing: 2px;">전투 일시정지</h2>
+        <p style="color: #9ab2cf; margin-bottom: 30px; font-size: 0.9rem;">마우스 연결이 해제되었습니다.</p>
+        <button class="btn-action" id="btn-resume">계속하기 (화면 클릭)</button>
+      </div>
+
+      <!-- 3. Stage Transition Warp Screen -->
+      <div class="overlay-screen hidden" id="warp-screen">
+        <h2 class="warp-text" style="font-size: 2rem;">WARP ACTIVE</h2>
+        <p style="color: #7b8ea8; letter-spacing: 1px; font-size: 0.9rem;">다음 전장으로 도약하는 중...</p>
+        <div class="warp-bar-container">
+          <div class="warp-bar-fill" id="warp-fill"></div>
+        </div>
+        <p style="font-size: 0.75rem; color: #5d7599; font-family: var(--font-hud);" id="warp-stage-desc">WARPING TO SECTOR 02</p>
+      </div>
+
+      <!-- 4. Game Over Screen -->
+      <div class="overlay-screen hidden" id="gameover-screen">
+        <h1 class="glitch-title" style="color: var(--color-secondary); text-shadow: 0 0 10px rgba(255, 0, 85, 0.5);">MISSION FAILED</h1>
+        <p class="subtitle" id="gameover-reason">체력이 모두 소진되었습니다.</p>
+        
+        <div style="margin-bottom: 40px; font-family: var(--font-hud); background: rgba(0,0,0,0.4); padding: 15px 30px; border-radius: 6px; border: 1px solid rgba(255, 0, 85, 0.2);">
+          <span style="color: #7b8ea8; font-size: 0.9rem; margin-right: 15px;">최종 점수:</span>
+          <span style="font-size: 1.8rem; color: #fff; font-weight: bold;" id="gameover-score">000000</span>
+        </div>
+        
+        <button class="btn-action btn-secondary" id="btn-restart-fail">재시도</button>
+      </div>
+
+      <!-- 5. Victory Screen -->
+      <div class="overlay-screen hidden" id="victory-screen">
+        <h1 class="glitch-title" style="color: var(--color-success); text-shadow: 0 0 15px rgba(57, 255, 20, 0.5); font-size: 3.2rem;">MISSION CLEAR</h1>
+        <p class="subtitle" style="color: #8aff80;">제노스 지휘관을 처치하고 은하계를 구했습니다!</p>
+        
+        <div style="margin-bottom: 40px; font-family: var(--font-hud); background: rgba(0,0,0,0.4); padding: 15px 30px; border-radius: 6px; border: 1px solid rgba(57, 255, 20, 0.2);">
+          <span style="color: #7b8ea8; font-size: 0.9rem; margin-right: 15px;">최종 승리 점수:</span>
+          <span style="font-size: 2rem; color: var(--color-success); font-weight: bold;" id="victory-score">000000</span>
+        </div>
+        
+        <button class="btn-action" style="border-color: rgba(57, 255, 20, 0.5); background: linear-gradient(135deg, rgba(57, 255, 20, 0.2) 0%, rgba(57, 255, 20, 0.05) 100%);" id="btn-restart-win">새 전투 시작</button>
+      </div>
+
+    </section>
+
+    <div class="console-footer">
+      <div>INTEGRATED COMPILER: ANTIGRAVITY v3.2 (WEBGL ROLLBACK)</div>
+      <div>PILOT ID: <span style="color: #fff;">KAYDEN_2187</span></div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 0. 전역 파일 경로 상수 분리 (에셋 매칭 용)
+    // ==========================================
+    const PATH_BGM = 'assets/audio/bgm.mp3';
+    const PATH_SFX_SHOOT = 'assets/audio/sfx_shoot.mp3';
+    const PATH_SFX_HIT = 'assets/audio/sfx_hit.mp3';
+    const PATH_SFX_EXPLOSION = 'assets/audio/sfx_explosion.mp3';
+    const PATH_SFX_PICKUP = 'assets/audio/sfx_pickup.mp3';
+    const PATH_SFX_GAMEOVER = 'assets/audio/sfx_gameover.mp3';
+    const PATH_VOICE_START = 'assets/audio/voice_start.mp3';
+    const PATH_VOICE_COMMANDER = 'assets/audio/voice_commander.mp3';
+    const PATH_VOICE_WIN = 'assets/audio/voice_win.mp3';
+
+    // ==========================================
+    // 1. 오디오 객체 및 브라우저 예외 처리
+    // ==========================================
+    const bgm = new Audio(PATH_BGM);
+    bgm.loop = true;
+    bgm.volume = 0.5;
+
+    function playAudioFile(audioPath, volume = 0.5) {
+      const sound = new Audio(audioPath);
+      sound.volume = volume;
+      sound.play().catch(err => {
+        console.warn("효과음 파일 재생 실패: " + audioPath);
+      });
+    }
+
+    function startBGM() {
+      bgm.currentTime = 0;
+      bgm.play().catch(err => {
+        console.warn("BGM 자동재생 차단되어 대기합니다.");
+      });
+    }
+
+    function stopBGM() {
+      bgm.pause();
+    }
+
+    // ==========================================
+    // 2. SOUND MANAGER (WEB AUDIO API SYNTH FALLBACK)
+    // ==========================================
+    class SoundManager {
+      constructor() {
+        this.ctx = null;
+        this.bgmNode = null;
+        this.step = 0;
+        this.bpm = 132;
+        this.seqInterval = null;
+        this.isPlayingBGM = false;
+        
+        this.bassSequence = [
+          55, 55, 55, 55, 
+          65.41, 65.41, 48.99, 58.27, 
+          55, 55, 55, 55, 
+          73.42, 65.41, 48.99, 48.99
+        ];
+      }
+
+      init() {
+        if (this.ctx) return;
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContextClass();
+        } catch (e) {
+          console.error("Web Audio API is not supported", e);
+        }
+      }
+
+      // --- 효과음 재생 로직 (파일 재생 우선 시도 후 실패 시 합성 음으로 백업) ---
+      playLaser() {
+        const audio = new Audio(PATH_SFX_SHOOT);
+        audio.volume = 0.3;
+        audio.play().catch(() => {
+          // Fallback: Web Audio Synth
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(1000, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.16);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(now); osc.stop(now + 0.2);
+        });
+      }
+
+      playHit() {
+        const audio = new Audio(PATH_SFX_HIT);
+        audio.volume = 0.4;
+        audio.play().catch(() => {
+          // Fallback
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.setValueAtTime(150, now + 0.05);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(now); osc.stop(now + 0.1);
+        });
+      }
+
+      playExplosion() {
+        const audio = new Audio(PATH_SFX_EXPLOSION);
+        audio.volume = 0.6;
+        audio.play().catch(() => {
+          // Fallback: white noise + sub oscillation thump
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const bufferSize = this.ctx.sampleRate * 0.6;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(280, now);
+          filter.frequency.exponentialRampToValueAtTime(10, now + 0.5);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.6, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+          noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+          noise.start(now); noise.stop(now + 0.6);
+
+          const sub = this.ctx.createOscillator();
+          const subG = this.ctx.createGain();
+          sub.type = 'sine'; sub.frequency.setValueAtTime(120, now);
+          sub.frequency.linearRampToValueAtTime(20, now + 0.15);
+          subG.gain.setValueAtTime(0.4, now);
+          subG.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+          sub.connect(subG); subG.connect(this.ctx.destination);
+          sub.start(now); sub.stop(now + 0.25);
+        });
+      }
+
+      playPickup() {
+        const audio = new Audio(PATH_SFX_PICKUP);
+        audio.volume = 0.4;
+        audio.play().catch(() => {
+          // Fallback
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(783.99, now + 0.08);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(now); osc.stop(now + 0.25);
+        });
+      }
+
+      playReload() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(600, now + 0.4);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(200, now);
+        filter.frequency.linearRampToValueAtTime(1200, now + 0.4);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.setValueAtTime(0.15, now + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.5);
+      }
+
+      playWarning() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc1.type = 'sawtooth'; osc1.frequency.setValueAtTime(110, now);
+        osc2.type = 'sawtooth'; osc2.frequency.setValueAtTime(112, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc1.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
+        osc1.start(now); osc2.start(now);
+        osc1.stop(now + 0.3); osc2.stop(now + 0.3);
+      }
+
+      playJump() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(320, now + 0.15);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.2);
+      }
+
+      // --- 백그라운드 뮤직 합성기 루프 (BGM MP3 파일 로드 실패 시 백업용) ---
+      startBgmFallback() {
+        if (this.isPlayingBGM) return;
+        this.isPlayingBGM = true;
+        this.step = 0;
+        const stepTime = 60 / this.bpm / 4;
+        let nextTime = this.ctx.currentTime;
+        const schedule = () => {
+          while (nextTime < this.ctx.currentTime + 0.1) {
+            this.playBgmStep(this.step, nextTime);
+            nextTime += stepTime;
+            this.step = (this.step + 1) % 16;
+          }
+        };
+        this.seqInterval = setInterval(schedule, 25);
+      }
+
+      playBgmStep(step, time) {
+        if (!this.ctx) return;
+        // Kick Drum
+        if (step % 4 === 0) {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.frequency.setValueAtTime(150, time);
+          osc.frequency.exponentialRampToValueAtTime(45, time + 0.1);
+          gain.gain.setValueAtTime(0.2, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(time); osc.stop(time + 0.15);
+        }
+        // Hi-hat
+        if (step % 4 === 2) {
+          const bufferSize = this.ctx.sampleRate * 0.03;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'highpass'; filter.frequency.setValueAtTime(7000, time);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.02, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+          noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+          noise.start(time); noise.stop(time + 0.05);
+        }
+        // Bassline
+        const bassFreq = this.bassSequence[step];
+        if (bassFreq && step % 2 === 0) {
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(bassFreq, time);
+          filter.type = 'lowpass'; filter.frequency.setValueAtTime(250, time);
+          if (game && game.stage === 3) filter.frequency.setValueAtTime(550, time);
+          gain.gain.setValueAtTime(0.07, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+          osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(time); osc.stop(time + 0.13);
+        }
+      }
+
+      stopBgmFallback() {
+        if (!this.isPlayingBGM) return;
+        this.isPlayingBGM = false;
+        clearInterval(this.seqInterval);
+      }
+    }
+
+    // AI voice 대사 (로컬 파일 시도 후, 차단 시 Web Speech API 대체)
+    function announceVoice(text, audioFile) {
+      const sound = new Audio(audioFile);
+      sound.volume = 0.8;
+      sound.play()
+        .then(() => {
+          console.log("Announcement sound played successfully: " + text);
+        })
+        .catch(() => {
+          console.warn("Announcement voice line not found, using TTS: " + text);
+          if (!window.speechSynthesis) return;
+          try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+            utterance.pitch = 0.85;
+            const voices = window.speechSynthesis.getVoices();
+            const voice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Microsoft David'));
+            if (voice) utterance.voice = voice;
+            window.speechSynthesis.speak(utterance);
+          } catch (e) {
+            console.warn("SpeechSynthesis error:", e);
+          }
+        });
+    }
+
+    const sound = new SoundManager();
+
+    // ==========================================
+    // 3. PROCEDURAL TEXTURES FOR 3D RENDERER
+    // ==========================================
+    function createGridTexture(colorStr, lineGlowColor) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0a0d18'; ctx.fillRect(0, 0, 256, 256);
+      ctx.strokeStyle = colorStr; ctx.lineWidth = 4; ctx.strokeRect(0, 0, 256, 256);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(32, 0); ctx.lineTo(32, 256); ctx.moveTo(224, 0); ctx.lineTo(224, 256);
+      ctx.moveTo(0, 32); ctx.lineTo(256, 32); ctx.moveTo(0, 224); ctx.lineTo(256, 224);
+      ctx.stroke();
+      ctx.strokeStyle = lineGlowColor; ctx.shadowColor = lineGlowColor; ctx.shadowBlur = 10; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 128); ctx.lineTo(256, 128); ctx.moveTo(128, 0); ctx.lineTo(128, 256); ctx.stroke();
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function createSpaceNebulaTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#010105'; ctx.fillRect(0, 0, 512, 512);
+      const gradient = ctx.createRadialGradient(256, 256, 20, 256, 256, 250);
+      gradient.addColorStop(0, 'rgba(80, 0, 120, 0.45)');
+      gradient.addColorStop(0.5, 'rgba(0, 100, 160, 0.15)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 4; i++) {
+        const x = Math.random() * 512; const y = Math.random() * 512; const r = 50 + Math.random() * 100;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, i % 2 === 0 ? 'rgba(255, 0, 85, 0.12)' : 'rgba(0, 240, 255, 0.12)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 512);
+      }
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 150; i++) {
+        const x = Math.random() * 512; const y = Math.random() * 512; const size = Math.random() * 1.5;
+        ctx.globalAlpha = 0.3 + Math.random() * 0.7; ctx.fillRect(x, y, size, size);
+      }
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    // ==========================================
+    // 4. MAIN 3D GAME CONTROLLER (Three.js WebGL)
+    // ==========================================
+    class Game {
+      constructor() {
+        this.viewport = document.getElementById('game-viewport');
+        this.score = 0;
+        this.hp = 100;
+        this.shield = 50;
+        this.stage = 1;
+        this.ammo = 15;
+        this.maxAmmo = 15;
+        this.isReloading = false;
+        this.reloadTimer = 0;
+        
+        this.clock = new THREE.Clock();
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        
+        this.keys = {};
+        this.yaw = 0;
+        this.pitch = 0;
+        this.player = {
+          pos: new THREE.Vector3(0, 1.5, 0),
+          vel: new THREE.Vector3(0, 0, 0),
+          onGround: true,
+          radius: 0.5
+        };
+        
+        this.activeMap = [];
+        this.walls = [];
+        this.drones = [];
+        this.boss = null;
+        this.projectiles = [];
+        this.particles = [];
+        this.items = [];
+        
+        this.timer = 90.0;
+        this.bossStageTimerActive = false;
+        this.isGameOver = false;
+        
+        this.gun = null;
+        this.gunSwayX = 0;
+        this.gunSwayY = 0;
+        this.recoilVelocity = 0;
+        this.recoilOffset = 0;
+        this.muzzleFlash = null;
+        
+        this.uiScore = document.getElementById('hud-score-text');
+        this.uiHpNum = document.getElementById('hp-num');
+        this.uiHpFill = document.getElementById('hp-fill');
+        this.uiShieldNum = document.getElementById('shield-num');
+        this.uiShieldFill = document.getElementById('shield-fill');
+        this.uiAmmoText = document.getElementById('hud-ammo-text');
+        this.uiAmmoBars = document.getElementById('hud-ammo-bar-container');
+        this.uiStageText = document.getElementById('hud-stage-text');
+        this.uiTimerText = document.getElementById('hud-timer-text');
+        this.uiTimerContainer = document.getElementById('hud-timer-container');
+        this.uiInstructions = document.getElementById('hud-level-instructions');
+        
+        this.initThree();
+        this.setupEvents();
+        this.generateAmmoBars();
+      }
+
+      initThree() {
+        this.scene = new THREE.Scene();
+        this.scene.fog = new THREE.FogExp2(0x04050c, 0.035);
+
+        this.camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+        this.scene.add(this.camera);
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(800, 600);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.setClearColor(0x04050c, 1);
+        this.viewport.appendChild(this.renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
+        this.scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0x00f0ff, 0.6);
+        dirLight.position.set(10, 20, 10);
+        this.scene.add(dirLight);
+
+        this.buildGun();
+      }
+
+      buildGun() {
+        this.gun = new THREE.Group();
+        
+        const bodyGeo = new THREE.BoxGeometry(0.12, 0.12, 0.55);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1f232b, roughness: 0.5, metalness: 0.8 });
+        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+        bodyMesh.position.set(0, 0, -0.2);
+        this.gun.add(bodyMesh);
+
+        const batteryGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8);
+        batteryGeo.rotateX(Math.PI / 2);
+        const batteryMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const batteryMesh = new THREE.Mesh(batteryGeo, batteryMat);
+        batteryMesh.position.set(0, 0.02, -0.15);
+        this.gun.add(batteryMesh);
+
+        const barrelGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.45, 12);
+        barrelGeo.rotateX(Math.PI / 2);
+        const barrelMat = new THREE.MeshStandardMaterial({ color: 0x0f1115, roughness: 0.2, metalness: 0.95 });
+        const barrelMesh = new THREE.Mesh(barrelGeo, barrelMat);
+        barrelMesh.position.set(0, 0, -0.5);
+        this.gun.add(barrelMesh);
+
+        const scopeGeo = new THREE.BoxGeometry(0.02, 0.02, 0.1);
+        const scopeMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+        const scopeMesh = new THREE.Mesh(scopeGeo, scopeMat);
+        scopeMesh.position.set(0, 0.07, -0.25);
+        this.gun.add(scopeMesh);
+
+        const flashGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const flashMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0 });
+        this.muzzleFlash = new THREE.Mesh(flashGeo, flashMat);
+        this.muzzleFlash.position.set(0, 0, -0.73);
+        this.gun.add(this.muzzleFlash);
+
+        this.gun.position.set(0.3, -0.25, -0.5);
+        this.camera.add(this.gun);
+      }
+
+      setupEvents() {
+        this.viewport.addEventListener('click', () => {
+          if (!this.isGameOver && document.pointerLockElement !== this.viewport) {
+            // 사용자 행동 기반 오디오 재생 우회용 트리거 적용 (bgm.mp3 재생)
+            sound.init();
+            startBGM(); 
+            this.viewport.requestPointerLock();
+          }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+          const pauseScreen = document.getElementById('pause-screen');
+          if (document.pointerLockElement === this.viewport) {
+            pauseScreen.classList.remove('active');
+            if (this.stage > 0) {
+              startBGM();
+              sound.startBgmFallback();
+            }
+          } else {
+            if (!this.isGameOver && this.stage > 0 && document.getElementById('start-screen').classList.contains('hidden') && document.getElementById('warp-screen').classList.contains('hidden')) {
+              pauseScreen.classList.add('active');
+              stopBGM();
+              sound.stopBgmFallback();
+            }
+          }
+        });
+
+        window.addEventListener('keydown', (e) => {
+          this.keys[e.key.toLowerCase()] = true;
+          if (e.key.toLowerCase() === 'r' && !this.isReloading && this.ammo < this.maxAmmo) {
+            this.reload();
+          }
+          if (e.key === ' ' && this.player.onGround) {
+            this.player.vel.y = 7.0;
+            this.player.onGround = false;
+            sound.playJump();
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.key.toLowerCase()] = false;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (document.pointerLockElement === this.viewport) {
+            this.yaw -= e.movementX * 0.0022;
+            this.pitch -= e.movementY * 0.0022;
+            this.pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.pitch));
+          }
+        });
+
+        window.addEventListener('mousedown', (e) => {
+          if (document.pointerLockElement === this.viewport && e.button === 0) {
+            this.shoot();
+          }
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+          document.getElementById('start-screen').classList.add('hidden');
+          document.getElementById('hud-overlay').classList.add('active');
+          sound.init();
+          startBGM(); 
+          sound.startBgmFallback();
+          this.loadStage(1);
+          this.viewport.requestPointerLock();
+        });
+
+        document.getElementById('btn-resume').addEventListener('click', () => {
+          this.viewport.requestPointerLock();
+        });
+
+        document.getElementById('btn-restart-fail').addEventListener('click', () => {
+          this.restartGame();
+        });
+        document.getElementById('btn-restart-win').addEventListener('click', () => {
+          this.restartGame();
+        });
+      }
+
+      generateAmmoBars() {
+        this.uiAmmoBars.innerHTML = '';
+        for (let i = 0; i < this.maxAmmo; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'ammo-bar-unit';
+          this.uiAmmoBars.appendChild(bar);
+        }
+      }
+
+      updateAmmoUI() {
+        this.uiAmmoText.textContent = `${this.ammo} / ${this.maxAmmo}`;
+        const bars = this.uiAmmoBars.children;
+        for (let i = 0; i < this.maxAmmo; i++) {
+          if (i < this.ammo) bars[i].classList.remove('empty');
+          else bars[i].classList.add('empty');
+        }
+      }
+
+      // ==========================================
+      // 5. 3D MAP & STAGE GENERATOR
+      // ==========================================
+      loadStage(num) {
+        this.stage = num;
+        this.clearScene();
+        this.isGameOver = false;
+
+        if (num === 1) {
+          this.activeMap = [
+            "#########",
+            "#.......#",
+            "#...S...#",
+            "#.......#",
+            "#########"
+          ];
+          this.uiStageText.textContent = "LV 1 // TUTORIAL";
+          this.uiInstructions.textContent = "훈련 구역: W, A, S, D로 이동하고 마우스로 드론을 조준 사격하세요. (탄창 부족 시 R 입력)";
+          this.uiInstructions.classList.add('active');
+          this.bossStageTimerActive = false;
+          this.uiTimerContainer.style.display = 'none';
+
+          this.spawnDrone(-2, 1.5, -2, 'tutorial');
+          this.spawnDrone(2, 2.0, -2, 'tutorial');
+          this.spawnDrone(0, 1.8, -3.5, 'tutorial');
+          
+          announceVoice("Mission Start!", PATH_VOICE_START);
+        } 
+        else if (num === 2) {
+          this.activeMap = [
+            "#############",
+            "#...........#",
+            "#.###.#####.#",
+            "#.#.......#.#",
+            "#.#.S.###.#.#",
+            "#.#...#.#.#.#",
+            "#.#####.#.#.#",
+            "#.......#...#",
+            "#############"
+          ];
+          this.uiStageText.textContent = "LV 2 // SECTOR ASSAULT";
+          this.uiInstructions.textContent = "침투 완료: Xenos 군단 병사들을 모두 격파하고 생명 유지 힐팩을 확보하십시오.";
+          this.uiInstructions.classList.add('active');
+          this.bossStageTimerActive = false;
+          this.uiTimerContainer.style.display = 'none';
+
+          this.spawnDrone(-4, 1.6, -3, 'soldier');
+          this.spawnDrone(4, 1.8, -3, 'soldier');
+          this.spawnDrone(-3, 1.4, 2, 'soldier');
+          this.spawnDrone(3, 2.0, 3, 'soldier');
+          this.spawnDrone(0, 1.6, -4, 'soldier');
+          this.spawnDrone(4, 1.5, 0, 'soldier');
+
+          this.spawnHealPack(-2, 0.5, -2);
+          this.spawnHealPack(2, 0.5, 2);
+        } 
+        else if (num === 3) {
+          this.activeMap = [
+            "###############",
+            "#.............#",
+            "#.............#",
+            "#.............#",
+            "#......S......#",
+            "#.............#",
+            "#.............#",
+            "#.............#",
+            "###############"
+          ];
+          this.uiStageText.textContent = "LV 3 // FINAL DECISION";
+          this.uiInstructions.textContent = "최종 결전: 90초 이내에 Xenos 군단 지휘관의 외피를 뚫고 중심부를 사살하십시오!";
+          this.uiInstructions.classList.add('active');
+          
+          this.timer = 90.0;
+          this.bossStageTimerActive = true;
+          this.uiTimerContainer.style.display = 'block';
+
+          this.spawnBoss(0, 2.5, -6);
+          
+          announceVoice("Enemy Commander Detected!", PATH_VOICE_COMMANDER);
+        }
+
+        this.buildMapGeometry();
+        this.findPlayerSpawn();
+        
+        this.player.vel.set(0, 0, 0);
+        this.player.onGround = true;
+        this.ammo = this.maxAmmo;
+        this.updateAmmoUI();
+      }
+
+      clearScene() {
+        this.walls.forEach(w => this.scene.remove(w));
+        this.walls = [];
+        this.drones.forEach(d => {
+          this.scene.remove(d.mesh);
+          if (d.shieldPlates) d.shieldPlates.forEach(sp => this.scene.remove(sp));
+        });
+        this.drones = [];
+        this.boss = null;
+        this.items.forEach(it => this.scene.remove(it.mesh));
+        this.items = [];
+        this.projectiles.forEach(p => this.scene.remove(p.mesh));
+        this.projectiles = [];
+        this.particles.forEach(p => this.scene.remove(p.mesh));
+        this.particles = [];
+      }
+
+      findPlayerSpawn() {
+        const cellSize = 4;
+        const width = this.activeMap[0].length;
+        const height = this.activeMap.length;
+        const offsetX = -(width * cellSize) / 2;
+        const offsetZ = -(height * cellSize) / 2;
+        for (let r = 0; r < height; r++) {
+          for (let c = 0; c < width; c++) {
+            if (this.activeMap[r][c] === 'S') {
+              this.player.pos.set(c * cellSize + cellSize / 2 + offsetX, 1.5, r * cellSize + cellSize / 2 + offsetZ);
+              this.yaw = Math.PI;
+              this.pitch = 0;
+              return;
+            }
+          }
+        }
+        this.player.pos.set(0, 1.5, 0);
+      }
+
+      buildMapGeometry() {
+        const cellSize = 4;
+        const wallHeight = 6;
+        const width = this.activeMap[0].length;
+        const height = this.activeMap.length;
+        const offsetX = -(width * cellSize) / 2;
+        const offsetZ = -(height * cellSize) / 2;
+
+        const wallTexture = createGridTexture('#1a263f', '#ff0055');
+        const floorTexture = createGridTexture('#0a1128', '#00f0ff');
+        
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.6, metalness: 0.7 });
+        const floorMat = new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.4, metalness: 0.8 });
+        const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x050811, roughness: 0.9, metalness: 0.1 });
+        const wallGeo = new THREE.BoxGeometry(cellSize, wallHeight, cellSize);
+
+        for (let r = 0; r < height; r++) {
+          for (let c = 0; c < width; c++) {
+            const char = this.activeMap[r][c];
+            const px = c * cellSize + cellSize / 2 + offsetX;
+            const pz = r * cellSize + cellSize / 2 + offsetZ;
+
+            const floorGeo = new THREE.PlaneGeometry(cellSize, cellSize);
+            floorGeo.rotateX(-Math.PI / 2);
+            const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.position.set(px, 0, pz);
+            floorMesh.receiveShadow = true;
+            this.scene.add(floorMesh);
+            this.walls.push(floorMesh);
+
+            const ceilGeo = new THREE.PlaneGeometry(cellSize, cellSize);
+            ceilGeo.rotateX(Math.PI / 2);
+            const ceilMesh = new THREE.Mesh(ceilGeo, ceilingMat);
+            ceilMesh.position.set(px, wallHeight, pz);
+            this.scene.add(ceilMesh);
+            this.walls.push(ceilMesh);
+
+            if (char === '#') {
+              const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+              wallMesh.position.set(px, wallHeight / 2, pz);
+              wallMesh.castShadow = true;
+              wallMesh.receiveShadow = true;
+              this.scene.add(wallMesh);
+              this.walls.push(wallMesh);
+            }
+          }
+        }
+
+        if (this.stage === 3) {
+          const spaceBgGeo = new THREE.SphereGeometry(150, 32, 16);
+          const spaceBgMat = new THREE.MeshBasicMaterial({ map: createSpaceNebulaTexture(), side: THREE.BackSide });
+          const spaceBg = new THREE.Mesh(spaceBgGeo, spaceBgMat);
+          this.scene.add(spaceBg);
+          this.walls.push(spaceBg);
+        }
+      }
+
+      // ==========================================
+      // 6. ENEMY & COMBAT SYSTEM
+      // ==========================================
+      spawnDrone(x, y, z, type) {
+        const drone = {
+          type: type,
+          hp: type === 'tutorial' ? 20 : 35,
+          maxHp: type === 'tutorial' ? 20 : 35,
+          shootCooldown: 1.0 + Math.random() * 2.0,
+          hoverOffset: Math.random() * Math.PI * 2,
+          radius: 0.6,
+          isDead: false,
+          color: type === 'tutorial' ? 0x00f0ff : 0xff0055
+        };
+
+        const group = new THREE.Group();
+        const coreGeo = new THREE.SphereGeometry(0.4, 16, 16);
+        const coreMat = new THREE.MeshStandardMaterial({
+          color: type === 'tutorial' ? 0x1f3d4a : 0x3d121c,
+          roughness: 0.3,
+          metalness: 0.9
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        group.add(coreMesh);
+
+        const visorGeo = new THREE.CylinderGeometry(0.41, 0.41, 0.08, 12, 1);
+        const visorMat = new THREE.MeshBasicMaterial({ color: drone.color });
+        const visorMesh = new THREE.Mesh(visorGeo, visorMat);
+        visorMesh.rotation.x = Math.PI / 2;
+        group.add(visorMesh);
+
+        const ringGeo = new THREE.TorusGeometry(0.55, 0.03, 8, 24);
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0x5a6d8c, roughness: 0.1, metalness: 0.9 });
+        const ring1 = new THREE.Mesh(ringGeo, ringMat);
+        const ring2 = new THREE.Mesh(ringGeo, ringMat);
+        ring2.rotation.x = Math.PI / 2;
+        group.add(ring1); group.add(ring2);
+        
+        drone.ring1 = ring1; drone.ring2 = ring2;
+        group.position.set(x, y, z);
+        this.scene.add(group);
+        
+        drone.mesh = group;
+        this.drones.push(drone);
+      }
+
+      spawnBoss(x, y, z) {
+        const boss = {
+          type: 'boss',
+          hp: 500,
+          maxHp: 500,
+          shootCooldown: 1.5,
+          hoverOffset: 0,
+          radius: 1.5,
+          isDead: false,
+          color: 0xff0033,
+          shieldRotation: 0,
+          shieldActive: true,
+          shieldOpenTimer: 4.0
+        };
+
+        const group = new THREE.Group();
+        const coreGeo = new THREE.IcosahedronGeometry(0.9, 1);
+        const coreMat = new THREE.MeshStandardMaterial({ color: 0x111115, roughness: 0.2, metalness: 0.95 });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        group.add(coreMesh);
+
+        const coreGlowGeo = new THREE.SphereGeometry(0.55, 16, 16);
+        const coreGlowMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const coreGlow = new THREE.Mesh(coreGlowGeo, coreGlowMat);
+        group.add(coreGlow);
+        boss.vulnerableMesh = coreGlow;
+
+        const ringGeo = new THREE.TorusGeometry(1.3, 0.05, 8, 32);
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0xff0055, roughness: 0.1, metalness: 0.9 });
+        const ring1 = new THREE.Mesh(ringGeo, ringMat);
+        const ring2 = new THREE.Mesh(ringGeo, ringMat);
+        ring2.rotation.y = Math.PI / 2;
+        group.add(ring1); group.add(ring2);
+        boss.ring1 = ring1; boss.ring2 = ring2;
+
+        group.position.set(x, y, z);
+        this.scene.add(group);
+        boss.mesh = group;
+
+        boss.shieldPlates = [];
+        boss.shieldAngles = [0, Math.PI/2, Math.PI, Math.PI*1.5];
+        const shieldGeo = new THREE.BoxGeometry(0.8, 1.5, 0.15);
+        const shieldMat = new THREE.MeshStandardMaterial({ color: 0x3a4861, roughness: 0.4, metalness: 0.8 });
+
+        for (let i = 0; i < 4; i++) {
+          const sp = new THREE.Mesh(shieldGeo, shieldMat);
+          this.scene.add(sp);
+          boss.shieldPlates.push(sp);
+        }
+
+        this.drones.push(boss);
+        this.boss = boss;
+      }
+
+      spawnHealPack(x, y, z) {
+        const item = { type: 'heal', radius: 0.5, rot: 0 };
+        const group = new THREE.Group();
+        const boxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const boxMat = new THREE.MeshStandardMaterial({ color: 0x00ff55, transparent: true, opacity: 0.25, roughness: 0.1, metalness: 0.9 });
+        const box = new THREE.Mesh(boxGeo, boxMat);
+        group.add(box);
+
+        const crossH = new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8);
+        const crossV = new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8);
+        crossV.rotateZ(Math.PI / 2);
+        const crossMat = new THREE.MeshBasicMaterial({ color: 0x39ff14 });
+        const hMesh = new THREE.Mesh(crossH, crossMat);
+        const vMesh = new THREE.Mesh(crossV, crossMat);
+        group.add(hMesh); group.add(vMesh);
+
+        const light = new THREE.PointLight(0x39ff14, 0.8, 4);
+        light.position.set(0,0,0);
+        group.add(light);
+
+        group.position.set(x, y, z);
+        this.scene.add(group);
+        item.mesh = group;
+        this.items.push(item);
+      }
+
+      shoot() {
+        if (this.isReloading) return;
+        if (this.ammo <= 0) {
+          this.reload();
+          return;
+        }
+
+        this.ammo--;
+        this.updateAmmoUI();
+        sound.playLaser(); // 사운드 매니저의 파일 우선 연동 레이저 사격
+
+        this.recoilVelocity = 4.5;
+        this.muzzleFlash.material.opacity = 1.0;
+        setTimeout(() => { this.muzzleFlash.material.opacity = 0; }, 45);
+
+        const dir = new THREE.Vector3();
+        this.camera.getWorldDirection(dir);
+        
+        const startPos = this.camera.position.clone();
+        const rightOffset = new THREE.Vector3(0.2, -0.2, -0.6);
+        rightOffset.applyEuler(this.camera.rotation);
+        startPos.add(rightOffset);
+
+        const laserGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.8, 6);
+        laserGeo.rotateX(Math.PI / 2);
+        const laserMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const laserMesh = new THREE.Mesh(laserGeo, laserMat);
+        
+        laserMesh.position.copy(startPos);
+        const target = this.camera.position.clone().add(dir.clone().multiplyScalar(100));
+        laserMesh.lookAt(target);
+        this.scene.add(laserMesh);
+
+        this.projectiles.push({
+          mesh: laserMesh,
+          dir: dir,
+          speed: 68.0,
+          life: 2.0,
+          owner: 'player',
+          radius: 0.1
+        });
+      }
+
+      enemyShoot(drone) {
+        if (drone.isDead) return;
+        const dir = new THREE.Vector3().copy(this.player.pos).sub(drone.mesh.position).normalize();
+        
+        const laserGeo = new THREE.SphereGeometry(0.12, 6, 6);
+        const laserMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+        const laserMesh = new THREE.Mesh(laserGeo, laserMat);
+        laserMesh.position.copy(drone.mesh.position);
+        
+        this.scene.add(laserMesh);
+        sound.playLaser();
+
+        this.projectiles.push({
+          mesh: laserMesh,
+          dir: dir,
+          speed: 15.0,
+          life: 4.0,
+          owner: 'enemy',
+          radius: 0.15
+        });
+      }
+
+      reload() {
+        this.isReloading = true;
+        this.reloadTimer = 1.3;
+        document.getElementById('hud-reload-warning').classList.add('active');
+        sound.playReload();
+      }
+
+      spawnSparks(pos, color) {
+        const count = 10 + Math.floor(Math.random() * 8);
+        const pGeo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+        const pMat = new THREE.MeshBasicMaterial({ color: color });
+
+        for (let i = 0; i < count; i++) {
+          const mesh = new THREE.Mesh(pGeo, pMat);
+          mesh.position.copy(pos);
+          this.scene.add(mesh);
+          const velocity = new THREE.Vector3(
+            (Math.random() * 2 - 1) * 3,
+            (Math.random() * 2 - 0.2) * 3,
+            (Math.random() * 2 - 1) * 3
+          );
+          this.particles.push({ mesh: mesh, vel: velocity, life: 0.35 + Math.random() * 0.25 });
+        }
+      }
+
+      // ==========================================
+      // 7. PHYSICS & GAME LOOPS
+      // ==========================================
+      updatePhysics(dt) {
+        this.camera.rotation.order = 'YXZ';
+        this.camera.rotation.y = this.yaw;
+        this.camera.rotation.x = this.pitch;
+
+        const moveDir = new THREE.Vector3();
+        if (this.keys['w']) moveDir.z -= 1;
+        if (this.keys['s']) moveDir.z += 1;
+        if (this.keys['a']) moveDir.x -= 1;
+        if (this.keys['d']) moveDir.x += 1;
+        moveDir.normalize();
+
+        const hRotation = new THREE.Euler(0, this.yaw, 0, 'YXZ');
+        moveDir.applyEuler(hRotation);
+
+        const targetSpeed = this.keys['shift'] ? 8.5 : 5.0;
+        this.player.vel.x = THREE.MathUtils.lerp(this.player.vel.x, moveDir.x * targetSpeed, 10 * dt);
+        this.player.vel.z = THREE.MathUtils.lerp(this.player.vel.z, moveDir.z * targetSpeed, 10 * dt);
+
+        if (!this.player.onGround) {
+          this.player.vel.y -= 19.8 * dt;
+        }
+
+        const nextPos = this.player.pos.clone().add(this.player.vel.clone().multiplyScalar(dt));
+        const resolvedPos = this.checkWallCollisions(nextPos);
+        this.player.pos.copy(resolvedPos);
+
+        const floorHeight = 1.4;
+        if (this.player.pos.y < floorHeight) {
+          this.player.pos.y = floorHeight;
+          this.player.vel.y = 0;
+          this.player.onGround = true;
+        }
+
+        this.camera.position.copy(this.player.pos);
+
+        const wave = Math.sin(this.clock.getElapsedTime() * (this.keys['shift'] ? 14 : 9));
+        const swayAmpX = (this.keys['w'] || this.keys['s'] || this.keys['a'] || this.keys['d']) ? 0.015 : 0.002;
+        const swayAmpY = (this.keys['w'] || this.keys['s'] || this.keys['a'] || this.keys['d']) ? 0.010 : 0.002;
+        
+        this.gunSwayX = THREE.MathUtils.lerp(this.gunSwayX, wave * swayAmpX, 6 * dt);
+        this.gunSwayY = THREE.MathUtils.lerp(this.gunSwayY, Math.abs(wave) * swayAmpY, 6 * dt);
+
+        this.recoilOffset += this.recoilVelocity * dt;
+        this.recoilVelocity -= 25.0 * dt;
+        this.recoilOffset = Math.max(0, this.recoilOffset);
+
+        if (this.recoilOffset > 0.08) {
+          this.recoilOffset = 0.08;
+          this.recoilVelocity = 0;
+        }
+
+        this.gun.position.x = 0.28 + this.gunSwayX;
+        this.gun.position.y = -0.22 + this.gunSwayY + (this.recoilOffset * 0.4);
+        this.gun.position.z = -0.48 + this.recoilOffset;
+      }
+
+      checkWallCollisions(nextPos) {
+        const cellSize = 4;
+        const width = this.activeMap[0].length;
+        const height = this.activeMap.length;
+        const offsetX = -(width * cellSize) / 2;
+        const offsetZ = -(height * cellSize) / 2;
+        const r = this.player.radius;
+
+        for (let row = 0; row < height; row++) {
+          for (let col = 0; col < width; col++) {
+            if (this.activeMap[row][col] === '#') {
+              const minX = col * cellSize + offsetX;
+              const maxX = minX + cellSize;
+              const minZ = row * cellSize + offsetZ;
+              const maxZ = minZ + cellSize;
+
+              let closestX = Math.max(minX, Math.min(nextPos.x, maxX));
+              let closestZ = Math.max(minZ, Math.min(nextPos.z, maxZ));
+              let distX = nextPos.x - closestX;
+              let distZ = nextPos.z - closestZ;
+              let distSq = distX * distX + distZ * distZ;
+
+              if (distSq < r * r) {
+                const dist = Math.sqrt(distSq);
+                const overlap = r - dist;
+                if (dist > 0.001) {
+                  nextPos.x += (distX / dist) * overlap;
+                  nextPos.z += (distZ / dist) * overlap;
+                } else {
+                  nextPos.x += r;
+                }
+              }
+            }
+          }
+        }
+        return nextPos;
+      }
+
+      tick() {
+        requestAnimationFrame(() => this.tick());
+        const dt = Math.min(this.clock.getDelta(), 0.1);
+        
+        if (this.isGameOver || 
+            !document.getElementById('start-screen').classList.contains('hidden') ||
+            document.getElementById('pause-screen').classList.contains('active') ||
+            !document.getElementById('warp-screen').classList.contains('hidden')) {
+          this.renderer.render(this.scene, this.camera);
+          return;
+        }
+
+        if (this.bossStageTimerActive) {
+          this.timer -= dt;
+          if (this.timer <= 0) {
+            this.timer = 0;
+            this.gameOver("제한 시간이 초과되었습니다.");
+          }
+          this.uiTimerText.textContent = this.timer.toFixed(1);
+          if (this.timer < 15.0) {
+            this.uiTimerText.classList.add('critical');
+            if (Math.floor(this.timer * 2) % 2 === 0) sound.playWarning();
+          } else {
+            this.uiTimerText.classList.remove('critical');
+          }
+        }
+
+        this.updatePhysics(dt);
+
+        if (this.isReloading) {
+          this.reloadTimer -= dt;
+          if (this.reloadTimer <= 0) {
+            this.isReloading = false;
+            this.ammo = this.maxAmmo;
+            this.updateAmmoUI();
+            document.getElementById('hud-reload-warning').classList.remove('active');
+          }
+        }
+
+        if (this.shield < 50 && !this.justDamaged) {
+          this.shield = Math.min(50, this.shield + 4 * dt);
+          this.updateHUD();
+        }
+
+        // Projectiles
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+          const p = this.projectiles[i];
+          p.life -= dt;
+          p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed * dt));
+
+          let hitSomething = false;
+
+          if (p.owner === 'player') {
+            for (let j = 0; j < this.drones.length; j++) {
+              const drone = this.drones[j];
+              if (drone.isDead) continue;
+              const dist = p.mesh.position.distanceTo(drone.mesh.position);
+              
+              if (drone.type === 'boss') {
+                let hitShield = false;
+                if (drone.shieldActive) {
+                  for (let k = 0; k < drone.shieldPlates.length; k++) {
+                    const sp = drone.shieldPlates[k];
+                    if (p.mesh.position.distanceTo(sp.position) < 0.9) { hitShield = true; break; }
+                  }
+                }
+                if (hitShield) {
+                  hitSomething = true;
+                  this.spawnSparks(p.mesh.position, 0x3a4861);
+                  sound.playHit();
+                  break;
+                } else if (dist < drone.radius) {
+                  hitSomething = true;
+                  drone.hp -= 25;
+                  this.spawnSparks(p.mesh.position, 0x00f0ff);
+                  sound.playHit();
+                  this.triggerHitmarker();
+                  drone.vulnerableMesh.material.color.setHex(0xffffff);
+                  setTimeout(() => { if (!drone.isDead) drone.vulnerableMesh.material.color.setHex(0x00f0ff); }, 80);
+                  if (drone.hp <= 0) this.killDrone(drone);
+                  break;
+                }
+              } else {
+                if (dist < drone.radius) {
+                  hitSomething = true;
+                  drone.hp -= 15;
+                  this.spawnSparks(p.mesh.position, 0xff0055);
+                  sound.playHit();
+                  this.triggerHitmarker();
+                  if (drone.hp <= 0) this.killDrone(drone);
+                  break;
+                }
+              }
+            }
+          } else {
+            const playerCenter = this.player.pos.clone().setY(this.player.pos.y - 0.5);
+            if (p.mesh.position.distanceTo(playerCenter) < 1.0) {
+              hitSomething = true;
+              this.damagePlayer(15);
+              this.spawnSparks(p.mesh.position, 0xff0055);
+            }
+          }
+
+          if (!hitSomething) {
+            for (let j = 0; j < this.walls.length; j++) {
+              const wall = this.walls[j];
+              if (wall.position.y === 0 && Math.abs(p.mesh.position.y) < 0.1) {
+                hitSomething = true; this.spawnSparks(p.mesh.position, 0x0a1128); break;
+              }
+              if (wall.position.y > 0 && p.mesh.position.distanceTo(wall.position) < 2.0) {
+                hitSomething = true; this.spawnSparks(p.mesh.position, 0x1a263f); break;
+              }
+            }
+          }
+
+          if (p.life <= 0 || hitSomething) {
+            this.scene.remove(p.mesh);
+            this.projectiles.splice(i, 1);
+          }
+        }
+
+        // Particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const pt = this.particles[i];
+          pt.life -= dt;
+          pt.mesh.position.add(pt.vel.clone().multiplyScalar(dt));
+          pt.vel.y -= 9.8 * dt;
+          if (pt.life <= 0) {
+            this.scene.remove(pt.mesh);
+            this.particles.splice(i, 1);
+          }
+        }
+
+        // Items
+        for (let i = this.items.length - 1; i >= 0; i--) {
+          const item = this.items[i];
+          item.mesh.rotation.y += 1.5 * dt;
+          item.mesh.position.y = 0.5 + Math.sin(this.clock.getElapsedTime() * 3) * 0.1;
+          if (this.player.pos.distanceTo(item.mesh.position) < 1.3) {
+            sound.playPickup();
+            this.hp = Math.min(100, this.hp + 35);
+            this.updateHUD();
+            this.scene.remove(item.mesh);
+            this.items.splice(i, 1);
+            this.tempHUDNotify("체력 회복 +35");
+          }
+        }
+
+        // Drones
+        this.drones.forEach(drone => {
+          if (drone.isDead) return;
+          drone.hoverOffset += dt * 3.5;
+          drone.mesh.position.y += Math.sin(drone.hoverOffset) * 0.003;
+
+          if (drone.ring1 && drone.ring2) {
+            drone.ring1.rotation.y += 2.0 * dt;
+            drone.ring2.rotation.x -= 2.0 * dt;
+          }
+
+          if (drone.type === 'tutorial') return;
+
+          if (drone.type === 'boss') {
+            drone.shieldOpenTimer -= dt;
+            if (drone.shieldOpenTimer <= 0) {
+              drone.shieldActive = !drone.shieldActive;
+              drone.shieldOpenTimer = drone.shieldActive ? 4.5 : 2.5;
+              if (!drone.shieldActive) this.tempHUDNotify("지휘관 실드 해제! 코어를 타격하십시오!");
+            }
+
+            drone.shieldRotation += 0.8 * dt;
+            const targetRad = drone.shieldActive ? 1.5 : 3.5;
+            drone.shieldPlates.forEach((sp, idx) => {
+              const angle = drone.shieldAngles[idx] + drone.shieldRotation;
+              const tx = drone.mesh.position.x + Math.cos(angle) * targetRad;
+              const tz = drone.mesh.position.z + Math.sin(angle) * targetRad;
+              sp.position.x = THREE.MathUtils.lerp(sp.position.x, tx, 8 * dt);
+              sp.position.y = drone.mesh.position.y;
+              sp.position.z = THREE.MathUtils.lerp(sp.position.z, tz, 8 * dt);
+              sp.lookAt(drone.mesh.position);
+            });
+
+            drone.ring1.rotation.z += 1.5 * dt;
+            drone.ring2.rotation.y += 1.5 * dt;
+
+            drone.shootCooldown -= dt;
+            if (drone.shootCooldown <= 0) {
+              if (drone.shieldActive) {
+                this.enemyShoot(drone);
+                drone.shootCooldown = 1.6;
+              } else {
+                this.bossSpreadFire(drone);
+                drone.shootCooldown = 0.6;
+              }
+            }
+          } 
+          else {
+            const toPlayer = new THREE.Vector3().copy(this.player.pos).sub(drone.mesh.position);
+            const dist = toPlayer.length();
+            if (dist > 5.0) {
+              toPlayer.y = 0; toPlayer.normalize();
+              drone.mesh.position.add(toPlayer.multiplyScalar(1.5 * dt));
+            }
+            drone.mesh.lookAt(this.player.pos);
+            drone.shootCooldown -= dt;
+            if (drone.shootCooldown <= 0 && dist < 22) {
+              drone.shootCooldown = 2.0 + Math.random() * 2.0;
+              this.enemyShoot(drone);
+            }
+          }
+        });
+
+        this.updateRadar();
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      bossSpreadFire(boss) {
+        if (boss.isDead) return;
+        sound.playLaser();
+        const baseDir = new THREE.Vector3().copy(this.player.pos).sub(boss.mesh.position).normalize();
+        const spreadCount = 3;
+        for (let i = 0; i < spreadCount; i++) {
+          const offsetAngle = (i - 1) * 0.18;
+          const dir = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), offsetAngle);
+          const laserGeo = new THREE.SphereGeometry(0.12, 6, 6);
+          const laserMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+          const laserMesh = new THREE.Mesh(laserGeo, laserMat);
+          laserMesh.position.copy(boss.mesh.position);
+          this.scene.add(laserMesh);
+          this.projectiles.push({ mesh: laserMesh, dir: dir, speed: 16.0, life: 3.5, owner: 'enemy', radius: 0.15 });
+        }
+      }
+
+      killDrone(drone) {
+        drone.isDead = true;
+        sound.playExplosion();
+        this.spawnSparks(drone.mesh.position, drone.color);
+        this.scene.remove(drone.mesh);
+
+        if (drone.type === 'boss') {
+          drone.shieldPlates.forEach(sp => this.scene.remove(sp));
+          this.score += 2000;
+          this.updateHUD();
+          setTimeout(() => { this.victory(); }, 1200);
+          return;
+        }
+
+        if (drone.type === 'tutorial') this.score += 100;
+        else {
+          this.score += 300;
+          if (Math.random() < 0.4) this.spawnHealPack(drone.mesh.position.x, 0.5, drone.mesh.position.z);
+        }
+        this.updateHUD();
+
+        const aliveDrones = this.drones.filter(d => !d.isDead);
+        if (aliveDrones.length === 0) {
+          if (this.stage === 1) this.warpTransition(2);
+          else if (this.stage === 2) this.warpTransition(3);
+        }
+      }
+
+      warpTransition(nextStage) {
+        const warpScreen = document.getElementById('warp-screen');
+        const warpFill = document.getElementById('warp-fill');
+        const warpDesc = document.getElementById('warp-stage-desc');
+        
+        stopBGM();
+        sound.stopBgmFallback();
+        
+        warpScreen.classList.remove('hidden');
+        warpDesc.textContent = `WARPING TO STAGE ${nextStage}...`;
+        warpFill.style.animation = 'none';
+        warpFill.offsetHeight;
+        warpFill.style.animation = 'warpLoad 3.0s linear forwards';
+
+        announceVoice("Sector Complete. Warping active.", PATH_VOICE_START);
+
+        setTimeout(() => {
+          warpScreen.classList.add('hidden');
+          this.loadStage(nextStage);
+          startBGM();
+          sound.startBgmFallback();
+        }, 3000);
+      }
+
+      damagePlayer(amount) {
+        if (this.isGameOver) return;
+        sound.playWarning();
+
+        const vignette = document.getElementById('hud-damage-vignette');
+        vignette.classList.add('hit');
+        setTimeout(() => vignette.classList.remove('hit'), 150);
+
+        this.justDamaged = true;
+        clearTimeout(this.regenDelay);
+        this.regenDelay = setTimeout(() => this.justDamaged = false, 3500);
+
+        if (this.shield > 0) {
+          this.shield -= amount;
+          if (this.shield < 0) {
+            this.hp += this.shield;
+            this.shield = 0;
+          }
+        } else {
+          this.hp -= amount;
+        }
+
+        if (this.hp <= 0) {
+          this.hp = 0;
+          this.gameOver("기체가 완파되었습니다.");
+        }
+        this.updateHUD();
+      }
+
+      triggerHitmarker() {
+        const hit = document.getElementById('hud-hitmarker');
+        hit.classList.add('active');
+        setTimeout(() => hit.classList.remove('active'), 60);
+      }
+
+      updateHUD() {
+        this.uiScore.textContent = String(this.score).padStart(6, '0');
+        this.uiHpNum.textContent = this.hp;
+        this.uiHpFill.style.width = `${this.hp}%`;
+        this.uiShieldNum.textContent = Math.round(this.shield);
+        this.uiShieldFill.style.width = `${(this.shield / 50) * 100}%`;
+
+        const vignette = document.getElementById('hud-damage-vignette');
+        if (this.hp < 30) vignette.classList.add('critical');
+        else vignette.classList.remove('critical');
+      }
+
+      tempHUDNotify(msg) {
+        this.uiInstructions.textContent = msg;
+        this.uiInstructions.classList.add('active');
+        clearTimeout(this.instrTimer);
+        this.instrTimer = setTimeout(() => { this.uiInstructions.classList.remove('active'); }, 3000);
+      }
+
+      updateRadar() {
+        const oldDots = document.querySelectorAll('.radar-dot');
+        oldDots.forEach(dot => dot.remove());
+        const radarComp = document.getElementById('hud-radar-component');
+        const radarRadius = 35;
+
+        this.drones.forEach(drone => {
+          if (drone.isDead) return;
+          const dx = drone.mesh.position.x - this.player.pos.x;
+          const dz = drone.mesh.position.z - this.player.pos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const maxRadarRange = 35;
+          if (dist < maxRadarRange) {
+            const angle = Math.atan2(dz, dx) - this.yaw - Math.PI / 2;
+            const radarDist = (dist / maxRadarRange) * radarRadius;
+            const rx = radarRadius + Math.cos(angle) * radarDist;
+            const ry = radarRadius + Math.sin(angle) * radarDist;
+            const dot = document.createElement('div');
+            dot.className = 'radar-dot';
+            dot.style.left = `${rx}px`; dot.style.top = `${ry}px`;
+            if (drone.type === 'boss') {
+              dot.style.width = '6px'; dot.style.height = '6px';
+              dot.style.background = '#00f0ff'; dot.style.boxShadow = '0 0 6px #00f0ff';
+            }
+            radarComp.appendChild(dot);
+          }
+        });
+      }
+
+      gameOver(reason) {
+        this.isGameOver = true;
+        
+        // 게임오버 트리거 시 BGM 즉시 일시정지 처리
+        stopBGM(); 
+        sound.stopBgmFallback();
+        
+        document.exitPointerLock();
+        document.getElementById('hud-overlay').classList.remove('active');
+        
+        const goScreen = document.getElementById('gameover-screen');
+        document.getElementById('gameover-reason').textContent = reason;
+        document.getElementById('gameover-score').textContent = String(this.score).padStart(6, '0');
+        goScreen.classList.remove('hidden');
+        
+        playAudioFile(PATH_SFX_GAMEOVER, 0.7);
+        announceVoice("Mission failed.", PATH_SFX_GAMEOVER);
+      }
+
+      victory() {
+        this.isGameOver = true;
+        stopBGM();
+        sound.stopBgmFallback();
+        document.exitPointerLock();
+        
+        document.getElementById('hud-overlay').classList.remove('active');
+        
+        const vicScreen = document.getElementById('victory-screen');
+        const timeBonus = Math.round(this.timer * 100);
+        this.score += 5000 + timeBonus;
+        document.getElementById('victory-score').textContent = String(this.score).padStart(6, '0');
+        vicScreen.classList.remove('hidden');
+        
+        announceVoice("Mission Clear!", PATH_VOICE_WIN);
+      }
+
+      restartGame() {
+        document.getElementById('gameover-screen').classList.add('hidden');
+        document.getElementById('victory-screen').classList.add('hidden');
+        document.getElementById('hud-overlay').classList.add('active');
+        
+        this.score = 0;
+        this.hp = 100;
+        this.shield = 50;
+        this.updateHUD();
+        
+        sound.init();
+        startBGM(); // 다시 시작 누르는 시점에 BGM 처음부터 재생
+        sound.startBgmFallback();
+        
+        this.loadStage(1);
+        this.viewport.requestPointerLock();
+      }
+    }
+
+    let game;
+    window.addEventListener('load', () => {
+      game = new Game();
+      game.clock.start();
+      game.tick();
+    });
+  </script>
+</body>
+</html>

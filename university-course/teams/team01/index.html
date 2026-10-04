@@ -1,0 +1,2904 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>파도의 왕자 (Prince of Waves)</title>
+  <style>
+    :root {
+      --bg-color: #030712;
+      --panel-bg: rgba(17, 24, 39, 0.75);
+      --neon-cyan: #00f0ff;
+      --neon-pink: #ff007f;
+      --neon-gold: #ffaa00;
+      --neon-green: #39ff14;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border-glow: 0 0 10px rgba(0, 240, 255, 0.3), 0 0 20px rgba(0, 240, 255, 0.1);
+      --pink-glow: 0 0 10px rgba(255, 0, 127, 0.4), 0 0 20px rgba(255, 0, 127, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: var(--bg-color);
+      background-image: 
+        radial-gradient(circle at 50% 20%, #1e1b4b 0%, transparent 60%),
+        radial-gradient(circle at 10% 80%, #030712 0%, transparent 50%);
+      color: var(--text-main);
+      font-family: 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    /* 게임 캐비닛 컨테이너 */
+    .arcade-cabinet {
+      width: 860px; /* 800px canvas + 48px padding + 12px borders */
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 3px solid #1f2937;
+      border-radius: 20px;
+      box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.05),
+        0 0 30px rgba(0, 240, 255, 0.15);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.2s ease-out;
+    }
+
+    /* 네온 장식 테두리 라인 */
+    .arcade-cabinet::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan), var(--neon-gold), var(--neon-pink));
+      background-size: 300% 100%;
+      animation: neonFlow 8s linear infinite;
+    }
+
+    @keyframes neonFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* 로비 내부 레이아웃 */
+    .lobby-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      width: 100%;
+      height: 100%;
+      gap: 24px;
+      padding: 24px;
+      align-items: center;
+    }
+
+    .lobby-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+      padding-right: 24px;
+      height: 100%;
+    }
+
+    .lobby-left .game-title {
+      font-size: 2.2rem;
+      margin-bottom: 6px;
+      letter-spacing: 2px;
+    }
+
+    .lobby-left .game-subtitle {
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+    }
+
+    .lobby-left .btn-neon {
+      font-size: 1.1rem;
+      padding: 10px 30px;
+    }
+
+    .lobby-left .guide-box {
+      margin-top: 24px;
+      padding: 12px 18px;
+    }
+
+    .lobby-right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      justify-content: center;
+      text-align: left;
+    }
+
+    .lobby-shop-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      border-bottom: 2px solid rgba(0, 240, 255, 0.3);
+      padding-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .lobby-coin-display {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--neon-gold);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 170, 0, 0.2);
+      align-self: flex-start;
+    }
+
+    .upgrade-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      max-height: 420px;
+      padding-right: 4px;
+    }
+
+    .upgrade-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .upgrade-card:hover:not(.maxed) {
+      border-color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .upgrade-card.maxed {
+      border-color: var(--neon-green);
+      background: rgba(57, 255, 20, 0.03);
+      cursor: default;
+    }
+
+    .upgrade-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .upgrade-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .upgrade-level {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      color: var(--neon-cyan);
+    }
+
+    .upgrade-card.maxed .upgrade-level {
+      color: var(--neon-green);
+    }
+
+    .upgrade-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .upgrade-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .upgrade-cost {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--neon-gold);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .upgrade-max-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--neon-green);
+    }
+
+    /* 메인 스크린 영역 */
+    .screen-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* 게임 컨테이너 */
+    .game-viewport {
+      width: 800px;
+      height: 600px;
+      position: relative;
+      border: 3px solid #1f2937;
+      border-radius: 12px;
+      background: #020617;
+      overflow: hidden;
+      box-shadow: var(--border-glow);
+    }
+
+    /* 비디오 쉐이더/스캔라인 효과 */
+    .game-viewport::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 오버레이 화면 공통 */
+    .overlay-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      background: rgba(3, 7, 18, 0.85);
+      transition: opacity 0.3s ease;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .hidden {
+      display: none !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* 게임 로고 */
+    .game-title {
+      font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+      font-size: 3.5rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-pink) 50%, var(--neon-gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+      filter: drop-shadow(0 0 15px rgba(0, 240, 255, 0.5));
+      letter-spacing: 4px;
+      animation: titlePulse 2s infinite alternate;
+    }
+
+    @keyframes titlePulse {
+      0% { filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.4)); }
+      100% { filter: drop-shadow(0 0 25px rgba(255, 0, 127, 0.7)); }
+    }
+
+    .game-subtitle {
+      font-size: 1.1rem;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      text-transform: uppercase;
+    }
+
+    /* 네온 버튼 */
+    .btn-neon {
+      font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      background: transparent;
+      border: 2px solid var(--neon-cyan);
+      border-radius: 30px;
+      padding: 14px 40px;
+      cursor: pointer;
+      box-shadow: var(--border-glow);
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      outline: none;
+    }
+
+    .btn-neon:hover {
+      background: var(--neon-cyan);
+      color: #030712;
+      box-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0, 240, 255, 0.4);
+      transform: scale(1.05);
+    }
+
+    /* 로비 조작 가이드 */
+    .guide-box {
+      margin-top: 40px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px 24px;
+      max-width: 500px;
+    }
+
+    .guide-box h3 {
+      font-size: 0.9rem;
+      color: var(--neon-cyan);
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: left;
+    }
+
+    .guide-item span {
+      color: var(--text-main);
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-family: 'Orbitron', monospace;
+      margin-right: 4px;
+    }
+
+    /* HUD 레이아웃 */
+    .hud-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .hud-left-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* 체력 바 */
+    .health-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 0, 127, 0.2);
+    }
+
+    .heart-icon {
+      color: var(--neon-pink);
+      font-size: 1.2rem;
+      filter: drop-shadow(0 0 5px var(--neon-pink));
+      display: flex;
+      align-items: center;
+    }
+
+    .health-bar-bg {
+      width: 120px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .health-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--neon-pink), #ff4d94);
+      box-shadow: 0 0 8px var(--neon-pink);
+      width: 100%;
+      transition: width 0.2s ease;
+    }
+
+    /* 쉴드 버블 표시 */
+    .shield-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      font-size: 0.75rem;
+      color: var(--neon-cyan);
+      animation: pulseGlow 1.5s infinite alternate;
+      align-self: flex-start;
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 5px rgba(0, 240, 255, 0.2); }
+      100% { box-shadow: 0 0 12px rgba(0, 240, 255, 0.6); }
+    }
+
+    .hud-right-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .stage-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1.1rem;
+      background: linear-gradient(135deg, var(--neon-cyan), #00b4d8);
+      color: #030712;
+      padding: 4px 16px;
+      border-radius: 8px;
+      box-shadow: var(--border-glow);
+    }
+
+    .gold-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--neon-gold);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 170, 0, 0.3);
+    }
+
+    /* 아이템 슬롯 */
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .item-inventory {
+      display: flex;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .item-slot {
+      width: 46px;
+      height: 46px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .item-slot.active {
+      border: 2px solid var(--neon-cyan);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+      background: rgba(0, 240, 255, 0.1);
+    }
+
+    .item-icon-img {
+      font-size: 1.5rem;
+    }
+
+    .item-key {
+      position: absolute;
+      bottom: -6px;
+      right: -6px;
+      background: #1f2937;
+      color: var(--text-main);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      font-family: 'Orbitron', monospace;
+    }
+
+    /* 보스 체력바 */
+    .boss-health-container {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 500px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 0, 127, 0.3);
+      padding: 8px 16px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: opacity 0.3s ease;
+    }
+
+    .boss-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--neon-pink);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    .boss-health-bar-bg {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .boss-health-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff0055, var(--neon-pink));
+      box-shadow: 0 0 10px var(--neon-pink);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    /* 결과 스크린 장식 */
+    .result-status {
+      font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+      font-size: 4rem;
+      font-weight: 900;
+      margin-bottom: 10px;
+      letter-spacing: 4px;
+    }
+
+    .result-status.victory {
+      color: var(--neon-cyan);
+      text-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+    }
+
+    .result-status.gameover {
+      color: var(--neon-pink);
+      text-shadow: 0 0 20px rgba(255, 0, 127, 0.6);
+    }
+
+    .result-stats-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px 40px;
+      margin-bottom: 40px;
+      display: flex;
+      gap: 40px;
+    }
+
+    .result-stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .result-stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .result-stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--neon-gold);
+    }
+
+    /* 오디오 조작 컨트롤러 (상단 우측 구석에 배치 가능) */
+    .audio-control {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--neon-cyan);
+      z-index: 100;
+      transition: all 0.2s ease;
+    }
+
+    .audio-control:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--neon-cyan);
+    }
+
+    /* 반응형 해상도 맞춤 스케일 지원 (잘림 방지) */
+    @media (max-width: 900px) {
+      .arcade-cabinet {
+        transform: scale(0.9);
+      }
+    }
+    @media (max-width: 800px) {
+      .arcade-cabinet {
+        transform: scale(0.75);
+      }
+    }
+    @media (max-width: 650px) {
+      .arcade-cabinet {
+        transform: scale(0.58);
+      }
+    }
+    @media (max-width: 500px) {
+      .arcade-cabinet {
+        transform: scale(0.45);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 메인 아케이드 캐비닛 -->
+  <main class="arcade-cabinet">
+    
+    <!-- 스크린 영역 -->
+    <section class="screen-area" aria-label="게임 실행 화면">
+      <!-- 볼륨 뮤트 제어 버튼 -->
+      <button class="audio-control" id="audio-toggle" title="배경음 조작">🔊</button>
+
+      <div class="game-viewport">
+        <!-- HUD 레이아웃 -->
+        <div class="hud-layer hidden" id="game-hud">
+          <div class="hud-top">
+            <div class="hud-left-stats">
+              <div class="health-container">
+                <span class="heart-icon">❤️</span>
+                <div class="health-bar-bg">
+                  <div class="health-bar-fill" id="hud-hp-bar"></div>
+                </div>
+              </div>
+              <div class="shield-indicator hidden" id="hud-shield">
+                🛡️ 배리어 활성
+              </div>
+            </div>
+            <div class="hud-right-info">
+              <div class="stage-badge" id="hud-stage">STAGE 1</div>
+              <div class="gold-badge">🪙 <span id="hud-coins">0</span></div>
+            </div>
+          </div>
+
+          <!-- 보스 체력 바 (숨김 처리 기본) -->
+          <div class="boss-health-container hidden" id="hud-boss-bar">
+            <div class="boss-name">🦑 대왕 오징어 (BOSS)</div>
+            <div class="boss-health-bar-bg">
+              <div class="boss-health-fill" id="hud-boss-hp"></div>
+            </div>
+          </div>
+
+          <div class="hud-bottom">
+            <div class="item-inventory">
+              <div class="item-slot" id="item-slot-0">
+                <span class="item-icon-img" id="slot-icon"></span>
+                <span class="item-key">Space</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 캔버스 엘리먼트 -->
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <!-- 로비 스크린 오버레이 -->
+        <div class="overlay-screen" id="lobby-screen">
+          <div class="lobby-layout">
+            <!-- 왼쪽: 타이틀 및 시작 -->
+            <div class="lobby-left">
+              <h1 class="game-title">파도의 왕자</h1>
+              <p class="game-subtitle">Prince of Waves</p>
+              
+              <button class="btn-neon" id="start-btn">Game Start</button>
+
+              <div class="guide-box">
+                <h3>🎮 SURFER OPERATIONS GUIDE</h3>
+                <div class="guide-grid">
+                  <div class="guide-item"><span>W A S D</span> 서퍼 상하좌우 이동</div>
+                  <div class="guide-item"><span>Left Click</span> 물파도 참격 공격</div>
+                  <div class="guide-item"><span>Right Click</span> 무적 대시 회피</div>
+                  <div class="guide-item"><span>Spacebar</span> 획득 아이템 사용</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 강화 상점 -->
+            <div class="lobby-right">
+              <div class="lobby-shop-title">능력치 강화 상점</div>
+              <div class="lobby-coin-display">
+                <span>🪙</span> <span id="lobby-coins">0</span>
+              </div>
+              <div class="upgrade-list" id="upgrade-board">
+                <!-- 업그레이드 카드들이 JS로 동적 생성됩니다 -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 게임 결과 스크린 오버레이 -->
+        <div class="overlay-screen hidden" id="result-screen">
+          <div class="result-status victory hidden" id="result-victory-title">VICTORY</div>
+          <div class="result-status gameover hidden" id="result-fail-title">GAME OVER</div>
+          <p class="game-subtitle" id="result-subtitle">바다는 아직 험난합니다...</p>
+
+          <div class="result-stats-box">
+            <div class="result-stat-item">
+              <span class="result-stat-label">획득 재화</span>
+              <span class="result-stat-value">🪙 <span id="res-gold">0</span></span>
+            </div>
+            <div class="result-stat-item">
+              <span class="result-stat-label">물고기 토벌</span>
+              <span class="result-stat-value">💥 <span id="res-kills">0</span></span>
+            </div>
+          </div>
+
+          <button class="btn-neon" id="retry-btn">Return to Lobby</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // ==========================================
+    // 0. 8비트 레트로 픽셀 아트 스프라이트 데이터 (컨셉 이미지 반영)
+    // ==========================================
+    const SPRITES = {
+      palette: [
+        null,      // 0: 투명
+        '#000000', // 1: 검정 외곽선 / 머리카락
+        '#e0a96d', // 2: 피부 톤
+        '#f5af7d', // 3: 피부 하이라이트
+        '#ff007f', // 4: 핫핑크 바지
+        '#ff80bf', // 5: 바지 하이라이트
+        '#ca8a04', // 6: 보드 어두운 나무 / 보스 부리
+        '#fef08a', // 7: 보드 밝은 나무
+        '#6b7280', // 8: 타투/날치 회색
+        '#111827', // 9: 선글라스
+        '#ffffff', // a: 흰색 (눈)
+        '#dc2626', // b: 오징어/꽃게 붉은색
+        '#ef4444', // c: 붉은색 하이라이트
+        '#22c55e', // d: 거북이 녹색
+        '#78350f', // e: 거북이 등껍질 갈색
+        '#ff0000'  // f: 보스 발광 붉은 눈
+      ],
+      surferSurfing: [
+        "000000000011100000000000",
+        "000000000111110000000000",
+        "000000001111100000000000",
+        "000000001111000000000000",
+        "000000001222100000000000",
+        "000000012992210000000000",
+        "000000012222210000000000",
+        "000000001222100000000000",
+        "000001112222111000000000",
+        "000012222222882100000000",
+        "000122332222888210000000",
+        "001223332222288210000000",
+        "000122332222281000000000",
+        "000011222222110000000000",
+        "000001444444100000000000",
+        "000001455554100000000000",
+        "000012144441210000000000",
+        "000122110011221000000000",
+        "001221000000122100000000",
+        "001210000000012100000000",
+        "001100000000011100000000",
+        "011111111111111111100000",
+        "177777777777777777710000",
+        "011111111111111111100000"
+      ],
+      surferJumping: [
+        "000000011110000000000000",
+        "000000111111000000000000",
+        "000001111100000000000000",
+        "000001222110000000000000",
+        "000012992211000000000000",
+        "000012222221000000000000",
+        "000122221100000011000000",
+        "001222222210000122100000",
+        "012233222281001222210000",
+        "001233222888112221100000",
+        "000112222882222210000000",
+        "000011444444111100000000",
+        "000144445555444100000000",
+        "001211444444111210000000",
+        "012210111111001221000000",
+        "122100000000001221000000",
+        "111000000000000111000000",
+        "000000000000000000000000",
+        "000000000000011100000000",
+        "000000000001777100000000",
+        "000000000017771000000000",
+        "000000001777110000000000",
+        "000000117771000000000000",
+        "000001111110000000000000"
+      ],
+      crab: [
+        "0000001100110000",
+        "000001aa11aa1000",
+        "0000011111111000",
+        "000111bbbbbb1110",
+        "001cc1bbbbbb1cc1",
+        "01ccc1bbbbbbccc1",
+        "01cc11bbbbbb1cc1",
+        "00111bbbbbbbb110",
+        "0001bbbbbbbbbb10",
+        "001bbbbbbbbbbbb1",
+        "01bbbbbbbbbbbb11",
+        "0111111111111111",
+        "0110011001100110",
+        "1000100010001001",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      fish: [
+        "0000000000110000",
+        "0000000011881000",
+        "0000011188888100",
+        "000118888888aa10",
+        "1118888888881110",
+        "1881188888888810",
+        "1888811888888810",
+        "1188888111888100",
+        "0118888888111000",
+        "0011118888100000",
+        "0000011111100000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      turtle: [
+        "0000001111000000",
+        "000001ddda100000",
+        "00001ddddd100000",
+        "0000111dd1100000",
+        "0011eeeeee110000",
+        "01edeeeeeeeed100",
+        "1edeeeeeeeeedd10",
+        "1deeeeeeeeedd110",
+        "1ddeeeeeeeedd100",
+        "011eeeeeeee11000",
+        "0011eeeeee110000",
+        "0001111111100000",
+        "0001dd101dd10000",
+        "001dd1001dd10000",
+        "0011100011100000",
+        "0000000000000000"
+      ],
+      boss: [
+        "00000000000011111100000000000000",
+        "000000000001bbbbbb10000000000000",
+        "00000000001bbbbbbbb1000000000000",
+        "0000000001bcbbbbcbb1000000000000",
+        "000000001bccbbbbccbb100000000000",
+        "000000011ccbbbbbbcc1100000000000",
+        "000001111bcbbbbbbcb1111000000000",
+        "00011bbbbbbbbbbbbbbbbbb110000000",
+        "001cbbbbbbbbbbbbbbbbbbbc10000000",
+        "01ccbbbbbbbbbbbbbbbbbbccc1000000",
+        "01cbbbbbbbbbbbbbbbbbbbbbc1000000",
+        "011bbbbbbbbbbbbbbbbbbbbb11000000",
+        "001bbbbbbbbbbbbbbbbbbbbb10000000",
+        "001bbbb11bbbbbb11bbbbbbb10000000",
+        "001bb11ff11bb11ff11bbbbb10000000",
+        "001bb11ff11bb11ff11bbbbb10000000",
+        "001bbb1111bbbb1111bbbbbb10000000",
+        "001bbbbbbbb66bbbbbbbbbbb10000000",
+        "001bbbbbbb6666bbbbbbbbbb10000000",
+        "0011bbbbbb6666bbbbbbbbb110000000",
+        "00011bbbbbb66bbbbbbbb11100000000",
+        "0000111bbbbbbbbbbbb1110000000000",
+        "00000011111111111111000000000000",
+        "0000011bb11bb11bb11b100000000000",
+        "00001cbb1cbb1cbb1cbb100000000000",
+        "0001cc11cc11cc11cc11c10000000000",
+        "001cc101c101c101c101c10000000000",
+        "01cc1001100110011001100000000000",
+        "1cc10000000000000000000000000000",
+        "11100000000000000000000000000000",
+        "00000000000000000000000000000000",
+        "00000000000000000000000000000000"
+      ]
+    };
+
+    function drawPixelSprite(c, x, y, grid, scale = 2, flipX = false) {
+      const rows = grid.length;
+      const cols = grid[0].length;
+      c.save();
+      c.translate(x, y);
+      if (flipX) c.scale(-1, 1);
+      const offsetX = -(cols * scale) / 2;
+      const offsetY = -(rows * scale) / 2;
+      for (let r = 0; r < rows; r++) {
+        const rowStr = grid[r];
+        for (let col = 0; col < cols; col++) {
+          const colorId = parseInt(rowStr[col], 16);
+          if (colorId > 0) {
+            const color = SPRITES.palette[colorId];
+            if (color) {
+              c.fillStyle = color;
+              c.fillRect(offsetX + col * scale, offsetY + r * scale, scale, scale);
+            }
+          }
+        }
+      }
+      c.restore();
+    }
+
+    // ==========================================
+    // 1. 상태 관리 및 로컬스토리지 연동
+    // ==========================================
+    const UPGRADE_SPECS = {
+      maxHp: { name: '최대 체력 (Max HP)', desc: '서퍼의 최대 체력을 증가시킵니다 (최대 하트 수).', baseCost: 50, costMult: 2.0, maxLvl: 5, baseVal: 3, stepVal: 1 },
+      atkDmg: { name: '참격 공격력 (Power)', desc: '파도 참격의 공격 공격력을 올려 적들을 순삭합니다.', baseCost: 40, costMult: 1.8, maxLvl: 5, baseVal: 10, stepVal: 5 },
+      atkSpd: { name: '공격 속도 (Speed)', desc: '참격의 연속 발사 대기시간(쿨타임)을 줄여줍니다.', baseCost: 60, costMult: 1.7, maxLvl: 5, baseVal: 450, stepVal: -60 }, // ms단위 감소
+      dashCd: { name: '회피 대시 (Dash)', desc: '무적 대시의 재사용 대기시간을 크게 단축시킵니다.', baseCost: 70, costMult: 1.9, maxLvl: 5, baseVal: 1500, stepVal: -200 }, // ms단위 감소
+      magnet: { name: '코인 자석 (Magnet)', desc: '바다에 흩어진 금화를 자성으로 끌어당기는 범위 증가.', baseCost: 50, costMult: 1.6, maxLvl: 5, baseVal: 50, stepVal: 35 } // 픽셀 범위 증가
+    };
+
+    let userState = {
+      coins: 0,
+      upgrades: {
+        maxHp: 1,
+        atkDmg: 1,
+        atkSpd: 1,
+        dashCd: 1,
+        magnet: 1
+      }
+    };
+
+    // 로컬스토리지 로드
+    function loadState() {
+      const saved = localStorage.getItem('prince_of_waves_state');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.upgrades) {
+            userState = { ...userState, ...parsed };
+          }
+        } catch (e) {
+          console.error("State loading error: ", e);
+        }
+      }
+      updateLobbyUI();
+    }
+
+    // 로컬스토리지 저장
+    function saveState() {
+      localStorage.setItem('prince_of_waves_state', JSON.stringify(userState));
+      updateLobbyUI();
+    }
+
+    // 업그레이드 비용 계산
+    function getUpgradeCost(key, level) {
+      const spec = UPGRADE_SPECS[key];
+      return Math.round(spec.baseCost * Math.pow(spec.costMult, level - 1));
+    }
+
+    // 실제 수치 계산
+    function getStatValue(key) {
+      const spec = UPGRADE_SPECS[key];
+      const lvl = userState.upgrades[key];
+      return spec.baseVal + (lvl - 1) * spec.stepVal;
+    }
+
+    // ==========================================
+    // 2. 사운드 및 BGM 합성 엔진 (Web Audio API)
+    // ==========================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.currentBgm = null;
+        this.bgmTimer = null;
+        this.bgmTick = 0;
+        this.bgmBpm = 125;
+        this.lobbyAudio = null;
+      }
+
+      init() {
+        if (!this.lobbyAudio) {
+          this.lobbyAudio = new Audio('assets/audio/main_theme.mp3');
+          this.lobbyAudio.loop = true;
+          this.lobbyAudio.volume = 0.4;
+        }
+        if (this.ctx) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContextClass();
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.isMuted) {
+          this.stopBgm();
+        } else {
+          this.playCurrentStateBgm();
+        }
+        return this.isMuted;
+      }
+
+      playCurrentStateBgm() {
+        this.stopBgm();
+        if (this.isMuted) return;
+
+        this.init();
+
+        if (gameState.mode === 'PLAYING') {
+          this.startSynthwaveBgm();
+        } else {
+          if (this.lobbyAudio) {
+            this.lobbyAudio.play().catch(e => console.log("BGM play block:", e));
+          }
+        }
+      }
+
+      stopBgm() {
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+        if (this.lobbyAudio) {
+          this.lobbyAudio.pause();
+        }
+      }
+
+      playExternalSfx(url, volume = 0.5) {
+        if (this.isMuted) return;
+        try {
+          const snd = new Audio(url);
+          snd.volume = volume;
+          snd.play().catch(e => console.log("SFX play block:", e));
+        } catch (e) {
+          console.error("SFX play failed:", e);
+        }
+      }
+
+      // SFX: 대시 (뿅)
+      playDash() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.16);
+      }
+
+      // SFX: 공격 참격 (바람 칼날 소리)
+      playAttack() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+
+        const bufferSize = this.ctx.sampleRate * 0.1;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.1);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start();
+      }
+
+      // SFX: 피격 / 적 타격 (타격피격음.mp3 외부에셋 연동)
+      playHit() {
+        this.playExternalSfx('assets/audio/타격피격음.mp3', 0.5);
+      }
+
+      // SFX: 몬스터 처치 효과음 (kill.mp3 외부에셋 연동)
+      playKill() {
+        this.playExternalSfx('assets/audio/kill.mp3', 0.4);
+      }
+
+      // SFX: 아이템 / 코인 획득 (맑은 딩동 소리)
+      playCoin() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        
+        // 딩 소리 (C6)
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(1046.50, now); // C6
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc1.connect(gain1);
+        gain1.connect(this.ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.25);
+
+        // 동 소리 (E6 - 0.08초 후)
+        const osc2 = this.ctx.createOscillator();
+        const gain2 = this.ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+        gain2.gain.setValueAtTime(0.12, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.33);
+        osc2.connect(gain2);
+        gain2.connect(this.ctx.destination);
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.33);
+      }
+
+      // SFX: 게임오버 (콰광 폭발음)
+      playGameOver() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+
+        const bufferSize = this.ctx.sampleRate * 1.5;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(400, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 1.2);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.4);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        noise.start();
+      }
+
+      // SFX: 스테이지 클리어 / 승리 (쾌활한 팡파레)
+      playVictory() {
+        if (this.isMuted || !this.ctx) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C4 E4 G4 C5 E5 G5 C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          
+          gain.gain.setValueAtTime(0.1, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.3);
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.35);
+        });
+      }
+
+      // 음성 엔진: Ready, Go!
+      playReadyGo() {
+        try {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance("Ready, Go!");
+            utterance.lang = "en-US";
+            utterance.rate = 1.2;
+            utterance.pitch = 1.3;
+            utterance.volume = this.isMuted ? 0 : 0.8;
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (e) {
+          console.error("Speech synthesis failed: ", e);
+        }
+      }
+
+      // 실시간 인게임 BGM 합성 (신스웨이브 테크노 8비트)
+      startSynthwaveBgm() {
+        this.init();
+        this.bgmTick = 0;
+        const stepTime = 60 / this.bgmBpm / 2; // 8분음표 단위
+        
+        // 8비트 베이스 라인 (A - G - F - G)
+        const bassPattern = [
+          110.00, 110.00, 110.00, 110.00, // A2
+          98.00,  98.00,  98.00,  98.00,  // G2
+          87.31,  87.31,  87.31,  87.31,  // F2
+          98.00,  98.00,  98.00,  98.00   // G2
+        ];
+        
+        // 간단한 일렉트릭 멜로디 라인
+        const melodyPattern = [
+          440.0, 0,     523.25, 440.0, // A4, Am
+          392.0, 493.88, 0,     392.0, // G4, G
+          349.23, 0,     440.0,  349.23, // F4, F
+          392.0, 587.33, 523.25, 493.88  // G4, G
+        ];
+
+        this.bgmTimer = setInterval(() => {
+          if (this.isMuted || !this.ctx) return;
+          const time = this.ctx.currentTime;
+          const idx = this.bgmTick % 16;
+          
+          // 1. 베이스 신스 (Triangle 파)
+          const bassOsc = this.ctx.createOscillator();
+          const bassGain = this.ctx.createGain();
+          bassOsc.type = 'triangle';
+          bassOsc.frequency.setValueAtTime(bassPattern[idx], time);
+          bassGain.gain.setValueAtTime(0.15, time);
+          bassGain.gain.exponentialRampToValueAtTime(0.01, time + stepTime - 0.02);
+          
+          bassOsc.connect(bassGain);
+          bassGain.connect(this.ctx.destination);
+          bassOsc.start(time);
+          bassOsc.stop(time + stepTime);
+
+          // 2. 멜로디 신스 (Sawtooth 파, 듬성듬성 플레이)
+          const melFreq = melodyPattern[idx];
+          if (melFreq > 0 && Math.random() > 0.2) {
+            const melOsc = this.ctx.createOscillator();
+            const melGain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+            
+            melOsc.type = 'sawtooth';
+            melOsc.frequency.setValueAtTime(melFreq, time);
+            
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1200, time);
+            
+            melGain.gain.setValueAtTime(0.04, time);
+            melGain.gain.exponentialRampToValueAtTime(0.001, time + stepTime * 1.5);
+            
+            melOsc.connect(filter);
+            filter.connect(melGain);
+            melGain.connect(this.ctx.destination);
+            
+            melOsc.start(time);
+            melOsc.stop(time + stepTime * 1.5);
+          }
+
+          // 3. 간이 8비트 드럼 비트 (킥/스네어)
+          if (idx % 4 === 0) { // 킥 드럼 (1, 5, 9, 13)
+            const kickOsc = this.ctx.createOscillator();
+            const kickGain = this.ctx.createGain();
+            kickOsc.frequency.setValueAtTime(150, time);
+            kickOsc.frequency.exponentialRampToValueAtTime(40, time + 0.1);
+            kickGain.gain.setValueAtTime(0.25, time);
+            kickGain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+            kickOsc.connect(kickGain);
+            kickGain.connect(this.ctx.destination);
+            kickOsc.start(time);
+            kickOsc.stop(time + 0.12);
+          } else if (idx % 4 === 2) { // 스네어 드럼 (3, 7, 11, 15)
+            // 짧은 노이즈로 흉내
+            const snareOsc = this.ctx.createOscillator();
+            const snareGain = this.ctx.createGain();
+            snareOsc.type = 'triangle';
+            snareOsc.frequency.setValueAtTime(180, time);
+            snareGain.gain.setValueAtTime(0.08, time);
+            snareGain.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+            snareOsc.connect(snareGain);
+            snareGain.connect(this.ctx.destination);
+            snareOsc.start(time);
+            snareOsc.stop(time + 0.09);
+          }
+
+          this.bgmTick++;
+        }, stepTime * 1000);
+      }
+
+      // 로비용 잔잔한 로파이 BGM
+      startLofiBgm() {
+        this.init();
+        this.bgmTick = 0;
+        const stepTime = 1.0; // 1초 단위 한 박자
+        
+        // 마이너 세븐스 코드 아르페지오 (Am7 -> Dm7 -> G7 -> Cmaj7)
+        const chords = [
+          [220.00, 261.63, 329.63, 392.00], // Am7
+          [293.66, 349.23, 440.00, 587.33], // Dm7
+          [196.00, 246.94, 293.66, 392.00], // G7
+          [261.63, 329.63, 392.00, 493.88]  // Cmaj7
+        ];
+
+        this.bgmTimer = setInterval(() => {
+          if (this.isMuted || !this.ctx) return;
+          const time = this.ctx.currentTime;
+          const chordIdx = Math.floor(this.bgmTick / 4) % chords.length;
+          const noteIdx = this.bgmTick % 4;
+          
+          const freq = chords[chordIdx][noteIdx];
+          
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
+          
+          // 부드러운 로파이를 위한 Sine/Triangle 조합
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, time);
+          
+          // 약간의 피치 미세 흔들림 (비브라토 느낌)
+          osc.frequency.linearRampToValueAtTime(freq + (Math.random() * 4 - 2), time + stepTime * 0.9);
+          
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(600, time);
+          
+          gain.gain.setValueAtTime(0.08, time);
+          gain.gain.exponentialRampToValueAtTime(0.001, time + stepTime * 1.8);
+          
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.start(time);
+          osc.stop(time + stepTime * 2);
+          
+          this.bgmTick++;
+        }, stepTime * 1000);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // ==========================================
+    // 3. UI 바인딩 및 상점 로직
+    // ==========================================
+    function updateLobbyUI() {
+      // 코인 동기화
+      document.getElementById('lobby-coins').innerText = userState.coins;
+      document.getElementById('hud-coins').innerText = userState.coins;
+
+      // 업그레이드 보드 렌더링
+      const board = document.getElementById('upgrade-board');
+      board.innerHTML = '';
+
+      Object.keys(UPGRADE_SPECS).forEach(key => {
+        const spec = UPGRADE_SPECS[key];
+        const currentLvl = userState.upgrades[key];
+        const isMax = currentLvl >= spec.maxLvl;
+        const cost = isMax ? 0 : getUpgradeCost(key, currentLvl);
+
+        const card = document.createElement('div');
+        card.className = `upgrade-card ${isMax ? 'maxed' : ''}`;
+        
+        let footerHtml = '';
+        if (isMax) {
+          footerHtml = `<span class="upgrade-max-label">⚡ MAX LEVEL</span>`;
+        } else {
+          footerHtml = `
+            <span class="upgrade-cost">🪙 ${cost}</span>
+            <span style="font-size: 0.7rem; color: ${userState.coins >= cost ? 'var(--neon-cyan)' : 'var(--neon-pink)'}">
+              ${userState.coins >= cost ? '구매 가능' : '코인 부족'}
+            </span>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="upgrade-header">
+            <span class="upgrade-name">${spec.name}</span>
+            <span class="upgrade-level">Lv.${currentLvl} / ${spec.maxLvl}</span>
+          </div>
+          <div class="upgrade-desc">${spec.desc}</div>
+          <div class="upgrade-footer">${footerHtml}</div>
+        `;
+
+        if (!isMax) {
+          card.onclick = () => {
+            sound.init();
+            if (userState.coins >= cost) {
+              userState.coins -= cost;
+              userState.upgrades[key]++;
+              sound.playCoin(); // 피드백 사운드
+              saveState();
+            } else {
+              sound.playHit(); // 실패 경고음
+            }
+          };
+        }
+
+        board.appendChild(card);
+      });
+    }
+
+    // ==========================================
+    // 4. 게임 핵심 피지컬 및 오브젝트 클래스
+    // ==========================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 입력 상태
+    const keys = {};
+    const mouse = { x: 0, y: 0, leftClicked: false, rightClicked: false };
+
+    // 키보드 바인딩
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        useActiveItem();
+      }
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.code] = false;
+    });
+
+    // 마우스 바인딩
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      // 해상도 왜곡 대응
+      mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    });
+
+    canvas.addEventListener('mousedown', e => {
+      if (e.button === 0) mouse.leftClicked = true;
+      if (e.button === 2) {
+        e.preventDefault();
+        mouse.rightClicked = true;
+      }
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      if (e.button === 0) mouse.leftClicked = false;
+      if (e.button === 2) mouse.rightClicked = false;
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // 게임 세션 전역 변수
+    let gameState = {
+      mode: 'LOBBY', // LOBBY, PLAYING, RESULT
+      stage: 1,      // 1, 2, 3
+      coinsEarned: 0,
+      kills: 0,
+      scrollSpeed: 1.8,
+      screenShake: 0,
+      waveProgress: 0, // 0 ~ 100
+      maxWaveProgress: 100,
+      activeItemSlot: null // 'shield', 'heal', 'wave_bomb' 등
+    };
+
+    class Particle {
+      constructor(x, y, vx, vy, color, size, life, type = 'normal') {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.color = color;
+        this.size = size;
+        this.maxLife = life;
+        this.life = life;
+        this.type = type; // normal, splash, bubble, spark
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        if (this.type === 'splash') {
+          this.vy += 0.08; // 중력
+        }
+        
+        this.life--;
+      }
+
+      draw(c) {
+        c.save();
+        const alpha = Math.max(0, this.life / this.maxLife);
+        c.globalAlpha = alpha;
+        
+        if (this.type === 'bubble') {
+          c.strokeStyle = this.color;
+          c.lineWidth = 1.5;
+          c.beginPath();
+          c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          c.stroke();
+        } else {
+          c.fillStyle = this.color;
+          c.beginPath();
+          c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.restore();
+      }
+    }
+
+    class Projectile {
+      constructor(x, y, vx, vy, damage, isPlayer, size, color, rotationSpeed = 0) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.damage = damage;
+        this.isPlayer = isPlayer;
+        this.size = size;
+        this.color = color;
+        this.angle = 0;
+        this.rotationSpeed = rotationSpeed;
+        this.markForRemoval = false;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.angle += this.rotationSpeed;
+
+        // 경계 이탈 검사
+        if (this.x < -100 || this.x > canvas.width + 100 || this.y < -100 || this.y > canvas.height + 100) {
+          this.markForRemoval = true;
+        }
+      }
+
+      draw(c) {
+        c.save();
+        c.translate(this.x, this.y);
+        c.rotate(this.angle);
+
+        if (this.isPlayer) {
+          // 참격 드로잉 (반달형 이펙트)
+          const grad = c.createLinearGradient(-this.size, 0, this.size, 0);
+          grad.addColorStop(0, 'rgba(0, 240, 255, 0.9)');
+          grad.addColorStop(0.6, 'rgba(255, 255, 255, 0.9)');
+          grad.addColorStop(1, 'rgba(0, 240, 255, 0.1)');
+          c.fillStyle = grad;
+          c.shadowBlur = 15;
+          c.shadowColor = '#00f0ff';
+          
+          c.beginPath();
+          c.arc(0, 0, this.size, -Math.PI / 2, Math.PI / 2, false);
+          c.quadraticCurveTo(this.size * 0.3, 0, 0, -this.size);
+          c.fill();
+        } else {
+          // 적 투사체 (보통 동그란 가시 또는 먹물 방울)
+          c.fillStyle = this.color;
+          c.shadowBlur = 8;
+          c.shadowColor = this.color;
+          c.beginPath();
+          c.arc(0, 0, this.size, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.restore();
+      }
+    }
+
+    class Surfer {
+      constructor() {
+        this.x = 150;
+        this.y = 400;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = 64;
+        this.height = 64;
+        this.speed = 5;
+        this.angle = 0;
+
+        // 동적 능력치 (상점 강화 반영)
+        this.maxHp = 3;
+        this.hp = 3;
+        this.damage = 10;
+        this.atkCooldown = 450;
+        this.dashCooldown = 1500;
+        this.magnetRadius = 50;
+
+        // 조작 타이머
+        this.lastAtkTime = 0;
+        this.lastDashTime = 0;
+
+        // 대시/무적 메카닉
+        this.isDashing = false;
+        this.dashTimer = 0;
+        this.dashDuration = 12; // frame 수
+        this.dashSpeed = 16;
+        this.dashVx = 0;
+        this.dashVy = 0;
+        this.ghostTrails = []; // {x, y, angle, alpha}
+
+        this.hasShield = false;
+        this.flipX = false;
+      }
+
+      reset() {
+        this.maxHp = getStatValue('maxHp');
+        this.hp = this.maxHp;
+        this.damage = getStatValue('atkDmg');
+        this.atkCooldown = getStatValue('atkSpd');
+        this.dashCooldown = getStatValue('dashCd');
+        this.magnetRadius = getStatValue('magnet');
+
+        this.x = 150;
+        this.y = 400;
+        this.vx = 0;
+        this.vy = 0;
+        this.angle = 0;
+        this.isDashing = false;
+        this.dashTimer = 0;
+        this.ghostTrails = [];
+        this.hasShield = false;
+        this.flipX = false;
+
+        this.updateHud();
+      }
+
+      updateHud() {
+        // 하트바 게이지 드로잉 대용
+        const fill = document.getElementById('hud-hp-bar');
+        const percentage = Math.max(0, (this.hp / this.maxHp) * 100);
+        fill.style.width = `${percentage}%`;
+
+        // 쉴드 인디케이터 바인딩
+        const shieldBox = document.getElementById('hud-shield');
+        if (this.hasShield) {
+          shieldBox.classList.remove('hidden');
+        } else {
+          shieldBox.classList.add('hidden');
+        }
+      }
+
+      takeDamage(amount) {
+        if (this.isDashing) return; // 무적 상태 무시
+
+        if (this.hasShield) {
+          this.hasShield = false;
+          sound.playHit();
+          gameState.screenShake = 12;
+          this.updateHud();
+          return;
+        }
+
+        this.hp = Math.max(0, this.hp - amount);
+        sound.playHit();
+        gameState.screenShake = 20;
+        this.updateHud();
+
+        if (this.hp <= 0) {
+          triggerGameOver();
+        }
+      }
+
+      update() {
+        // 대시 중 처리
+        if (this.isDashing) {
+          this.x += this.dashVx;
+          this.y += this.dashVy;
+          
+          // 잔상 기록
+          if (this.dashTimer % 2 === 0) {
+            this.ghostTrails.push({ x: this.x, y: this.y, angle: this.angle, alpha: 0.5 });
+          }
+
+          this.dashTimer--;
+          if (this.dashTimer <= 0) {
+            this.isDashing = false;
+          }
+        } else {
+          // 키 입력 이동
+          let dx = 0;
+          let dy = 0;
+          if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
+          if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
+          if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
+          if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
+
+          if (dx < 0) this.flipX = true;
+          if (dx > 0) this.flipX = false;
+
+          // 정규화 이동
+          if (dx !== 0 && dy !== 0) {
+            dx *= 0.7071;
+            dy *= 0.7071;
+          }
+
+          this.vx = dx * this.speed;
+          this.vy = dy * this.speed;
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // 보드 애니메이션용 각도 계산 (상하 이동에 따른 기울임)
+          this.angle = this.vy * 0.03;
+        }
+
+        // 잔상 알파 감쇠 및 제거
+        this.ghostTrails.forEach(t => t.alpha -= 0.05);
+        this.ghostTrails = this.ghostTrails.filter(t => t.alpha > 0);
+
+        // 경계 제한 (Y축 바다 영역 제한 220 ~ 580, X축 50 ~ 750)
+        this.x = Math.max(40, Math.min(canvas.width - 40, this.x));
+        this.y = Math.max(240, Math.min(canvas.height - 40, this.y));
+
+        const now = Date.now();
+        // 1. 공격 발사 처리 (마우스 좌클릭)
+        if (mouse.leftClicked && now - this.lastAtkTime >= this.atkCooldown) {
+          this.attack();
+          this.lastAtkTime = now;
+        }
+
+        // 2. 대시 발사 처리 (마우스 우클릭)
+        if (mouse.rightClicked && now - this.lastDashTime >= this.dashCooldown) {
+          this.dash();
+          this.lastDashTime = now;
+        }
+
+        // 서핑 물보라 파티클 생성
+        if (Math.random() < 0.4) {
+          const vx = -gameState.scrollSpeed - Math.random() * 2;
+          const vy = (Math.random() * 2 - 1) * 0.5;
+          particles.push(new Particle(this.x - 24, this.y + 12, vx, vy, '#e0f2fe', Math.random() * 4 + 2, 20, 'splash'));
+        }
+      }
+
+      attack() {
+        sound.playAttack();
+        // 플레이어 전방으로 뻗어 나가는 반달 모양 참격 생성
+        projectiles.push(new Projectile(this.x + 30, this.y, 10, 0, this.damage, true, 25 + (this.damage * 0.5), '#00f0ff'));
+      }
+
+      dash() {
+        sound.playDash();
+        this.isDashing = true;
+        this.dashTimer = this.dashDuration;
+
+        // 마우스 방향 또는 진행 방향으로 대시 벡터 계산
+        const dx = mouse.x - this.x;
+        const dy = mouse.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 5) {
+          this.dashVx = (dx / dist) * this.dashSpeed;
+          this.dashVy = (dy / dist) * this.dashSpeed;
+        } else {
+          // 키보드 이동방향 기본값
+          let kx = 0; let ky = 0;
+          if (keys['KeyW']) ky -= 1;
+          if (keys['KeyS']) ky += 1;
+          if (keys['KeyA']) kx -= 1;
+          if (keys['KeyD']) kx += 1;
+          
+          const len = Math.hypot(kx, ky);
+          if (len > 0) {
+            this.dashVx = (kx / len) * this.dashSpeed;
+            this.dashVy = (ky / len) * this.dashSpeed;
+          } else {
+            this.dashVx = this.dashSpeed; // 정지 상태 시 전방 대시
+            this.dashVy = 0;
+          }
+        }
+      }
+
+      draw(c) {
+        // 잔상 드로잉
+        this.ghostTrails.forEach(trail => {
+          c.save();
+          c.globalAlpha = trail.alpha;
+          c.translate(trail.x, trail.y);
+          c.rotate(trail.angle);
+          this.drawSurferGraphic(c, true);
+          c.restore();
+        });
+
+        // 본체 드로잉
+        c.save();
+        c.translate(this.x, this.y);
+        c.rotate(this.angle);
+
+        // 무적 피격 블링크 깜빡이
+        if (this.isDashing) {
+          c.shadowBlur = 20;
+          c.shadowColor = 'rgba(0, 240, 255, 0.8)';
+        }
+
+        this.drawSurferGraphic(c, false);
+        c.restore();
+      }
+
+      // 8비트 서퍼 '아인' 드로잉 (컨셉 이미지: 모히칸 검은 머리, 선글라스, 몸짱 구릿빛, 핫핑크 수영복, 타투)
+      drawSurferGraphic(c, isGhost) {
+        const sprite = this.isDashing ? SPRITES.surferJumping : SPRITES.surferSurfing;
+        const scale = 2.5; // 24 * 2.5 = 60px
+        
+        c.save();
+        if (isGhost) {
+          c.globalAlpha = 0.4;
+        }
+        
+        drawPixelSprite(c, 0, 0, sprite, scale, this.flipX);
+        c.restore();
+
+        // 4. 배리어 (쉴드 보유 시 둥근 네온막 표시)
+        if (this.hasShield && !isGhost) {
+          c.save();
+          c.strokeStyle = 'rgba(0, 240, 255, 0.8)';
+          c.shadowBlur = 12;
+          c.shadowColor = '#00f0ff';
+          c.lineWidth = 2.5;
+          c.beginPath();
+          c.arc(0, 0, 42, 0, Math.PI * 2);
+          c.stroke();
+          c.restore();
+        }
+      }
+    }
+
+    const surfer = new Surfer();
+
+    // ==========================================
+    // 5. 몬스터(NPC) & 아이템 클래스
+    // ==========================================
+    class Enemy {
+      constructor(type, x, y) {
+        this.type = type; // crab, fish, turtle, boss_squid, mini_squid
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = 48;
+        this.height = 48;
+        this.hp = 10;
+        this.maxHp = 10;
+        this.points = 10;
+        this.damage = 1;
+        this.blinkFrame = 0;
+        this.actionTimer = 0;
+        this.markForRemoval = false;
+        this.spinMode = false;
+
+        this.initType();
+      }
+
+      initType() {
+        switch (this.type) {
+          case 'crab':
+            this.hp = 10;
+            this.points = 10;
+            this.vx = -gameState.scrollSpeed - 0.5;
+            this.vy = 0;
+            break;
+          case 'fish':
+            this.hp = 12;
+            this.points = 15;
+            this.vx = -gameState.scrollSpeed - 2.5;
+            this.vy = 0;
+            // 포물선 궤적
+            this.startY = this.y;
+            this.jumpProgress = 0;
+            break;
+          case 'turtle':
+            this.hp = 25;
+            this.points = 25;
+            this.vx = -gameState.scrollSpeed * 0.7;
+            this.vy = 0;
+            this.width = 54;
+            this.height = 54;
+            this.spinMode = false;
+            break;
+          case 'mini_squid':
+            this.hp = 6;
+            this.points = 5;
+            this.vx = -gameState.scrollSpeed - 4.5;
+            this.vy = 0;
+            break;
+          case 'boss_squid':
+            this.hp = 300;
+            this.maxHp = 300;
+            this.points = 1000;
+            this.width = 120;
+            this.height = 140;
+            this.vx = 0;
+            this.vy = 0;
+            break;
+        }
+      }
+
+      update() {
+        if (this.blinkFrame > 0) this.blinkFrame--;
+
+        switch (this.type) {
+          case 'crab':
+            // 슬금슬금
+            this.x += this.vx;
+            break;
+          case 'fish':
+            // 포물선 점프 운동
+            this.x += this.vx;
+            this.jumpProgress += 0.05;
+            this.y = this.startY - Math.sin(this.jumpProgress) * 90;
+            if (this.jumpProgress >= Math.PI) {
+              this.jumpProgress = 0;
+              this.startY = Math.max(250, Math.min(550, this.startY + (Math.random() * 100 - 50)));
+            }
+            break;
+          case 'turtle':
+            this.actionTimer++;
+            // 주기적으로 등껍질 스핀 모드 활성화 (50% 데미지 감소 및 돌진)
+            if (this.actionTimer % 150 === 0) {
+              this.spinMode = !this.spinMode;
+              if (this.spinMode) {
+                this.vx = -gameState.scrollSpeed * 2.0;
+                sound.playDash();
+              } else {
+                this.vx = -gameState.scrollSpeed * 0.7;
+              }
+            }
+            this.x += this.vx;
+            this.y += Math.sin(this.actionTimer * 0.04) * (this.spinMode ? 1.8 : 0.8);
+            break;
+          case 'mini_squid':
+            this.x += this.vx;
+            break;
+          case 'boss_squid':
+            this.actionTimer++;
+            // 우측에 둥실둥실 고정
+            const targetX = 660;
+            this.x += (targetX - this.x) * 0.05;
+            this.y = 350 + Math.sin(this.actionTimer * 0.02) * 80;
+
+            // 보스 보스 전용 복합 패턴
+            if (this.actionTimer % 180 === 0) {
+              const randPattern = Math.floor(Math.random() * 3);
+              if (randPattern === 0) {
+                // 패턴 1: 먹물 산탄 발사
+                for (let i = 0; i < 6; i++) {
+                  const angle = Math.PI - 0.4 + (i * 0.16); // 플레이어 정면 부채꼴
+                  projectiles.push(new Projectile(
+                    this.x - 40, this.y,
+                    Math.cos(angle) * (6 + Math.random() * 3), Math.sin(angle) * (6 + Math.random() * 3),
+                    1, false, 12, '#3b0764' // 보라먹물
+                  ));
+                }
+              } else if (randPattern === 1) {
+                // 패턴 2: 미니 오징어 부하 소환
+                for (let i = 0; i < 3; i++) {
+                  enemies.push(new Enemy('mini_squid', this.x - 30, this.y - 60 + i * 60));
+                }
+              } else {
+                // 패턴 3: 촉수 내리치기 경고
+                triggerTentacleSlam(surfer.y);
+              }
+            }
+            break;
+        }
+
+        // 경계 이탈 삭제
+        if (this.x < -150 && this.type !== 'boss_squid') {
+          this.markForRemoval = true;
+        }
+      }
+
+      takeDamage(amount) {
+        if (this.type === 'turtle' && this.spinMode) {
+          // 등껍질 회전 보호 상태에서는 50% 데미지 감소
+          amount = Math.max(1, Math.floor(amount * 0.5));
+          for (let i = 0; i < 3; i++) {
+            particles.push(new Particle(this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, '#78350f', 3, 10));
+          }
+        }
+        this.hp -= amount;
+        this.blinkFrame = 5;
+        sound.playHit();
+        
+        // 피격 스파크 파티클
+        for (let i = 0; i < 5; i++) {
+          particles.push(new Particle(
+            this.x, this.y, 
+            (Math.random() * 4 - 2) - 2, (Math.random() * 4 - 2), 
+            '#e0f2fe', Math.random() * 3 + 1, 15
+          ));
+        }
+
+        if (this.hp <= 0) {
+          this.die();
+        }
+      }
+
+      die() {
+        this.markForRemoval = true;
+        gameState.kills++;
+        sound.playKill();
+        
+        // 골드 생성 (등급 별 차등)
+        let coinCount = 1;
+        if (this.type === 'fish') coinCount = 2;
+        if (this.type === 'turtle') coinCount = 4;
+        if (this.type === 'boss_squid') coinCount = 20;
+
+        for (let i = 0; i < coinCount; i++) {
+          coins.push(new Coin(this.x + Math.random() * 20 - 10, this.y + Math.random() * 20 - 10));
+        }
+
+        // 아이템 가챠 드랍 (20% 확률) - 보스는 확정 드랍
+        if (this.type === 'boss_squid') {
+          triggerVictory();
+        } else if (Math.random() < 0.16 && gameState.stage >= 2) {
+          const itemTypes = ['shield', 'heal', 'wave_bomb'];
+          const randType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+          items.push(new DroppedItem(randType, this.x, this.y));
+        }
+
+        // 대폭발 파티클
+        for (let i = 0; i < 12; i++) {
+          particles.push(new Particle(
+            this.x, this.y, 
+            Math.random() * 6 - 3, Math.random() * 6 - 3, 
+            '#00f0ff', Math.random() * 4 + 2, 25
+          ));
+        }
+      }
+
+      draw(c) {
+        c.save();
+        c.translate(this.x, this.y);
+
+        // 피격 흰색 블링크
+        if (this.blinkFrame > 0) {
+          c.shadowBlur = 15;
+          c.shadowColor = '#ffffff';
+          c.fillStyle = '#ffffff';
+          c.beginPath();
+          c.arc(0, 0, this.width / 2, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+          return;
+        }
+
+        // 각 몬스터별 디자인 8비트 드로잉
+        switch (this.type) {
+          case 'crab':
+            this.drawCrab(c);
+            break;
+          case 'fish':
+            this.drawFish(c);
+            break;
+          case 'turtle':
+            this.drawTurtle(c);
+            break;
+          case 'mini_squid':
+            this.drawMiniSquid(c);
+            break;
+          case 'boss_squid':
+            this.drawBossSquid(c);
+            break;
+        }
+
+        c.restore();
+      }
+
+      drawCrab(c) {
+        drawPixelSprite(c, 0, 0, SPRITES.crab, 2.5, false);
+      }
+
+      drawFish(c) {
+        drawPixelSprite(c, 0, 0, SPRITES.fish, 2.5, false);
+      }
+
+      drawTurtle(c) {
+        if (this.spinMode) {
+          c.save();
+          c.rotate(this.actionTimer * 0.2);
+          drawPixelSprite(c, 0, 0, SPRITES.turtle, 3.0, false);
+          c.restore();
+        } else {
+          drawPixelSprite(c, 0, 0, SPRITES.turtle, 3.0, false);
+        }
+      }
+
+      drawMiniSquid(c) {
+        drawPixelSprite(c, 0, 0, SPRITES.boss, 1.2, false);
+      }
+
+      drawBossSquid(c) {
+        drawPixelSprite(c, 0, 0, SPRITES.boss, 4.0, false);
+      }
+    }
+
+    // 촉수 슬램 글로벌 처리
+    let activeTentacleSlam = null; // {y, timer, maxTimer}
+    function triggerTentacleSlam(targetY) {
+      activeTentacleSlam = {
+        y: targetY,
+        timer: 70, // 1.1초 충전 시간
+        maxTimer: 70
+      };
+    }
+
+    function processTentacleSlam(c) {
+      if (!activeTentacleSlam) return;
+
+      activeTentacleSlam.timer--;
+      
+      const y = activeTentacleSlam.y;
+      const height = 70; // 참격 범위
+
+      // 1. 빨간색 경고 라인 캔버스 렌더링
+      const alpha = Math.abs(Math.sin(activeTentacleSlam.timer * 0.15)) * 0.6;
+      c.save();
+      c.fillStyle = `rgba(255, 0, 127, ${alpha})`;
+      c.fillRect(0, y - height / 2, canvas.width, height);
+      
+      // 외곽선
+      c.strokeStyle = 'rgba(255, 0, 127, 0.8)';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(0, y - height / 2);
+      c.lineTo(canvas.width, y - height / 2);
+      c.moveTo(0, y + height / 2);
+      c.lineTo(canvas.width, y + height / 2);
+      c.stroke();
+      c.restore();
+
+      // 2. 타이머 끝난 시점 폭사 데미지 적용
+      if (activeTentacleSlam.timer <= 0) {
+        // 실제 슬램
+        sound.playGameOver(); // 폭음
+        gameState.screenShake = 25;
+
+        // 플레이어가 범위 안에 있고 대시 무적이 아닐 경우 데미지
+        if (surfer.y >= y - height / 2 && surfer.y <= y + height / 2 && !surfer.isDashing) {
+          surfer.takeDamage(1);
+        }
+
+        // 내리칠 때 스플래시 파티클 연출
+        for (let x = 50; x < canvas.width; x += 100) {
+          for (let k = 0; k < 6; k++) {
+            particles.push(new Particle(
+              x, y, 
+              Math.random() * 4 - 2, -Math.random() * 6 - 2, 
+              '#e0f2fe', Math.random() * 4 + 2, 30, 'splash'
+            ));
+          }
+        }
+
+        activeTentacleSlam = null; // 초기화
+      }
+    }
+
+    // 코인 및 획득 아이템 클래스
+    class Coin {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = -gameState.scrollSpeed * 0.6;
+        this.vy = 0;
+        this.size = 6;
+        this.angle = 0;
+        this.markForRemoval = false;
+      }
+
+      update() {
+        // 플레이어 코인 자석 연동
+        const dist = Math.hypot(surfer.x - this.x, surfer.y - this.y);
+        if (dist < surfer.magnetRadius) {
+          const speed = 8;
+          this.vx = ((surfer.x - this.x) / dist) * speed;
+          this.vy = ((surfer.y - this.y) / dist) * speed;
+        } else {
+          this.vx = -gameState.scrollSpeed * 0.6;
+          this.vy = 0;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+        this.angle += 0.15;
+
+        // 충돌 판정
+        if (dist < 18) {
+          this.markForRemoval = true;
+          userState.coins += 1;
+          gameState.coinsEarned += 1;
+          sound.playCoin();
+          surfer.updateHud();
+          
+          // HUD 상점 금액 동기화
+          document.getElementById('lobby-coins').innerText = userState.coins;
+          document.getElementById('hud-coins').innerText = userState.coins;
+        }
+
+        if (this.x < -20) this.markForRemoval = true;
+      }
+
+      draw(c) {
+        c.save();
+        c.translate(this.x, this.y);
+        c.rotate(this.angle);
+        
+        // 동그란 네온 코인 드로잉
+        c.fillStyle = '#fbbf24'; // Gold
+        c.strokeStyle = '#d97706';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.ellipse(0, 0, this.size, this.size * 0.7, 0, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+        c.restore();
+      }
+    }
+
+    class DroppedItem {
+      constructor(type, x, y) {
+        this.type = type; // shield, heal, wave_bomb
+        this.x = x;
+        this.y = y;
+        this.vx = -gameState.scrollSpeed * 0.8;
+        this.vy = 0;
+        this.size = 14;
+        this.pulse = 0;
+        this.markForRemoval = false;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.pulse += 0.05;
+
+        const dist = Math.hypot(surfer.x - this.x, surfer.y - this.y);
+        if (dist < 26) {
+          // 인벤토리 즉시 장착
+          gameState.activeItemSlot = this.type;
+          sound.playCoin();
+          this.markForRemoval = true;
+          renderInventory();
+        }
+
+        if (this.x < -30) this.markForRemoval = true;
+      }
+
+      draw(c) {
+        c.save();
+        c.translate(this.x, this.y);
+        
+        const scale = 1.0 + Math.sin(this.pulse) * 0.15;
+        c.scale(scale, scale);
+
+        // 아이템 박스 구슬 드로잉
+        let border = '#00f0ff';
+        let bg = 'rgba(0, 240, 255, 0.4)';
+        let emoji = '🔮';
+        
+        if (this.type === 'shield') {
+          border = '#00f0ff'; bg = 'rgba(0, 240, 255, 0.2)'; emoji = '🛡️';
+        } else if (this.type === 'heal') {
+          border = '#22c55e'; bg = 'rgba(34, 197, 94, 0.2)'; emoji = '🧪';
+        } else if (this.type === 'wave_bomb') {
+          border = '#eab308'; bg = 'rgba(234, 179, 8, 0.2)'; emoji = '🐚';
+        }
+
+        c.strokeStyle = border;
+        c.fillStyle = bg;
+        c.lineWidth = 2;
+        c.beginPath();
+        c.arc(0, 0, this.size, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+
+        // 텍스트 아이콘
+        c.font = '14px Arial';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(emoji, 0, 1);
+        
+        c.restore();
+      }
+    }
+
+    // 아이템 슬롯 그래픽 갱신
+    function renderInventory() {
+      const slot = document.getElementById('item-slot-0');
+      const icon = document.getElementById('slot-icon');
+      
+      if (gameState.activeItemSlot) {
+        slot.classList.add('active');
+        let symbol = '🛡️';
+        if (gameState.activeItemSlot === 'heal') symbol = '🧪';
+        if (gameState.activeItemSlot === 'wave_bomb') symbol = '🐚';
+        icon.innerText = symbol;
+      } else {
+        slot.classList.remove('active');
+        icon.innerText = '';
+      }
+    }
+
+    // 아이템 발동
+    function useActiveItem() {
+      if (!gameState.activeItemSlot || gameState.mode !== 'PLAYING') return;
+
+      const type = gameState.activeItemSlot;
+      gameState.activeItemSlot = null; // 소모
+      renderInventory();
+
+      if (type === 'shield') {
+        surfer.hasShield = true;
+        sound.playCoin();
+        surfer.updateHud();
+      } else if (type === 'heal') {
+        surfer.hp = Math.min(surfer.maxHp, surfer.hp + 1);
+        sound.playCoin();
+        surfer.updateHud();
+        // 힐 이펙트
+        for (let i = 0; i < 8; i++) {
+          particles.push(new Particle(surfer.x, surfer.y, Math.random() * 2 - 1, -Math.random() * 3 - 1, '#22c55e', 4, 25));
+        }
+      } else if (type === 'wave_bomb') {
+        // 화면 정화 타이달 웨이브 폭탄 발동
+        triggerTidalWaveBomb();
+      }
+    }
+
+    // 파도 폭탄 전역 처리
+    let activeTidalWave = null; // {x, vx}
+    function triggerTidalWaveBomb() {
+      sound.playGameOver();
+      gameState.screenShake = 30;
+      activeTidalWave = {
+        x: 0,
+        vx: 12
+      };
+    }
+
+    function processTidalWave(c) {
+      if (!activeTidalWave) return;
+
+      activeTidalWave.x += activeTidalWave.vx;
+      
+      // 드로잉 (세로로 가로지르는 거대한 네온 청록빛 파도 해일)
+      c.save();
+      const waveX = activeTidalWave.x;
+      const grad = c.createLinearGradient(waveX - 80, 0, waveX, 0);
+      grad.addColorStop(0, 'rgba(0, 240, 255, 0.05)');
+      grad.addColorStop(0.7, 'rgba(0, 240, 255, 0.4)');
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0.95)');
+      c.fillStyle = grad;
+      c.shadowBlur = 30;
+      c.shadowColor = '#00f0ff';
+
+      // 울렁이는 파도 그리기
+      c.beginPath();
+      c.moveTo(waveX - 100, 200);
+      for (let y = 200; y <= 600; y += 40) {
+        const offset = Math.sin(y * 0.05 + Date.now() * 0.01) * 15;
+        c.lineTo(waveX + offset, y);
+      }
+      c.lineTo(waveX - 100, 600);
+      c.closePath();
+      c.fill();
+      c.restore();
+
+      // 적들과 충돌 검사
+      enemies.forEach(enemy => {
+        if (enemy.x < waveX + 20 && enemy.x > waveX - 150) {
+          enemy.takeDamage(40); // 큰 데미지 공급
+        }
+      });
+
+      // 투사체 제거
+      projectiles.forEach(p => {
+        if (!p.isPlayer && p.x < waveX) {
+          p.markForRemoval = true;
+        }
+      });
+
+      if (waveX > canvas.width + 120) {
+        activeTidalWave = null;
+      }
+    }
+
+    // Helper: CSS Variable 변환기
+    function varColor(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+    }
+
+    // ==========================================
+    // 6. 게임 오브젝트 컨테이너 및 생명주기
+    // ==========================================
+    let enemies = [];
+    let projectiles = [];
+    let particles = [];
+    let coins = [];
+    let items = [];
+
+    // 스폰 쿨타임 관리
+    let lastSpawnTime = 0;
+    let spawnInterval = 1800; // ms
+
+    function spawnEngine() {
+      const now = Date.now();
+      if (gameState.mode !== 'PLAYING') return;
+
+      // 스테이지 3 보스 등장 시 잡몹 자동 소환 제어는 보스 AI로 위임
+      if (gameState.stage === 3 && enemies.some(e => e.type === 'boss_squid')) {
+        return; 
+      }
+
+      if (now - lastSpawnTime >= spawnInterval) {
+        lastSpawnTime = now;
+        
+        // 몬스터 종류 가챠
+        const randY = Math.max(260, Math.min(540, Math.random() * 280 + 250));
+        
+        if (gameState.stage === 1) {
+          // 꽃게, 날치만
+          const type = Math.random() < 0.6 ? 'crab' : 'fish';
+          enemies.push(new Enemy(type, 850, randY));
+        } else if (gameState.stage === 2) {
+          // 꽃게, 날치, 바다거북 출몰 시작
+          const types = ['crab', 'fish', 'turtle'];
+          const randType = types[Math.floor(Math.random() * types.length)];
+          enemies.push(new Enemy(randType, 850, randY));
+        }
+      }
+    }
+
+    // ==========================================
+    // 7. 실시간 파도(Sea) 렌더러 & 배경 드로잉
+    // ==========================================
+    let bgOffset = 0;
+
+    function drawParallaxSea() {
+      // 1. 하늘 그라데이션 (네온 레트로 선셋)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, 240);
+      skyGrad.addColorStop(0, '#0c0a0f'); // 초고도 밤하늘
+      skyGrad.addColorStop(0.5, '#2e1065'); // 보라
+      skyGrad.addColorStop(1, '#ff007f'); // 핑크
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, canvas.width, 240);
+
+      // 2. 레트로 선셋 태양 (가로 컷팅선 포함)
+      ctx.save();
+      const sunY = 200;
+      const sunRadius = 70;
+      const sunGrad = ctx.createLinearGradient(0, sunY - sunRadius, 0, sunY + sunRadius);
+      sunGrad.addColorStop(0, '#facc15'); // 옐로
+      sunGrad.addColorStop(1, '#ff007f'); // 마젠타
+      ctx.fillStyle = sunGrad;
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = '#ff007f';
+      
+      ctx.beginPath();
+      ctx.arc(400, sunY, sunRadius, Math.PI, 0, false); // 지평선 위만 반원 드로잉
+      ctx.fill();
+
+      // 태양 가로 커팅 장식선 효과
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#2e1065';
+      for (let y = sunY - sunRadius; y < sunY; y += 12) {
+        const thickness = (sunY - y) * 0.06;
+        ctx.fillRect(400 - sunRadius - 10, y, sunRadius * 2 + 20, thickness);
+      }
+      ctx.restore();
+
+      // 3. 지평선 파도 경계선 (수평선 멀리 있는 산맥/그리드)
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 235, canvas.width, 10);
+
+      // 4. 스크롤되는 파도 그라데이션 3단 레이어
+      bgOffset += gameState.scrollSpeed;
+
+      // 레이어 1: 먼 바다 (Deep Blue - 스크롤 느림)
+      drawWaveLayer('#1e1b4b', 240, 20, bgOffset * 0.25, 0.015);
+
+      // 레이어 2: 중간 바다 (Teal/Cyan - 스크롤 중간)
+      drawWaveLayer('#0f766e', 360, 26, bgOffset * 0.6, 0.02);
+
+      // 레이어 3: 앞 바다 (Active Neon Cyan - 스크롤 빠름)
+      drawWaveLayer('#0284c7', 485, 32, bgOffset, 0.025);
+    }
+
+    function drawWaveLayer(color, startY, height, offset, waveFreq) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, startY);
+      
+      for (let x = 0; x <= canvas.width + 20; x += 20) {
+        const y = startY + Math.sin(x * waveFreq + offset * 0.05) * 8 + Math.cos(x * 0.01 + offset * 0.01) * 4;
+        ctx.lineTo(x, y);
+      }
+      
+      ctx.lineTo(canvas.width, 600);
+      ctx.lineTo(0, 600);
+      ctx.closePath();
+      ctx.fill();
+
+      // 파도 백태 장식선 그리기 (파도 윗부분 반짝이는 거품선)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, startY);
+      for (let x = 0; x <= canvas.width + 20; x += 20) {
+        const y = startY + Math.sin(x * waveFreq + offset * 0.05) * 8 + Math.cos(x * 0.01 + offset * 0.01) * 4;
+        ctx.lineTo(x, y - 2);
+      }
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // ==========================================
+    // 8. 게임 루프 & 충돌 제어
+    // ==========================================
+    let animationId = null;
+
+    function runGameLoop() {
+      // 1. 화면 초기화 및 피격 화면 흔들림
+      ctx.save();
+      if (gameState.screenShake > 0) {
+        const dx = (Math.random() * 2 - 1) * gameState.screenShake;
+        const dy = (Math.random() * 2 - 1) * gameState.screenShake;
+        ctx.translate(dx, dy);
+        gameState.screenShake *= 0.9; // 흔들림 감쇠
+        if (gameState.screenShake < 0.5) gameState.screenShake = 0;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 2. 물리 및 데이터 업데이트 (PLAYING일 때만)
+      if (gameState.mode === 'PLAYING') {
+        spawnEngine();
+
+        // 아인 서퍼 물리
+        surfer.update();
+
+        // 파도 진행 게이지 업데이트
+        if (gameState.stage < 3) {
+          gameState.waveProgress += 0.035;
+          
+          // 스테이지 클리어 연출
+          if (gameState.waveProgress >= gameState.maxWaveProgress) {
+            advanceStage();
+          }
+        }
+
+        // 보스 체력 표시 상태 동기화
+        const bossBar = document.getElementById('hud-boss-bar');
+        const boss = enemies.find(e => e.type === 'boss_squid');
+        if (boss) {
+          bossBar.classList.remove('hidden');
+          const bossPct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+          document.getElementById('hud-boss-hp').style.width = `${bossPct}%`;
+        } else {
+          bossBar.classList.add('hidden');
+        }
+      }
+
+      // 3. 렌더링 시작
+      drawParallaxSea(); // 바다 및 태양 렌더
+
+      // 아이템
+      items = items.filter(item => {
+        if (gameState.mode === 'PLAYING') item.update();
+        item.draw(ctx);
+        return !item.markForRemoval;
+      });
+
+      // 코인
+      coins = coins.filter(coin => {
+        if (gameState.mode === 'PLAYING') coin.update();
+        coin.draw(ctx);
+        return !coin.markForRemoval;
+      });
+
+      // 몬스터
+      enemies = enemies.filter(enemy => {
+        if (gameState.mode === 'PLAYING') enemy.update();
+        enemy.draw(ctx);
+        return !enemy.markForRemoval;
+      });
+
+      // 투사체
+      projectiles = projectiles.filter(p => {
+        if (gameState.mode === 'PLAYING') p.update();
+        p.draw(ctx);
+        return !p.markForRemoval;
+      });
+
+      // 파티클
+      particles = particles.filter(part => {
+        if (gameState.mode === 'PLAYING') part.update();
+        part.draw(ctx);
+        return part.life > 0;
+      });
+
+      // 타이달 웨이브 폭탄
+      processTidalWave(ctx);
+
+      // 보스 촉수공격
+      processTentacleSlam(ctx);
+
+      // 서퍼 렌더링
+      if (gameState.mode === 'PLAYING' || gameState.mode === 'RESULT') {
+        surfer.draw(ctx);
+      }
+
+      // 4. 충돌 체크
+      if (gameState.mode === 'PLAYING') {
+        checkCollisions();
+      }
+
+      ctx.restore();
+
+      animationId = requestAnimationFrame(runGameLoop);
+    }
+
+    // 정교한 AABB / 원형 충돌 판정
+    function checkCollisions() {
+      // 1. 플레이어 참격(투사체) vs 몬스터
+      projectiles.forEach(p => {
+        if (!p.isPlayer) return;
+        
+        enemies.forEach(enemy => {
+          if (enemy.markForRemoval) return;
+          const dist = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+          // 충돌
+          if (dist < p.size + (enemy.width / 2)) {
+            enemy.takeDamage(p.damage);
+            p.markForRemoval = true;
+          }
+        });
+      });
+
+      // 2. 적 투사체 vs 플레이어
+      projectiles.forEach(p => {
+        if (p.isPlayer) return;
+
+        const dist = Math.hypot(p.x - surfer.x, p.y - surfer.y);
+        if (dist < p.size + 16 && !surfer.isDashing) {
+          surfer.takeDamage(p.damage);
+          p.markForRemoval = true;
+        }
+      });
+
+      // 3. 적 본체 vs 플레이어 충돌 (장애물 충돌 명세)
+      enemies.forEach(enemy => {
+        if (enemy.markForRemoval) return;
+
+        const dist = Math.hypot(enemy.x - surfer.x, enemy.y - surfer.y);
+        if (dist < (enemy.width / 2) + 16 && !surfer.isDashing) {
+          surfer.takeDamage(1); // 1 라이프/체력 감소
+          
+          // 충돌 후 튕겨나가는 적 연출 (일반몹은 즉시 터지며 데미지 입힘)
+          if (enemy.type !== 'boss_squid') {
+            enemy.die();
+          }
+        }
+      });
+    }
+
+    // ==========================================
+    // 9. 스테이지 전환 및 게임 오버/성공
+    // ==========================================
+    
+    // 스테이지 승급
+    function advanceStage() {
+      gameState.stage++;
+      gameState.waveProgress = 0;
+      sound.playVictory();
+      
+      // HUD 배지 갱신
+      document.getElementById('hud-stage').innerText = `STAGE ${gameState.stage}`;
+
+      if (gameState.stage === 2) {
+        // 난이도 상승
+        gameState.scrollSpeed = 2.4;
+        spawnInterval = 1400;
+      } else if (gameState.stage === 3) {
+        // 최종 스테이지: 보스 등장
+        gameState.scrollSpeed = 2.8;
+        // 거대 대왕 오징어 스폰
+        enemies.push(new Enemy('boss_squid', 850, 350));
+      }
+    }
+
+    // 게임 시작 핸들러
+    function initGame() {
+      // 오디오 초기화
+      sound.init();
+      sound.playCurrentStateBgm();
+      sound.playReadyGo();
+
+      // 전역 상태 초기화
+      gameState.mode = 'PLAYING';
+      gameState.stage = 1;
+      gameState.coinsEarned = 0;
+      gameState.kills = 0;
+      gameState.scrollSpeed = 1.8;
+      gameState.waveProgress = 0;
+      gameState.activeItemSlot = null;
+
+      activeTentacleSlam = null;
+      activeTidalWave = null;
+
+      // 컨테이너 초기화
+      enemies = [];
+      projectiles = [];
+      particles = [];
+      coins = [];
+      items = [];
+
+      // 플레이어 아인 리셋
+      surfer.reset();
+
+      // UI 레이아웃 동기화
+      document.getElementById('lobby-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('game-hud').classList.remove('hidden');
+      
+      renderInventory();
+    }
+
+    // 게임오버 트리거
+    function triggerGameOver() {
+      gameState.mode = 'RESULT';
+      sound.playGameOver();
+      sound.stopBgm();
+
+      // 데이터 누적 보존
+      saveState();
+
+      // 결과 오버레이 갱신
+      document.getElementById('game-hud').classList.add('hidden');
+      document.getElementById('result-screen').classList.remove('hidden');
+      
+      // 실패 로고 활성
+      document.getElementById('result-victory-title').classList.add('hidden');
+      document.getElementById('result-fail-title').classList.remove('hidden');
+      document.getElementById('result-subtitle').innerText = "바다의 무서운 파도와 대왕오징어에 패배했습니다...";
+      
+      document.getElementById('res-gold').innerText = gameState.coinsEarned;
+      document.getElementById('res-kills').innerText = gameState.kills;
+    }
+
+    // 최종 보스 토벌 성공 트리거
+    function triggerVictory() {
+      gameState.mode = 'RESULT';
+      sound.playVictory();
+      sound.stopBgm();
+
+      // 최종 클리어 보너스 골드 지급
+      userState.coins += 100;
+      gameState.coinsEarned += 100;
+      saveState();
+
+      // 결과 오버레이 갱신
+      document.getElementById('game-hud').classList.add('hidden');
+      document.getElementById('result-screen').classList.remove('hidden');
+      
+      // 성공 로고 활성
+      document.getElementById('result-victory-title').classList.remove('hidden');
+      document.getElementById('result-fail-title').classList.add('hidden');
+      document.getElementById('result-subtitle').innerText = "축하합니다! 대왕 오징어를 격파하고 전설의 파도를 정복했습니다!";
+      
+      document.getElementById('res-gold').innerText = gameState.coinsEarned;
+      document.getElementById('res-kills').innerText = gameState.kills;
+    }
+
+    // 로비로 퇴각
+    function returnToLobby() {
+      gameState.mode = 'LOBBY';
+      sound.init();
+      sound.playCurrentStateBgm();
+
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('lobby-screen').classList.remove('hidden');
+      document.getElementById('game-hud').classList.add('hidden');
+
+      updateLobbyUI();
+    }
+
+    // ==========================================
+    // 10. 진입점 바인딩
+    // ==========================================
+    document.getElementById('start-btn').addEventListener('click', initGame);
+    document.getElementById('retry-btn').addEventListener('click', returnToLobby);
+    
+    // 오디오 토글 뮤트 바인딩
+    const audioBtn = document.getElementById('audio-toggle');
+    audioBtn.addEventListener('click', () => {
+      sound.init();
+      const isMuted = sound.toggleMute();
+      audioBtn.innerText = isMuted ? '🔇' : '🔊';
+    });
+
+    // 시작 스크립트 실행
+    loadState();
+    runGameLoop();
+  </script>
+</body>
+</html>

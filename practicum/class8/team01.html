@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>공룡 배드민턴</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #dff7ff;
+      color: #17324d;
+      font-family: Arial, sans-serif;
+    }
+    .wrap { width: min(960px, 96vw); text-align: center; }
+    h1 { margin: 10px 0 6px; font-size: 30px; }
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 8px 0;
+      font-weight: 800;
+    }
+    .panel {
+      background: #ffffffcc;
+      border: 3px solid #17324d;
+      border-radius: 8px;
+      padding: 8px 12px;
+      min-width: 170px;
+    }
+    canvas {
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(#8ee3ff 0 62%, #73c66b 62%);
+      border: 5px solid #17324d;
+      border-radius: 8px;
+      display: block;
+    }
+    .help { margin-top: 8px; font-size: 14px; line-height: 1.5; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      background: #ffb703;
+      color: #17202a;
+      font-weight: 900;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>공룡 배드민턴</h1>
+    <div class="hud">
+      <div class="panel">초록 공룡 <span id="leftScore">0</span></div>
+      <button id="restart">다시 시작</button>
+      <div class="panel">보라 공룡 <span id="rightScore">0</span></div>
+    </div>
+    <canvas id="game" width="900" height="506"></canvas>
+    <p class="help">초록: W/S 이동, D 스윙 | 보라: ↑/↓ 이동, ← 스윙 | 먼저 21점 획득</p>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const leftScore = document.getElementById('leftScore');
+    const rightScore = document.getElementById('rightScore');
+    const keys = {};
+    const targetScore = 21;
+
+    const players = [
+      { x: 90, y: 350, w: 44, h: 96, color: '#2fb344', score: 0, swing: 0 },
+      { x: 766, y: 350, w: 44, h: 96, color: '#8e44ad', score: 0, swing: 0 }
+    ];
+
+    const shuttle = { x: 450, y: 210, vx: 5, vy: -2.5, r: 10 };
+    let message = '스윙으로 셔틀을 넘겨 21점을 먼저 따세요!';
+    let ended = false;
+
+    function resetPoint(dir = Math.random() < 0.5 ? -1 : 1) {
+      shuttle.x = 450;
+      shuttle.y = 210;
+      shuttle.vx = 4.8 * dir;
+      shuttle.vy = -3 - Math.random() * 2;
+      players.forEach(p => { p.y = 350; p.swing = 0; });
+    }
+
+    function restart() {
+      players[0].score = 0;
+      players[1].score = 0;
+      ended = false;
+      message = '스윙으로 셔틀을 넘겨 21점을 먼저 따세요!';
+      resetPoint();
+      updateHud();
+    }
+
+    function updateHud() {
+      leftScore.textContent = players[0].score;
+      rightScore.textContent = players[1].score;
+    }
+
+    function score(side) {
+      players[side].score += 1;
+      updateHud();
+      if (players[side].score >= targetScore) {
+        ended = true;
+        message = `${side === 0 ? '초록' : '보라'} 공룡 승리!`;
+      } else {
+        message = `${side === 0 ? '초록' : '보라'} 공룡 득점!`;
+        resetPoint(side === 0 ? 1 : -1);
+      }
+    }
+
+    function rectHit(p) {
+      return shuttle.x + shuttle.r > p.x && shuttle.x - shuttle.r < p.x + p.w &&
+        shuttle.y + shuttle.r > p.y && shuttle.y - shuttle.r < p.y + p.h;
+    }
+
+    function update() {
+      if (ended) return;
+      if (keys.w) players[0].y -= 6;
+      if (keys.s) players[0].y += 6;
+      if (keys.ArrowUp) players[1].y -= 6;
+      if (keys.ArrowDown) players[1].y += 6;
+      players.forEach(p => {
+        p.y = Math.max(180, Math.min(400, p.y));
+        if (p.swing > 0) p.swing--;
+      });
+      if (keys.d) players[0].swing = 8;
+      if (keys.ArrowLeft) players[1].swing = 8;
+
+      shuttle.vy += 0.09;
+      shuttle.x += shuttle.vx;
+      shuttle.y += shuttle.vy;
+      if (shuttle.y < 35) { shuttle.y = 35; shuttle.vy *= -0.9; }
+      if (shuttle.y > 474) score(shuttle.x < 450 ? 1 : 0);
+
+      if (shuttle.x < 0) score(1);
+      if (shuttle.x > 900) score(0);
+
+      players.forEach((p, i) => {
+        if (rectHit(p)) {
+          const power = p.swing > 0 ? 7.4 : 5.2;
+          shuttle.vx = (i === 0 ? 1 : -1) * power;
+          shuttle.vy = -5.2 - Math.random() * 2.6;
+          shuttle.x = i === 0 ? p.x + p.w + shuttle.r : p.x - shuttle.r;
+          message = p.swing > 0 ? '강 스윙!' : '받아치기!';
+        }
+      });
+    }
+
+    function drawDino(p, flip) {
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y + 26, p.w, p.h - 26);
+      ctx.beginPath();
+      ctx.arc(p.x + (flip ? 12 : 32), p.y + 22, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x + (flip ? 4 : 40), p.y + 16, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#17324d';
+      ctx.lineWidth = 5;
+      const racketX = flip ? p.x - 20 : p.x + p.w + 20;
+      ctx.beginPath();
+      ctx.arc(racketX, p.y + 60, 20, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(flip ? p.x : p.x + p.w, p.y + 72);
+      ctx.lineTo(racketX, p.y + 74);
+      ctx.stroke();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, 900, 506);
+      ctx.fillStyle = '#3b8d50';
+      ctx.fillRect(0, 314, 900, 192);
+      ctx.strokeStyle = '#17324d';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(450, 190);
+      ctx.lineTo(450, 506);
+      ctx.stroke();
+      ctx.fillStyle = '#17324d';
+      ctx.fillRect(442, 276, 16, 230);
+      drawDino(players[0], false);
+      drawDino(players[1], true);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(shuttle.x, shuttle.y, shuttle.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#17324d';
+      ctx.stroke();
+      ctx.fillStyle = '#17324d';
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(message, 450, 54);
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    addEventListener('keydown', e => { keys[e.key] = true; });
+    addEventListener('keyup', e => { keys[e.key] = false; });
+    document.getElementById('restart').addEventListener('click', restart);
+    restart();
+    loop();
+  </script>
+</body>
+</html>

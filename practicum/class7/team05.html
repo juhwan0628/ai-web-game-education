@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화살 피하기 (Arrow Evader)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b0f19;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+        canvas {
+            display: block;
+            cursor: none; /* 게임 화면 내에서는 마우스 포인터 숨김 */
+        }
+    </style>
+</head>
+<body class="w-full h-screen flex flex-col justify-center items-center text-white">
+
+    <!-- 메인 컨테이너 -->
+    <div id="game-container" class="relative w-full max-w-4xl aspect-[16/10] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-700 flex flex-col justify-center items-center">
+        
+        <!-- 대기 및 메뉴 화면 (Start Screen) -->
+        <div id="start-screen" class="absolute inset-0 bg-slate-950 bg-opacity-95 flex flex-col md:flex-row justify-center items-center p-6 gap-8 z-10 transition-opacity duration-300">
+            <!-- 왼쪽: 게임 설명 및 시작 -->
+            <div class="text-center md:text-left max-w-md flex-1">
+                <div class="flex justify-center md:justify-start items-center gap-3 mb-2">
+                    <i class="fa-solid fa-circle-radiation text-amber-400 text-4xl animate-spin" style="animation-duration: 3s;"></i>
+                    <h1 class="text-3xl md:text-4xl font-extrabold tracking-wider bg-gradient-to-r from-yellow-400 via-amber-400 to-red-500 bg-clip-text text-transparent">
+                        ARROW EVADER
+                    </h1>
+                </div>
+                <p class="text-slate-400 text-xs md:text-sm mb-6">시한부 에너지 구슬을 먹으며 화살 무리를 돌파하세요!</p>
+                
+                <!-- 조작 설명 -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 space-y-2 text-xs md:text-sm">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <span class="bg-blue-500 text-slate-950 font-bold px-2 py-0.5 rounded text-xs shrink-0">조종</span>
+                        <span>마우스 커서를 따라 캐릭터가 움직입니다. (화면 밖 탈출 불가)</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <span class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-xs shrink-0">구슬</span>
+                        <span class="text-amber-300 font-semibold">★ 3초 안에 먹지 않으면 즉시 게임 오버!</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <span class="bg-red-500 text-white font-bold px-2 py-0.5 rounded text-xs shrink-0">생명</span>
+                        <span>화살에 맞으면 하트가 소모됩니다. (최대 3개)</span>
+                    </div>
+                </div>
+
+                <!-- 플레이 버튼 -->
+                <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-slate-950 font-extrabold text-lg rounded-xl shadow-lg transform transition active:scale-95 hover:scale-105 duration-200">
+                    <i class="fa-solid fa-play mr-2"></i>게임 시작하기
+                </button>
+            </div>
+
+            <!-- 오른쪽: 실시간 랭킹 점수판 -->
+            <div class="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col">
+                <h3 class="text-amber-400 font-bold text-center text-sm md:text-base mb-3 pb-2 border-b border-slate-800">
+                    <i class="fa-solid fa-trophy mr-1 text-yellow-500"></i> 명예의 전당 (Top 5)
+                </h3>
+                <div id="leaderboard-list-start" class="space-y-2 text-xs">
+                    <!-- 스크립트에서 동적 생성됨 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임오버 화면 (Game Over Screen) -->
+        <div id="game-over-screen" class="absolute inset-0 bg-red-950 bg-opacity-95 flex flex-col md:flex-row justify-center items-center p-6 gap-8 z-10 hidden transition-opacity duration-300">
+            <div class="text-center max-w-md bg-slate-900 border border-red-900 p-6 rounded-2xl shadow-2xl flex-1">
+                <i class="fa-solid fa-skull-crossbones text-red-500 text-5xl mb-3 animate-bounce"></i>
+                <h2 id="gameover-reason" class="text-2xl font-black text-red-500 mb-1">GAME OVER</h2>
+                <p id="gameover-desc" class="text-slate-400 text-xs mb-4">구슬 에너지가 바닥나 사망했습니다!</p>
+                
+                <!-- 점수 상세 요약 -->
+                <div class="grid grid-cols-3 gap-2 mb-4 text-left">
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <div class="text-[10px] text-slate-500">생존 시간</div>
+                        <div id="final-time" class="text-sm font-bold text-white">0.0초</div>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <div class="text-[10px] text-slate-500">획득 구슬</div>
+                        <div id="final-beads" class="text-sm font-bold text-amber-400">0개</div>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <div class="text-[10px] text-slate-500">최종 점수</div>
+                        <div id="final-score" class="text-sm font-black text-yellow-400">0점</div>
+                    </div>
+                </div>
+
+                <!-- 랭킹 등록 등록 폼 -->
+                <div id="nickname-form" class="bg-slate-950 p-3 rounded-lg border border-amber-900/50 mb-4 hidden">
+                    <p class="text-xs text-yellow-400 font-semibold mb-2">🎉 축하합니다! 새로운 랭킹 등록 가능</p>
+                    <div class="flex gap-2">
+                        <input id="nickname-input" type="text" maxlength="8" placeholder="닉네임 입력 (8자 이내)" class="bg-slate-900 text-white border border-slate-700 rounded px-2 py-1 text-xs flex-1 focus:outline-none focus:border-amber-500">
+                        <button id="submit-score-btn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded text-xs transition">등록</button>
+                    </div>
+                </div>
+
+                <!-- 재시작 버튼 -->
+                <button id="restart-btn" class="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-slate-950 font-bold text-base rounded-xl shadow-lg transform transition active:scale-95 hover:scale-105 duration-200">
+                    <i class="fa-solid fa-rotate-right mr-2"></i>다시 도전하기
+                </button>
+            </div>
+
+            <!-- 오른쪽: 게임오버 시 점수판 -->
+            <div class="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col">
+                <h3 class="text-amber-400 font-bold text-center text-sm md:text-base mb-3 pb-2 border-b border-slate-800">
+                    <i class="fa-solid fa-trophy mr-1 text-yellow-500"></i> 실시간 랭킹 (Top 5)
+                </h3>
+                <div id="leaderboard-list-over" class="space-y-2 text-xs">
+                    <!-- 스크립트에서 동적 생성됨 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 인게임 상단 HUD -->
+        <div id="hud" class="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-5 pointer-events-none transition-opacity duration-300">
+            <!-- 체력 및 레벨 -->
+            <div class="flex items-center gap-4 bg-slate-950 bg-opacity-70 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-800">
+                <div class="flex items-center gap-1.5">
+                    <i id="heart-1" class="fa-solid fa-heart text-red-500 text-lg transition-all"></i>
+                    <i id="heart-2" class="fa-solid fa-heart text-red-500 text-lg transition-all"></i>
+                    <i id="heart-3" class="fa-solid fa-heart text-red-500 text-lg transition-all"></i>
+                </div>
+                <div class="h-4 w-px bg-slate-700"></div>
+                <div class="text-xs font-semibold text-slate-300">
+                    난이도 <span id="difficulty-level" class="text-amber-400 font-bold">1</span>
+                </div>
+                <div class="h-4 w-px bg-slate-700"></div>
+                <div class="text-xs font-semibold text-slate-300 flex items-center gap-1">
+                    <i class="fa-solid fa-circle text-amber-400 text-[10px]"></i>
+                    구슬 <span id="hud-beads" class="text-amber-400 font-bold">0</span>개
+                </div>
+            </div>
+
+            <!-- 현재 실시간 스코어 -->
+            <div class="bg-slate-950 bg-opacity-70 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-800 flex items-center gap-2">
+                <span class="text-slate-400 text-xs font-semibold">SCORE</span>
+                <span id="current-score" class="font-mono font-bold text-xl text-yellow-400">0</span>
+            </div>
+        </div>
+
+        <!-- 게임 캔버스 -->
+        <canvas id="gameCanvas" class="w-full h-full bg-gradient-to-b from-slate-950 to-slate-900"></canvas>
+    </div>
+
+    <!-- 푸터 -->
+    <div class="mt-4 text-xs text-slate-500 flex gap-4">
+        <span><i class="fa-regular fa-lightbulb mr-1"></i> 화면 구석구석에 생성되는 주황색 구슬을 3초 내로 추적하세요!</span>
+    </div>
+
+    <script>
+        // --- 오디오 시스템 (Web Audio API 활용 효과음) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'item') {
+                // 구슬 획득음 (경쾌하게 상승하는 사운드)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'warn_tick') {
+                // 구슬 시간 아슬아슬할 때 경고음
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'start') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(261.63, now); 
+                osc.frequency.setValueAtTime(329.63, now + 0.1); 
+                osc.frequency.setValueAtTime(392.00, now + 0.2); 
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 1.0);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 1.0);
+                osc.start(now);
+                osc.stop(now + 1.0);
+            }
+        }
+
+        // --- 핵심 변수 및 게임 시스템 초기화 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('game-container');
+
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const currentScoreText = document.getElementById('current-score');
+        const difficultyLevelText = document.getElementById('difficulty-level');
+        const hudBeadsText = document.getElementById('hud-beads');
+
+        const gameoverReasonText = document.getElementById('gameover-reason');
+        const gameoverDescText = document.getElementById('gameover-desc');
+        const finalTimeText = document.getElementById('final-time');
+        const finalBeadsText = document.getElementById('final-beads');
+        const finalScoreText = document.getElementById('final-score');
+
+        const nicknameForm = document.getElementById('nickname-form');
+        const nicknameInput = document.getElementById('nickname-input');
+        const submitScoreBtn = document.getElementById('submit-score-btn');
+
+        // 게임 상태 관리
+        let gameState = 'START'; // 'START' | 'PLAYING' | 'GAMEOVER'
+        let gameTime = 0; // 생존 시간 (초)
+        let beadsCollected = 0; // 먹은 구슬 수
+        let finalCalculatedScore = 0; // 최종 산출 스코어
+
+        // 프레임 관리 및 타이머
+        let animationFrameId;
+        let lastTime = 0;
+
+        // 마우스 트래킹
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // --- 점수판 (Leaderboard) 데이터 시스템 ---
+        let leaderboard = JSON.parse(localStorage.getItem('arrow_evader_leaderboard_v2')) || [
+            { name: "ACE", score: 1200, beads: 5, time: 45.0 },
+            { name: "ROOKIE", score: 800, beads: 3, time: 35.0 },
+            { name: "EVADER", score: 500, beads: 2, time: 20.0 }
+        ];
+
+        function updateLeaderboardsUI() {
+            // 정렬
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 5); // 상위 5명 유지
+            localStorage.setItem('arrow_evader_leaderboard_v2', JSON.stringify(leaderboard));
+
+            const generateHTML = (list) => {
+                if (list.length === 0) return '<div class="text-slate-500 text-center py-4">아직 기록이 없습니다.</div>';
+                return list.map((item, index) => {
+                    let medalColor = "text-slate-400";
+                    if (index === 0) medalColor = "text-yellow-400 font-bold";
+                    else if (index === 1) medalColor = "text-slate-300 font-bold";
+                    else if (index === 2) medalColor = "text-amber-600 font-bold";
+
+                    return `
+                        <div class="flex justify-between items-center bg-slate-950/60 border border-slate-800 px-3 py-1.5 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <span class="w-4 text-center ${medalColor}">${index + 1}</span>
+                                <span class="font-bold text-slate-200">${item.name}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-yellow-400 font-mono font-bold">${item.score}점</span>
+                                <span class="text-[9px] text-slate-500 block">${item.beads}구슬 / ${item.time.toFixed(1)}초</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            document.getElementById('leaderboard-list-start').innerHTML = generateHTML(leaderboard);
+            document.getElementById('leaderboard-list-over').innerHTML = generateHTML(leaderboard);
+        }
+
+        // 초기 점수판 로드
+        updateLeaderboardsUI();
+
+        // --- 엔티티 정의 ---
+        
+        // 1. 플레이어 캐릭터
+        const player = {
+            x: 0,
+            y: 0,
+            radius: 11,
+            targetX: 0,
+            targetY: 0,
+            speedFactor: 0.18, 
+            hp: 3,
+            maxHp: 3,
+            invincibleTime: 0, // 피격 시 일시 무적 (초)
+            draw: function() {
+                if (this.invincibleTime > 0 && Math.floor(gameTime * 15) % 2 === 0) {
+                    return;
+                }
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // 본체 글로우 효과
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#3b82f6';
+
+                // 메카 코어 형태
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#60a5fa';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.restore();
+            },
+            update: function(dt) {
+                // 마우스 타겟 위치로 보간 이동
+                this.x += (this.targetX - this.x) * this.speedFactor;
+                this.y += (this.targetY - this.y) * this.speedFactor;
+
+                // 화면 경계 밖으로 나가지 못하도록 보정(충돌 크기 반영)
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+
+                if (this.invincibleTime > 0) {
+                    this.invincibleTime -= dt;
+                }
+            }
+        };
+
+        // 2. 장애물 (화살들)
+        let arrows = [];
+        const ARROW_TYPES = {
+            NORMAL: 'NORMAL',     
+            FAST: 'FAST',         
+            TARGETING: 'TARGETING' 
+        };
+
+        class Arrow {
+            constructor(type) {
+                this.type = type;
+                this.isWarning = true; 
+                this.warningDuration = 1.2; 
+                this.warningElapsed = 0;
+                
+                const side = Math.floor(Math.random() * 4); 
+                let sx, sy;
+                const buffer = 30;
+
+                if (side === 0) { 
+                    sx = Math.random() * canvas.width;
+                    sy = -buffer;
+                } else if (side === 1) { 
+                    sx = canvas.width + buffer;
+                    sy = Math.random() * canvas.height;
+                } else if (side === 2) { 
+                    sx = Math.random() * canvas.width;
+                    sy = canvas.height + buffer;
+                } else { 
+                    sx = -buffer;
+                    sy = Math.random() * canvas.height;
+                }
+
+                this.x = sx;
+                this.y = sy;
+                
+                if (this.type === ARROW_TYPES.NORMAL) {
+                    this.radius = 6;
+                    this.speed = 240 + Math.random() * 120; 
+                    this.color = '#ef4444'; 
+                    this.warningDuration = 0.65; 
+                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    this.vx = Math.cos(angle) * this.speed;
+                    this.vy = Math.sin(angle) * this.speed;
+                } else if (this.type === ARROW_TYPES.FAST) {
+                    this.radius = 5;
+                    this.speed = 410 + Math.random() * 120; 
+                    this.color = '#f59e0b'; 
+                    this.warningDuration = 0.8; 
+                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    this.vx = Math.cos(angle) * this.speed;
+                    this.vy = Math.sin(angle) * this.speed;
+                } else if (this.type === ARROW_TYPES.TARGETING) {
+                    this.radius = 8;
+                    this.speed = 580; 
+                    this.color = '#3b82f6'; // 파란 추적용 화살
+                    this.warningDuration = 1.2; 
+                    this.targetLockAngle = 0;
+                }
+            }
+
+            update(dt) {
+                if (this.isWarning) {
+                    this.warningElapsed += dt;
+                    if (this.type === ARROW_TYPES.TARGETING) {
+                        this.targetLockAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                    }
+                    if (this.warningElapsed >= this.warningDuration) {
+                        this.isWarning = false;
+                        if (this.type === ARROW_TYPES.TARGETING) {
+                            this.vx = Math.cos(this.targetLockAngle) * this.speed;
+                            this.vy = Math.sin(this.targetLockAngle) * this.speed;
+                        }
+                    }
+                } else {
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                }
+            }
+
+            draw() {
+                if (this.isWarning) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    let targetAngle = (this.type === ARROW_TYPES.TARGETING) ? this.targetLockAngle : Math.atan2(player.y - this.y, player.x - this.x);
+                    const length = 1200;
+                    const targetX = this.x + Math.cos(targetAngle) * length;
+                    const targetY = this.y + Math.sin(targetAngle) * length;
+                    ctx.lineTo(targetX, targetY);
+
+                    const pct = this.warningElapsed / this.warningDuration;
+                    ctx.strokeStyle = this.type === ARROW_TYPES.TARGETING 
+                        ? `rgba(59, 130, 246, ${pct * 0.55})` 
+                        : `rgba(239, 68, 68, ${pct * 0.3})`;
+                        
+                    ctx.lineWidth = this.type === ARROW_TYPES.TARGETING ? 2 : 1;
+                    ctx.setLineDash([8, 4]);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    this.drawWarningArrowMarker();
+                }
+
+                if (!this.isWarning) {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    const angle = Math.atan2(this.vy, this.vx);
+                    ctx.rotate(angle);
+
+                    ctx.beginPath();
+                    ctx.moveTo(12, 0);
+                    ctx.lineTo(-8, -6);
+                    ctx.lineTo(-4, 0);
+                    ctx.lineTo(-8, 6);
+                    ctx.closePath();
+
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = this.color;
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(-4, 0);
+                    ctx.lineTo(-12, 0);
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+            }
+
+            drawWarningArrowMarker() {
+                let borderX = this.x;
+                let borderY = this.y;
+                const pad = 15;
+                if (borderX < pad) borderX = pad;
+                if (borderX > canvas.width - pad) borderX = canvas.width - pad;
+                if (borderY < pad) borderY = pad;
+                if (borderY > canvas.height - pad) borderY = canvas.height - pad;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(borderX, borderY, 8, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                ctx.fill();
+                
+                ctx.font = "bold 10px sans-serif";
+                ctx.fillStyle = this.color;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("!", borderX, borderY);
+                ctx.restore();
+            }
+
+            isOutOfBounds() {
+                const limit = 100;
+                return (
+                    this.x < -limit ||
+                    this.x > canvas.width + limit ||
+                    this.y < -limit ||
+                    this.y > canvas.height + limit
+                );
+            }
+        }
+
+        // 3. 수정을 거친 '단일 3초 에너지 구슬' (Bead)
+        class EnergyBead {
+            constructor() {
+                this.radius = 14;
+                this.spawnSafeDistance();
+                this.maxLifeTime = 3.0; // 3초 제한시간
+                this.lifeTime = 3.0;
+                this.pulse = 0;
+                this.lastTickTime = 3.0; // 경고박 자 동기화용
+            }
+
+            spawnSafeDistance() {
+                // 플레이어와 즉시 닿아서 강제 획득되는 걸 방지하기 위해 최소 180px 이상 떨어진 곳에 소환
+                let attempts = 0;
+                while (attempts < 100) {
+                    this.x = Math.random() * (canvas.width - 120) + 60;
+                    this.y = Math.random() * (canvas.height - 120) + 60;
+                    const dx = this.x - player.x;
+                    const dy = this.y - player.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 180) break;
+                    attempts++;
+                }
+            }
+
+            update(dt) {
+                this.lifeTime -= dt;
+                this.pulse += dt * 6;
+
+                // 1초 미만으로 남았을 때 급한 경고음 발생 (0.25초 간격)
+                if (this.lifeTime <= 1.0 && this.lifeTime > 0) {
+                    if (this.lastTickTime - this.lifeTime >= 0.25) {
+                        playSound('warn_tick');
+                        this.lastTickTime = this.lifeTime;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                const scale = 1 + Math.sin(this.pulse) * 0.12;
+                ctx.scale(scale, scale);
+
+                // 남은 시간 비율 계산
+                const timeRatio = Math.max(0, this.lifeTime / this.maxLifeTime);
+                
+                // 시간 경과에 따라 초록색 ➔ 노란색 ➔ 빨간색 점진 색상 전환
+                let ringColor = '#10b981'; // 초록
+                if (timeRatio < 0.35) ringColor = '#ef4444'; // 빨강
+                else if (timeRatio < 0.7) ringColor = '#f59e0b'; // 황금/노랑
+
+                // 1) 배후 야광 이펙트
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = ringColor;
+
+                // 2) 바깥 테두리 남은 시간 게이지 (원형 도넛 호 그리기)
+                ctx.beginPath();
+                // 12시 방향(-Math.PI / 2)부터 남은 시간 각도만큼 그리기
+                ctx.arc(0, 0, this.radius + 6, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * timeRatio));
+                ctx.strokeStyle = ringColor;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 3) 구슬 알맹이 코어
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#f97316'; // 주황빛 찬란한 고 에너지 구체
+                ctx.fill();
+
+                // 4) 중심 하이라이트
+                ctx.beginPath();
+                ctx.arc(-3, -3, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffedd5';
+                ctx.fill();
+
+                // 5) 위에 시간 텍스트 직접 표기
+                ctx.restore();
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.font = "bold 11px sans-serif";
+                ctx.fillStyle = ringColor;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                ctx.fillText(Math.max(0, this.lifeTime).toFixed(1) + "s", 0, this.radius + 20);
+                ctx.restore();
+            }
+        }
+
+        // 4. 파티클 이펙트
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 280;
+                this.vy = (Math.random() - 0.5) * 280;
+                this.radius = Math.random() * 3 + 1.5;
+                this.color = color;
+                this.alpha = 1;
+                this.decay = Math.random() * 1.6 + 1.2;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.alpha -= this.decay * dt;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        let currentBead = null; // 오직 하나의 관리 대상 시한 구슬
+        let particles = [];
+
+        // 스폰 및 점수 산출 데이터
+        let arrowSpawnTimer = 0;
+        let currentDifficulty = 1;
+
+        function resetGame() {
+            gameTime = 0;
+            beadsCollected = 0;
+            finalCalculatedScore = 0;
+            currentDifficulty = 1;
+            arrows = [];
+            particles = [];
+            
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            player.targetX = player.x;
+            player.targetY = player.y;
+            player.hp = 3;
+            player.invincibleTime = 0;
+
+            arrowSpawnTimer = 0;
+
+            // 에너지 구슬 최초 강제 리젠
+            currentBead = new EnergyBead();
+
+            nicknameForm.classList.add('hidden');
+            nicknameInput.value = '';
+
+            updateHUD();
+        }
+
+        function calculateScore() {
+            // 점수 공식: (생존 시간 x 10) + (획득 구슬 수 x 150)
+            return Math.floor((gameTime * 10) + (beadsCollected * 150));
+        }
+
+        function updateHUD() {
+            finalCalculatedScore = calculateScore();
+            currentScoreText.innerText = finalCalculatedScore;
+            difficultyLevelText.innerText = currentDifficulty;
+            hudBeadsText.innerText = beadsCollected;
+
+            // 하트 활성화 제어
+            for (let i = 1; i <= 3; i++) {
+                const heartIcon = document.getElementById(`heart-${i}`);
+                if (player.hp >= i) {
+                    heartIcon.classList.remove('fa-regular', 'text-slate-600');
+                    heartIcon.classList.add('fa-solid', 'text-red-500');
+                } else {
+                    heartIcon.classList.remove('fa-solid', 'text-red-500');
+                    heartIcon.classList.add('fa-regular', 'text-slate-600');
+                }
+            }
+        }
+
+        // --- 게임 루프 로직 ---
+        function handleSpawning(dt) {
+            // 15초마다 난이도 상승 제어
+            currentDifficulty = Math.floor(gameTime / 15) + 1; 
+            if (currentDifficulty > 15) currentDifficulty = 15;
+
+            // 화살 스폰 주기 (난이도 높을수록 빠른 스폰)
+            const spawnInterval = Math.max(0.14, 0.82 - (currentDifficulty * 0.055));
+            arrowSpawnTimer += dt;
+
+            if (arrowSpawnTimer >= spawnInterval) {
+                arrowSpawnTimer = 0;
+
+                // 동시 다중 생성 확률
+                let spawnCount = 1;
+                if (currentDifficulty >= 11) {
+                    spawnCount = Math.random() < 0.5 ? 3 : 2;
+                } else if (currentDifficulty >= 6) {
+                    spawnCount = Math.random() < 0.45 ? 2 : 1; 
+                } else if (currentDifficulty >= 3) {
+                    spawnCount = Math.random() < 0.25 ? 2 : 1;
+                }
+
+                for (let s = 0; s < spawnCount; s++) {
+                    const rand = Math.random() * 100;
+                    let selectedType = ARROW_TYPES.NORMAL;
+
+                    if (currentDifficulty >= 7) {
+                        if (rand < 35) selectedType = ARROW_TYPES.NORMAL;
+                        else if (rand < 70) selectedType = ARROW_TYPES.FAST;
+                        else selectedType = ARROW_TYPES.TARGETING; 
+                    } else if (currentDifficulty >= 3) {
+                        if (rand < 60) selectedType = ARROW_TYPES.NORMAL;
+                        else selectedType = ARROW_TYPES.FAST;
+                    }
+
+                    arrows.push(new Arrow(selectedType));
+                }
+            }
+        }
+
+        function checkCollisions() {
+            // 1) 실시간 활성 구슬 획득 검사
+            if (currentBead) {
+                const dx = player.x - currentBead.x;
+                const dy = player.y - currentBead.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < player.radius + currentBead.radius) {
+                    // 구슬 먹음 피드백 연출
+                    playSound('item');
+                    createParticles(currentBead.x, currentBead.y, '#f97316', 15);
+                    beadsCollected++;
+                    
+                    // 즉시 새로운 다른 구슬로 재생성
+                    currentBead = new EnergyBead();
+                    updateHUD();
+                }
+            }
+
+            // 2) 화살 충돌 검사
+            for (let i = arrows.length - 1; i >= 0; i--) {
+                const arrow = arrows[i];
+                if (arrow.isWarning) continue;
+
+                const dx = player.x - arrow.x;
+                const dy = player.y - arrow.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < player.radius + arrow.radius) {
+                    if (player.invincibleTime <= 0) {
+                        player.hp--;
+                        player.invincibleTime = 1.4; // 피격 무적
+                        
+                        playSound('hit');
+                        createParticles(player.x, player.y, '#f43f5e', 18);
+                        updateHUD();
+
+                        if (player.hp <= 0) {
+                            gameOver('arrows');
+                        }
+                    }
+                    arrows.splice(i, 1);
+                }
+            }
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function gameOver(reason) {
+            gameState = 'GAMEOVER';
+            playSound('gameover');
+            
+            const finalScore = calculateScore();
+
+            // 점수판 등록 가능 여부 검사 (5위 이내 진입 시 닉네임 폼 노출)
+            const isRanked = leaderboard.length < 5 || finalScore > leaderboard[leaderboard.length - 1].score;
+
+            if (reason === 'energy') {
+                gameoverReasonText.innerText = "ENERGY DEPLETED";
+                gameoverDescText.innerText = "구슬 에너지를 충전하지 못해 쓰러졌습니다!";
+                gameoverReasonText.className = "text-2xl font-black text-amber-500 mb-1";
+            } else {
+                gameoverReasonText.innerText = "DESTROYED";
+                gameoverDescText.innerText = "사방에서 날아오는 화살 폭풍에 사망했습니다!";
+                gameoverReasonText.className = "text-2xl font-black text-red-500 mb-1";
+            }
+
+            // UI 스코어 보드 반영
+            finalTimeText.innerText = `${gameTime.toFixed(1)}초`;
+            finalBeadsText.innerText = `${beadsCollected}개`;
+            finalScoreText.innerText = `${finalScore}점`;
+
+            if (isRanked && finalScore > 0) {
+                nicknameForm.classList.remove('hidden');
+            } else {
+                nicknameForm.classList.add('hidden');
+            }
+
+            updateLeaderboardsUI();
+            gameOverScreen.style.display = 'flex';
+            setTimeout(() => {
+                gameOverScreen.classList.remove('hidden');
+                gameOverScreen.style.opacity = '1';
+            }, 10);
+        }
+
+        // --- 닉네임 입력 및 점수판 추가 처리 ---
+        submitScoreBtn.addEventListener('click', () => {
+            const name = nicknameInput.value.trim().toUpperCase() || "PLAYER";
+            const finalScore = calculateScore();
+
+            // 새 기록 삽입
+            leaderboard.push({
+                name: name.substring(0, 8),
+                score: finalScore,
+                beads: beadsCollected,
+                time: gameTime
+            });
+
+            // 갱신 및 폼 숨김
+            nicknameForm.classList.add('hidden');
+            updateLeaderboardsUI();
+        });
+
+        // --- 마우스 좌표 갱신 이벤트 리스너 ---
+        function setupEventListeners() {
+            const updateCoords = (clientX, clientY) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                player.targetX = (clientX - rect.left) * scaleX;
+                player.targetY = (clientY - rect.top) * scaleY;
+            };
+
+            window.addEventListener('mousemove', (e) => {
+                if (gameState === 'PLAYING') {
+                    updateCoords(e.clientX, e.clientY);
+                }
+            });
+
+            window.addEventListener('touchmove', (e) => {
+                if (gameState === 'PLAYING' && e.touches.length > 0) {
+                    e.preventDefault();
+                    updateCoords(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: false });
+
+            window.addEventListener('touchstart', (e) => {
+                if (gameState === 'PLAYING' && e.touches.length > 0) {
+                    updateCoords(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            });
+        }
+
+        function resizeCanvas() {
+            const rect = gameContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            if (gameState === 'START') {
+                player.x = canvas.width / 2;
+                player.y = canvas.height / 2;
+                player.targetX = player.x;
+                player.targetY = player.y;
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- 메인 애니메이션 루프 ---
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1); 
+            lastTime = timestamp;
+
+            if (gameState === 'PLAYING') {
+                gameTime += dt;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBackgroundGrid();
+
+                player.update(dt);
+
+                // 구슬 타임아웃 검사 및 업데이트
+                if (currentBead) {
+                    currentBead.update(dt);
+                    if (currentBead.lifeTime <= 0) {
+                        gameOver('energy'); // 3초 타임아웃 오버
+                    }
+                }
+                
+                // 화살 관리
+                for (let i = arrows.length - 1; i >= 0; i--) {
+                    const arrow = arrows[i];
+                    arrow.update(dt);
+                    if (arrow.isOutOfBounds()) {
+                        arrows.splice(i, 1);
+                    }
+                }
+
+                // 파티클 관리
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.update(dt);
+                    if (p.alpha <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+
+                handleSpawning(dt);
+                checkCollisions();
+
+                // 렌더링
+                particles.forEach(p => p.draw());
+                if (currentBead) currentBead.draw();
+                arrows.forEach(arrow => arrow.draw());
+                player.draw();
+
+                updateHUD();
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function drawBackgroundGrid() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.2)'; 
+            ctx.lineWidth = 1;
+            
+            const gridSize = 40;
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // --- 버튼 인터랙션 바인딩 ---
+        startBtn.addEventListener('click', () => {
+            playSound('start');
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                gameState = 'PLAYING';
+                resetGame();
+            }, 300);
+        });
+
+        restartBtn.addEventListener('click', () => {
+            playSound('start');
+            gameOverScreen.style.opacity = '0';
+            setTimeout(() => {
+                gameOverScreen.style.display = 'none';
+                gameState = 'PLAYING';
+                resetGame();
+            }, 300);
+        });
+
+        window.onload = function() {
+            resizeCanvas();
+            setupEventListeners();
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackgroundGrid();
+            player.draw();
+
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>

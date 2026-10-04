@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>티모의 독화살 피하기 : 미드 전장 - 체력 시스템 추가</title>
+    <style>
+        body {
+            margin: 0; padding: 0;
+            background-color: #030605;
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden; color: #fff; user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+            border: 4px solid #c8aa6e;
+            border-radius: 6px;
+            background-color: #0d231a;
+        }
+
+        canvas { display: block; cursor: none; }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(5, 10, 8, 0.9);
+            text-align: center; backdrop-filter: blur(4px);
+            transition: all 0.4s ease;
+            z-index: 10;
+        }
+
+        .screen.hide { opacity: 0; pointer-events: none; transform: scale(1.05); }
+
+        h1 {
+            font-size: 40px; color: #f0e6d2; margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(200, 170, 110, 0.5);
+            font-weight: 900;
+        }
+
+        h1.win { color: #c8aa6e; font-size: 50px; text-shadow: 0 0 20px rgba(200, 170, 110, 0.8); }
+        h1.over { color: #ff4646; text-shadow: 0 0 20px rgba(255,70,70,0.6); }
+
+        p { font-size: 16px; color: #a0a0a0; margin-bottom: 30px; line-height: 1.7; }
+        strong { color: #ffbc42; }
+        .highlight-mid { color: #00dfff; font-weight: bold; }
+
+        button {
+            padding: 14px 40px; font-size: 18px; font-weight: bold;
+            background: linear-gradient(to bottom, #1e2328, #111519);
+            color: #cdbe91; border: 2px solid #c8aa6e;
+            cursor: pointer; border-radius: 2px;
+        }
+
+        button:hover {
+            background: linear-gradient(to bottom, #2d343c, #1e2328);
+            color: #f0e6d2; border-color: #f0e6d2;
+        }
+
+        #hud {
+            position: absolute; top: 20px; left: 0; width: 100%;
+            display: flex; justify-content: space-between;
+            box-sizing: border-box; padding: 0 40px;
+            pointer-events: none; z-index: 5;
+        }
+
+        .hud-item {
+            background: rgba(1, 10, 19, 0.85);
+            padding: 8px 24px; border-radius: 3px;
+            border: 1px solid #785a28; font-weight: bold;
+        }
+
+        #hud-wave { color: #f0e6d2; font-size: 18px; }
+        #hud-time { color: #00ffcc; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="950" height="650"></canvas>
+
+    <div id="hud">
+        <div class="hud-item" id="hud-wave">WAVE: 1 / 3</div>
+        <div class="hud-item" id="hud-time">STAGE TIME: 15.0s</div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <h1>티모의 독화살 피하기</h1>
+        <p>마우스를 움직여 블루팀 영웅(<span class="highlight-mid">파란 구체</span>)을 조작하세요.<br>
+           미드 라인 좌우 부쉬에서 기습하는 티모의 치명적인 독화살을 피해야 합니다.<br>
+           <strong>체력은 총 3칸!</strong> 3웨이브 동안 완벽한 무빙으로 살아남으세요!
+        </p>
+        <button onclick="startGame()">게임 시작</button>
+    </div>
+
+    <div id="gameover-screen" class="screen hide">
+        <h1 class="over">DEFEAT</h1>
+        <p id="fail-reason">맹독에 중독되었습니다.</p>
+        <button onclick="startGame()">다시 도전</button>
+    </div>
+
+    <div id="victory-screen" class="screen hide">
+        <h1 class="win">VICTORY</h1>
+        <p>축하합니다! 완벽한 무빙으로 미드 라인을 사수했습니다.</p>
+        <button onclick="startGame()">한 판 더!</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const startScreen = document.getElementById('start-screen');
+    const gameoverScreen = document.getElementById('gameover-screen');
+    const victoryScreen = document.getElementById('victory-screen');
+    const hudWave = document.getElementById('hud-wave');
+    const hudTime = document.getElementById('hud-time');
+
+    let gameState = 'READY';
+    let wave = 1;
+    let waveTimeLeft = 15;
+    let lastTime = 0;
+
+    const midLaneGrid = {
+        roadY: canvas.height / 2 + 20,
+        roadHeight: 180,
+        bushes: [
+            { x: 300, y: 140, r: 42 }, { x: 680, y: 140, r: 45 },
+            { x: 340, y: 520, r: 44 }, { x: 640, y: 520, r: 46 }
+        ],
+        walls: [
+            { x: 0, y: 0, w: 200, h: 160 }, { x: 780, y: 0, w: 170, h: 160 },
+            { x: 0, y: 500, w: 220, h: 150 }, { x: 760, y: 500, w: 190, h: 150 }
+        ],
+        turret: { x: 90, y: canvas.height / 2 + 20, baseR: 50, gemR: 12 }
+    };
+
+    const player = {
+        x: 475, y: 345,
+        radius: 12,       
+        maxHp: 3,         // 최대 체력 3
+        hp: 3,            // 현재 체력
+        invincibleTime: 0, // 피격 후 무적 시간 (연속 피격 방지)
+        trail: []         
+    };
+
+    const mouse = { x: 475, y: 345 };
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+    });
+
+    let arrows = [];
+    let particles = [];
+
+    function spawnParticle(x, y, color, size, vx, vy, maxLife) {
+        if (particles.length > 60) return; 
+        particles.push({ x, y, color, size, vx, vy, life: maxLife, maxLife });
+    }
+
+    class PoisonArrow {
+        constructor(waveNum) {
+            const r = Math.random();
+            const bush = midLaneGrid.bushes[Math.floor(Math.random() * midLaneGrid.bushes.length)];
+
+            if (r < 0.6) {
+                this.x = bush.x + (Math.random()-0.5)*30;
+                this.y = bush.y + (Math.random()-0.5)*30;
+            } else {
+                this.x = canvas.width + 20;
+                this.y = midLaneGrid.roadY + (Math.random()-0.5)*midLaneGrid.roadHeight;
+            }
+
+            this.radius = 6;
+            const speed = 4.0 + waveNum * 1.2 + Math.random() * 1.2;
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            
+            this.angle = angle + (Math.random() - 0.5) * 0.2; 
+            this.vx = Math.cos(this.angle) * speed;
+            this.vy = Math.sin(this.angle) * speed;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+
+            if (Math.random() < 0.4) {
+                spawnParticle(this.x, this.y, 'rgba(120, 255, 50, 0.6)', 4 + Math.random()*3, 0, 0, 15);
+            }
+        }
+
+        draw() {
+            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+            ctx.strokeStyle = '#5c4028'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(6, 0); ctx.stroke();
+            ctx.fillStyle = '#a832ff'; ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(-20, -5); ctx.lineTo(-20, 5); ctx.fill();
+            ctx.fillStyle = '#15ff60'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(0, -5); ctx.lineTo(0, 5); ctx.fill();
+            ctx.restore();
+        }
+
+        isOutOfBounds() { return (this.x < -50 || this.x > canvas.width + 50 || this.y < -50 || this.y > canvas.height + 50); }
+    }
+
+    function drawMap() {
+        ctx.fillStyle = '#040d09'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const roadTop = midLaneGrid.roadY - midLaneGrid.roadHeight / 2;
+        const roadBottom = midLaneGrid.roadY + midLaneGrid.roadHeight / 2;
+        ctx.fillStyle = '#16231e'; ctx.fillRect(0, roadTop, canvas.width, midLaneGrid.roadHeight);
+
+        ctx.strokeStyle = 'rgba(40, 60, 50, 0.3)'; ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 60) { ctx.beginPath(); ctx.moveTo(x, roadTop); ctx.lineTo(x, roadBottom); ctx.stroke(); }
+
+        ctx.fillStyle = 'rgba(5, 15, 10, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, roadTop);
+        ctx.fillRect(0, roadBottom, canvas.width, canvas.height - roadBottom);
+
+        ctx.fillStyle = '#08100c';
+        midLaneGrid.walls.forEach(w => {
+            ctx.fillRect(w.x, w.y, w.w, w.h);
+            ctx.strokeStyle = '#1d3027'; ctx.lineWidth = 2; ctx.strokeRect(w.x, w.y, w.w, w.h);
+        });
+
+        const turret = midLaneGrid.turret;
+        ctx.fillStyle = '#1c2d3a'; ctx.strokeStyle = '#3e5c70'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(turret.x, turret.y, turret.baseR, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#00dfff'; ctx.beginPath(); ctx.arc(turret.x, turret.y, turret.gemR, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#112d16';
+        midLaneGrid.bushes.forEach(b => {
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(b.x-10, b.y+5, b.r*0.8, 0, Math.PI*2); ctx.fill();
+        });
+    }
+
+    function startGame() {
+        gameState = 'PLAYING'; wave = 1; waveTimeLeft = 15.0;
+        arrows = []; particles = []; player.trail = [];
+        player.hp = player.maxHp; player.invincibleTime = 0; // 체력 및 무적 초기화
+        player.x = midLaneGrid.turret.x + 60; player.y = midLaneGrid.turret.y;
+        
+        startScreen.classList.add('hide'); gameoverScreen.classList.add('hide'); victoryScreen.classList.add('hide');
+        
+        hudWave.innerText = `WAVE: ${wave} / 3`;
+        hudTime.innerText = `STAGE TIME: ${waveTimeLeft.toFixed(1)}s`;
+
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function nextWave() {
+        wave++;
+        if (wave > 3) {
+            gameState = 'VICTORY';
+            victoryScreen.classList.remove('hide');
+        } else {
+            waveTimeLeft = 15.0; arrows = [];
+            hudWave.innerText = `WAVE: ${wave} / 3`;
+        }
+    }
+
+    function gameOver() {
+        gameState = 'GAMEOVER';
+        gameoverScreen.classList.remove('hide');
+        document.getElementById('fail-reason').innerHTML = `미드 오픈! <span style="color:#ffbc42; font-weight:bold;">WAVE ${wave}</span> 에서 맹독에 당해 쓰러졌습니다.`;
+    }
+
+    function gameLoop(timestamp) {
+        if (gameState !== 'PLAYING') return;
+
+        const dt = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+
+        drawMap();
+
+        waveTimeLeft -= dt;
+        if (waveTimeLeft <= 0) { waveTimeLeft = 0; nextWave(); }
+        hudTime.innerText = `STAGE TIME: ${waveTimeLeft.toFixed(1)}s`;
+
+        // 무적 시간 차감
+        if (player.invincibleTime > 0) player.invincibleTime -= dt;
+
+        // 플레이어 이동
+        player.x += (mouse.x - player.x) * 0.22;
+        player.y += (mouse.y - player.y) * 0.22;
+
+        // 잔상 효과
+        player.trail.push({x: player.x, y: player.y});
+        if (player.trail.length > 6) player.trail.shift();
+
+        for(let i=0; i < player.trail.length; i++) {
+            const ratio = i / player.trail.length;
+            ctx.beginPath(); ctx.arc(player.trail[i].x, player.trail[i].y, player.radius * ratio, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(0, 223, 255, ${ratio * 0.3})`; ctx.fill();
+        }
+
+        // 플레이어 캐릭터 렌더링 (무적 상태일 때 깜빡임 효과)
+        if (player.invincibleTime <= 0 || Math.floor(timestamp / 50) % 2 === 0) {
+            ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00eaff'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+            ctx.fill(); ctx.stroke();
+        }
+
+        // --- 머리 위 체력 바(HP Bar) 시스템 ---
+        const barWidth = 32;
+        const barHeight = 5;
+        const barX = player.x - barWidth / 2;
+        const barY = player.y - player.radius - 12; // 캐릭터 머리 위 배치
+
+        // 체력 바 배경 (검은 틀)
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // 현재 체력 비율 계산 및 게이지 채우기
+        const hpRatio = player.hp / player.maxHp;
+        ctx.fillStyle = hpRatio > 0.4 ? '#00ff66' : '#ff3333'; // 체력이 낮으면 빨간색으로 변경
+        ctx.fillRect(barX + 0.5, barY + 0.5, (barWidth - 1) * hpRatio, barHeight - 1);
+        // ------------------------------------
+
+        // 조준 가이드 크로스헤어
+        ctx.strokeStyle = 'rgba(200, 170, 110, 0.4)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 6, 0, Math.PI*2);
+        ctx.moveTo(mouse.x - 10, mouse.y); ctx.lineTo(mouse.x + 10, mouse.y);
+        ctx.moveTo(mouse.x, mouse.y - 10); ctx.lineTo(mouse.x, mouse.y + 10);
+        ctx.stroke();
+
+        let spawnChance = 0.04 + wave * 0.035;
+        if (Math.random() < spawnChance) arrows.push(new PoisonArrow(wave));
+
+        for (let i = arrows.length - 1; i >= 0; i--) {
+            const arrow = arrows[i];
+            arrow.update(); arrow.draw();
+
+            const distance = Math.hypot(player.x - arrow.x, player.y - arrow.y);
+            
+            // 충돌 감지 및 체력 감소 연산
+            if (distance < player.radius + arrow.radius - 2) {
+                if (player.invincibleTime <= 0) { // 무적 상태가 아닐 때만 피격
+                    player.hp -= 1; // 3분의 1 깎임 (3 -> 2 -> 1 -> 0)
+                    player.invincibleTime = 0.8; // 피격 후 0.8초간 무적 타임 부여
+
+                    // 피격 이펙트 파티클 생성
+                    for(let p=0; p<15; p++) {
+                        spawnParticle(player.x, player.y, '#ff3333', 5, (Math.random()-0.5)*6, (Math.random()-0.5)*6, 20);
+                    }
+
+                    if (player.hp <= 0) {
+                        gameOver(); return;
+                    }
+                }
+                arrows.splice(i, 1); // 맞은 화살은 소멸
+            } else if (arrow.isOutOfBounds()) {
+                arrows.splice(i, 1);
+            }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.life--;
+            if (p.life <= 0) { particles.splice(i, 1); continue; }
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+</script>
+
+</body>
+</html>

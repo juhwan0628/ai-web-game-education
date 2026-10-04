@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>슈퍼개미 (Super Ant) - 삼전 탈출 대작전</title>
+  
+  <!-- Google Fonts Outfit & Noto Sans KR -->
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --panel-bg: rgba(15, 23, 42, 0.85);
+      --panel-border: rgba(59, 130, 246, 0.25);
+      --neon-red: #ff3333;
+      --neon-red-glow: rgba(255, 51, 51, 0.45);
+      --neon-blue: #3b82f6;
+      --neon-blue-glow: rgba(59, 130, 246, 0.45);
+      --neon-green: #10b981;
+      --neon-yellow: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(239, 68, 68, 0.1) 0px, transparent 50%),
+        linear-gradient(180deg, #090d16 0%, #05070a 100%);
+    }
+
+    /* 게임 800x600 뷰 캐비닛 */
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      background: #000;
+      border: 4px solid var(--panel-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.15);
+    }
+
+    canvas {
+      display: block;
+      width: 800px;
+      height: 600px;
+    }
+
+    /* UI 화면 오버레이 공통 스타일 */
+    .screen-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(8, 12, 22, 0.96);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      z-index: 10;
+      text-align: center;
+      transition: opacity 0.3s ease;
+      backdrop-filter: blur(8px);
+    }
+
+    .screen-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* 타이틀 및 명세 텍스트 */
+    .title {
+      font-size: 3.8rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--neon-red), var(--neon-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.3));
+      animation: title-pulse 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes title-pulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.03); }
+    }
+
+    .desc-box {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 20px 24px;
+      max-width: 580px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+      font-size: 0.95rem;
+      color: #cbd5e1;
+    }
+
+    .character-info-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      border-radius: 10px;
+      padding: 12px 20px;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 420px;
+      text-align: left;
+    }
+
+    .avatar-icon {
+      font-size: 2.2rem;
+      background: rgba(10, 15, 30, 0.8);
+      border: 2px solid var(--neon-blue);
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .avatar-details h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--neon-blue);
+      margin-bottom: 2px;
+    }
+
+    .avatar-details p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* 프리미엄 버튼 */
+    .btn-play {
+      background: linear-gradient(135deg, var(--neon-red), #b91c1c);
+      color: white;
+      border: none;
+      padding: 14px 44px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 25px var(--neon-red-glow);
+      transition: all 0.2s ease;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      outline: none;
+    }
+
+    .btn-play:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 35px var(--neon-red);
+    }
+
+    .btn-play:active {
+      transform: translateY(1px);
+    }
+
+    /* 결과창 화면 전용 */
+    .result-status {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--neon-yellow);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .result-score {
+      font-size: 3.2rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <!-- 1. 시작 화면 -->
+    <div class="screen-overlay" id="screen-start">
+      <div class="title">슈퍼개미</div>
+      
+      <div class="desc-box">
+        퇴직금을 영끌하여 삼전에 전재산 투자한 백수 김개미.<br>
+        삼전이 떡상하길 기도하고 있다. 어느날, 하늘에서 화살표가 떨어지고<br>
+        빨간 화살표를 먹었더니 삼전 주식이 오르기 시작한다!
+      </div>
+
+      <div class="character-info-card">
+        <div class="avatar-icon">🐜</div>
+        <div class="avatar-details">
+          <h4>플레이어: 김개미</h4>
+          <p>특징: 삼전의 부활만을 바라는 전형적인 백수</p>
+        </div>
+      </div>
+
+      <button class="btn-play" id="btn-start">
+        <span>영끌 시작하기!</span> 🚀
+      </button>
+    </div>
+
+    <!-- 2. 결과 화면 -->
+    <div class="screen-overlay hidden" id="screen-result">
+      <div class="result-status" id="result-status">투자 완료</div>
+      <div class="result-score" id="result-score">70,000원</div>
+      
+      <div class="desc-box" id="result-desc" style="max-width: 480px;">
+        결과 평가 메시지가 여기에 출력됩니다.
+      </div>
+
+      <button class="btn-play" id="btn-restart" style="box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); background: linear-gradient(135deg, var(--neon-blue), #1d4ed8);">
+        <span>다시 투자하기</span> 🔄
+      </button>
+    </div>
+
+    <!-- 게임 플레이 캔버스 -->
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+  </div>
+
+  <script>
+    // ==========================================
+    // 0. 리소스 파일 경로 정의 (우선 순위별 파일 경로 탐색)
+    // ==========================================
+    const PLAYER_IMAGE_PATHS = ['assets/images/player.png.png', 'assets/images/player.png'];
+    const BACKGROUND_IMAGE_PATHS = ['assets/images/background.png.png', 'assets/images/background.png'];
+    
+    const BGM_PATHS = ['assets/audio/bgm.mp3.mp3', 'assets/audio/bgm.mp3'];
+    const SFX_RED_PATHS = ['assets/audio/sfx_red.mp3.mp3', 'assets/audio/sfx_red.mp3'];
+    const SFX_BLUE_PATHS = ['assets/audio/sfx_blue.mp3.mp3', 'assets/audio/sfx_blue.mp3'];
+    const SFX_GAMEOVER_PATHS = ['assets/audio/sfx_gameover.mp3.mp3', 'assets/audio/sfx_gameover.mp3'];
+
+    // ==========================================
+    // 1-1. 백업 사운드 합성기 (Web Audio API 기반)
+    // ==========================================
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.bgmInterval = null;
+        this.step = 0;
+        this.tempo = 100;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContextClass();
+      }
+
+      playBGM() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.stopBGM();
+
+        const secondsPerStep = 60 / this.tempo / 2; // 8th note grid
+        let nextTime = this.ctx.currentTime;
+
+        // Comical / tense arpeggio theme
+        const melody = [
+          220.00, 261.63, 329.63, 261.63, // A3, C4, E4, C4
+          293.66, 349.23, 440.00, 349.23, // D4, F4, A4, F4
+          293.66, 392.00, 493.88, 392.00, // D4, G4, B4, G4
+          220.00, 329.63, 392.00, 440.00  // A3, E4, G4, A4
+        ];
+
+        const scheduleNext = () => {
+          while (nextTime < this.ctx.currentTime + 0.1) {
+            const freq = melody[this.step % melody.length];
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, nextTime);
+            
+            gain.gain.setValueAtTime(0.06, nextTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, nextTime + 0.28);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start(nextTime);
+            osc.stop(nextTime + 0.3);
+
+            this.step++;
+            nextTime += secondsPerStep;
+          }
+        };
+
+        this.bgmInterval = setInterval(scheduleNext, 50);
+      }
+
+      stopBGM() {
+        if (this.bgmInterval) {
+          clearInterval(this.bgmInterval);
+          this.bgmInterval = null;
+        }
+      }
+
+      playSFX(type) {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const t = this.ctx.currentTime;
+
+        if (type === 'red') {
+          // '딩동' 효과음
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(987.77, t); // B5
+          osc1.frequency.exponentialRampToValueAtTime(1318.51, t + 0.08); // E6
+
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(1318.51, t + 0.04);
+          osc2.frequency.exponentialRampToValueAtTime(1975.53, t + 0.2); // B6
+
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc1.start(t);
+          osc1.stop(t + 0.25);
+          osc2.start(t + 0.04);
+          osc2.stop(t + 0.25);
+
+        } else if (type === 'blue') {
+          // '쿵' 효과음
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(130, t);
+          osc.frequency.linearRampToValueAtTime(30, t + 0.14);
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(250, t);
+          filter.frequency.linearRampToValueAtTime(50, t + 0.14);
+
+          gain.gain.setValueAtTime(0.25, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(t);
+          osc.stop(t + 0.18);
+
+        } else if (type === 'gameover') {
+          // '풍덩' 효과음
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(350, t);
+          osc.frequency.exponentialRampToValueAtTime(40, t + 0.7);
+
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(t);
+          osc.stop(t + 0.8);
+        }
+      }
+    }
+
+    const synth = new SoundSynth();
+    let useSynthBgm = false;
+    let useSynthSfx = false;
+
+    // ==========================================
+    // 1-2. 기본 오디오 엘리먼트 세팅 & 에러 리스너
+    // ==========================================
+    const bgm = new Audio();
+    bgm.loop = true;
+    bgm.volume = 0.5;
+
+    const sfxRed = new Audio();
+    const sfxBlue = new Audio();
+    const sfxGameover = new Audio();
+
+    // 다중 경로 로딩 헬퍼 함수
+    function tryLoadAudio(audioObj, pathArray, fallbackCallback) {
+      let index = 0;
+      function next() {
+        if (index < pathArray.length) {
+          audioObj.src = pathArray[index];
+          index++;
+        } else {
+          fallbackCallback();
+        }
+      }
+      audioObj.addEventListener('error', next);
+      next();
+    }
+
+    // 오디오 파일들 순차 로드 시도
+    tryLoadAudio(bgm, BGM_PATHS, () => {
+      console.warn("All BGM paths failed. Falling back to Sound Synth BGM.");
+      useSynthBgm = true;
+    });
+
+    tryLoadAudio(sfxRed, SFX_RED_PATHS, () => { useSynthSfx = true; });
+    tryLoadAudio(sfxBlue, SFX_BLUE_PATHS, () => { useSynthSfx = true; });
+    tryLoadAudio(sfxGameover, SFX_GAMEOVER_PATHS, () => { useSynthSfx = true; });
+
+    // 사운드 이펙트 재생 라우터
+    function playSFX(audioElement, type) {
+      if (useSynthSfx) {
+        synth.playSFX(type);
+      } else {
+        audioElement.currentTime = 0;
+        audioElement.play().catch(err => {
+          console.warn("SFX file play blocked/failed. Trying procedural synth.");
+          synth.playSFX(type);
+        });
+      }
+    }
+
+    function playBGM() {
+      if (useSynthBgm) {
+        synth.playBGM();
+      } else {
+        bgm.currentTime = 0;
+        bgm.play().catch(err => {
+          console.warn("BGM file play blocked/failed. Trying procedural synth.");
+          useSynthBgm = true;
+          synth.playBGM();
+        });
+      }
+    }
+
+    function stopBGM() {
+      if (useSynthBgm) {
+        synth.stopBGM();
+      } else {
+        bgm.pause();
+      }
+    }
+
+    // ==========================================
+    // 2. 이미지 에셋 로딩 및 폴백 플래그
+    // ==========================================
+    const playerImage = new Image();
+    let playerImageLoaded = false;
+    let playerImgIdx = 0;
+
+    function tryLoadPlayerImage() {
+      if (playerImgIdx < PLAYER_IMAGE_PATHS.length) {
+        playerImage.src = PLAYER_IMAGE_PATHS[playerImgIdx];
+        playerImgIdx++;
+      } else {
+        console.warn("All player image paths failed. Using dynamic pixel ant rendering.");
+        playerImageLoaded = false;
+      }
+    }
+    playerImage.onload = () => {
+      playerImageLoaded = true;
+    };
+    playerImage.onerror = () => {
+      tryLoadPlayerImage();
+    };
+    tryLoadPlayerImage();
+
+    const backgroundImage = new Image();
+    let backgroundImageLoaded = false;
+    let bgImgIdx = 0;
+
+    function tryLoadBackgroundImage() {
+      if (bgImgIdx < BACKGROUND_IMAGE_PATHS.length) {
+        backgroundImage.src = BACKGROUND_IMAGE_PATHS[bgImgIdx];
+        bgImgIdx++;
+      } else {
+        console.warn("All background image paths failed. Using fallback trading chart grid.");
+        backgroundImageLoaded = false;
+      }
+    }
+    backgroundImage.onload = () => {
+      backgroundImageLoaded = true;
+    };
+    backgroundImage.onerror = () => {
+      tryLoadBackgroundImage();
+    };
+    tryLoadBackgroundImage();
+
+    // ==========================================
+    // 3. 게임 물리 및 상태 변수
+    // ==========================================
+    const canvas = document.getElementById("game-canvas");
+    const ctx = canvas.getContext("2d");
+
+    const STATE_START = "START";
+    const STATE_PLAYING = "PLAYING";
+    const STATE_RESULT = "RESULT";
+
+    let gameState = STATE_START;
+    let stockPrice = 70000; // 초기 주가
+    let gameTimer = 30; // 제한시간 30초
+    let timerInterval = null;
+    let animFrameId = null;
+
+    // 플레이어 물리 캐릭터 정보
+    const player = {
+      x: 400,
+      y: 440, // 800x500이 플레이 영역이므로 y축 하단 고정
+      radius: 30, // 플레이어 원형(Circle)의 반경
+      speed: 8.5,
+      vx: 0
+    };
+
+    // 키 상태 핸들링
+    const keys = {
+      ArrowLeft: false,
+      ArrowRight: false
+    };
+
+    // 낙하 화살표 오브젝트
+    let items = [];
+    let itemSpawnTimer = 0;
+    let itemSpawnInterval = 21; // 난이도에 맞춰 조율된 생성 주기
+    let baseItemSpeed = 4.2;
+
+    // ==========================================
+    // 4. 게임 라이프사이클 함수
+    // ==========================================
+    
+    function startGame() {
+      // Autoplay 정책 우회 활성화 및 BGM 재생
+      playBGM();
+
+      // 상태 초기화
+      gameState = STATE_PLAYING;
+      stockPrice = 70000;
+      gameTimer = 30;
+      items = [];
+      itemSpawnTimer = 0;
+      player.x = 400;
+      player.vx = 0;
+
+      // 화면 오버레이 숨기기
+      document.getElementById("screen-start").classList.add("hidden");
+      document.getElementById("screen-result").classList.add("hidden");
+
+      // 타이머 차감 스케줄러 (1초 단위)
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (gameState === STATE_PLAYING) {
+          gameTimer--;
+          if (gameTimer <= 0) {
+            endGame(STATE_RESULT);
+          }
+        }
+      }, 1000);
+
+      // 애니메이션 프레임 구동
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      animFrameId = requestAnimationFrame(update);
+    }
+
+    function endGame(finalState) {
+      gameState = finalState;
+      
+      // BGM 즉각 정지
+      stopBGM();
+      
+      if (timerInterval) clearInterval(timerInterval);
+
+      const statusEl = document.getElementById("result-status");
+      const scoreEl = document.getElementById("result-score");
+      const descEl = document.getElementById("result-desc");
+
+      if (stockPrice <= 0) {
+        // 상장폐지 게임오버
+        stockPrice = 0;
+        playSFX(sfxGameover, 'gameover');
+        statusEl.innerText = "상장 폐지 💸";
+        statusEl.style.color = "var(--neon-red)";
+        scoreEl.innerText = "0원";
+        descEl.innerHTML = "주가가 0원이 되어 상장폐지되었습니다!<br>김개미는 퇴직금을 모두 날리고 무일푼 신세가 되었습니다.";
+      } else {
+        // 정상 타임오버 완료
+        playSFX(sfxRed, 'red'); // 클리어 딩동 효과음 대용
+        statusEl.innerText = "투자 완료 📈";
+        statusEl.style.color = "var(--neon-green)";
+        scoreEl.innerText = `${stockPrice.toLocaleString()}원`;
+        
+        if (stockPrice >= 120000) {
+          descEl.innerHTML = "축하합니다! 대호황 달성!<br>김개미는 삼전 수익금으로 한강뷰 펜트하우스에 입성했습니다!";
+        } else if (stockPrice >= 70000) {
+          descEl.innerHTML = "성공적으로 본전을 사수했습니다!<br>존버는 승리한다. 시드를 안전하게 지켜냈습니다.";
+        } else {
+          descEl.innerHTML = "삼전에 세차게 물렸습니다...<br>김개미는 강제로 10년 장기 투자자의 길에 들어섰습니다.";
+        }
+      }
+
+      document.getElementById("screen-result").classList.remove("hidden");
+    }
+
+    // ==========================================
+    // 5. 프레임 업데이트 및 물리 연산
+    // ==========================================
+    function update() {
+      if (gameState !== STATE_PLAYING) return;
+
+      // 플레이어 가속 제어
+      if (keys.ArrowLeft) {
+        player.vx = -player.speed;
+      } else if (keys.ArrowRight) {
+        player.vx = player.speed;
+      } else {
+        player.vx = 0;
+      }
+
+      player.x += player.vx;
+
+      // 경계 영역 제한 (800 px)
+      if (player.x < player.radius) {
+        player.x = player.radius;
+      }
+      if (player.x > canvas.width - player.radius) {
+        player.x = canvas.width - player.radius;
+      }
+
+      // 화살표 생성 (아이템 드롭)
+      itemSpawnTimer++;
+      
+      // 시간이 흐를수록 속도 가속화
+      const elapsed = 30 - gameTimer;
+      const actualInterval = Math.max(6, itemSpawnInterval - Math.floor(elapsed * 0.5));
+      const actualSpeed = baseItemSpeed + (elapsed * 0.15);
+
+      if (itemSpawnTimer >= actualInterval) {
+        itemSpawnTimer = 0;
+        const isRed = Math.random() < 0.40; // 상승 40% / 하락 60% (난이도 상향 유지)
+        items.push({
+          x: Math.random() * (canvas.width - 60) + 30,
+          y: -30,
+          size: 26,
+          speed: actualSpeed + (Math.random() * 2 - 1),
+          type: isRed ? 'red' : 'blue'
+        });
+      }
+
+      // 화살표 이동 및 충돌 체크
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += item.speed;
+
+        // 화면 밖 소멸 (500px 아래)
+        if (item.y > 500 + item.size) {
+          items.splice(i, 1);
+          continue;
+        }
+
+        // 플레이어 캐릭터 구체와 겹침 충돌 확인 (원형 충돌 판정)
+        const dx = item.x - player.x;
+        const dy = item.y - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < player.radius + item.size / 2) {
+          // 충돌
+          if (item.type === 'red') {
+            stockPrice += 5000;
+            playSFX(sfxRed, 'red');
+          } else {
+            stockPrice -= 8000;
+            playSFX(sfxBlue, 'blue');
+          }
+
+          items.splice(i, 1);
+
+          // 파산 체크 (주가 0 이하 시 게임 오버)
+          if (stockPrice <= 0) {
+            stockPrice = 0;
+            endGame(STATE_RESULT);
+            return;
+          }
+        }
+      }
+
+      // 렌더링 호출
+      render();
+
+      animFrameId = requestAnimationFrame(update);
+    }
+
+    // ==========================================
+    // 6. 그래픽 드로잉 및 클리핑
+    // ==========================================
+    function render() {
+      // 1. 화면 클리어 및 배경 주식차트 드로잉
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (backgroundImageLoaded) {
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, 500);
+      } else {
+        // 백그라운드 이미지 부재 시 디폴트 주식 차트 그리드 패턴 렌더링
+        drawStockChartGrid();
+      }
+
+      // 2. 낙하 아이템 화살표 렌더링
+      items.forEach(item => {
+        ctx.save();
+        ctx.shadowBlur = 10;
+        
+        if (item.type === 'red') {
+          ctx.fillStyle = '#ff3333';
+          ctx.shadowColor = '#ff3333';
+          
+          // 위로 향하는 빨간 화살표 (▲)
+          ctx.beginPath();
+          ctx.moveTo(item.x, item.y - item.size / 2);
+          ctx.lineTo(item.x + item.size / 2, item.y + item.size / 2);
+          ctx.lineTo(item.x + item.size / 4, item.y + item.size / 2);
+          ctx.lineTo(item.x + item.size / 4, item.y + item.size / 2 + 10);
+          ctx.lineTo(item.x - item.size / 4, item.y + item.size / 2 + 10);
+          ctx.lineTo(item.x - item.size / 4, item.y + item.size / 2);
+          ctx.lineTo(item.x - item.size / 2, item.y + item.size / 2);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.fillStyle = '#3b82f6';
+          ctx.shadowColor = '#3b82f6';
+
+          // 아래로 향하는 파란 화살표 (▼)
+          ctx.beginPath();
+          ctx.moveTo(item.x, item.y + item.size / 2 + 6);
+          ctx.lineTo(item.x + item.size / 2, item.y - item.size / 2 + 6);
+          ctx.lineTo(item.x + item.size / 4, item.y - item.size / 2 + 6);
+          ctx.lineTo(item.x + item.size / 4, item.y - item.size / 2 - 4);
+          ctx.lineTo(item.x - item.size / 4, item.y - item.size / 2 - 4);
+          ctx.lineTo(item.x - item.size / 4, item.y - item.size / 2 + 6);
+          ctx.lineTo(item.x - item.size / 2, item.y - item.size / 2 + 6);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      // 3. 플레이어 캐릭터 렌더링 (원형 클리핑 및 외곽 테두리선 제거)
+      if (playerImageLoaded) {
+        ctx.drawImage(playerImage, player.x - player.radius, player.y - player.radius, player.radius * 2, player.radius * 2);
+      } else {
+        // 이미지 로딩 실패 시 폴백 픽셀 아트 개미 그리기
+        ctx.save();
+        drawPixelAnt(ctx, player.x, player.y, player.radius);
+        ctx.restore();
+      }
+
+      // 4. 하단 HUD 및 초상화 렌더링
+      drawHUD();
+    }
+
+    // 디폴트 주식 차트 격자 배경 렌더링
+    function drawStockChartGrid() {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      
+      // 가로 세로 그리드
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 500);
+        ctx.stroke();
+      }
+      for (let y = 0; y < 500; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // 시초가 70,000원 기준선 그리기
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(0, 250);
+      ctx.lineTo(canvas.width, 250);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '11px sans-serif';
+      ctx.fillText("시작가 (70,000원)", 15, 242);
+    }
+
+    // 캐릭터 이미지 로드 전 2D 픽셀 아트 개미 그리기 헬퍼
+    function drawPixelAnt(ctx, px, py, radius) {
+      ctx.save();
+      ctx.translate(0, -6); // 정중앙 보정
+      
+      // 다리 6개
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      
+      const animTime = Date.now() * 0.008;
+      const legSweep = Math.sin(animTime) * 6;
+
+      // 뒷다리
+      ctx.beginPath(); ctx.moveTo(px - 6, py + 8); ctx.lineTo(px - 16 + legSweep, py + 18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px - 6, py + 8); ctx.lineTo(px - 11 - legSweep, py + 18); ctx.stroke();
+      // 가운데다리
+      ctx.beginPath(); ctx.moveTo(px, py + 8); ctx.lineTo(px - 4 - legSweep, py + 18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px, py + 8); ctx.lineTo(px + 4 + legSweep, py + 18); ctx.stroke();
+      // 앞다리
+      ctx.beginPath(); ctx.moveTo(px + 6, py + 8); ctx.lineTo(px + 11 + legSweep, py + 18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px + 6, py + 8); ctx.lineTo(px + 16 - legSweep, py + 14); ctx.stroke();
+
+      // 배 (Abdomen)
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.ellipse(px - 14, py, 13, 9, Math.PI / 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 배 무늬 데코
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(px - 14, py, 7, Math.PI / 2, Math.PI * 1.5);
+      ctx.stroke();
+
+      // 가슴 (Thorax)
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.arc(px - 2, py, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 머리 (Head)
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(px + 10, py - 3, 8.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 더듬이
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(px + 14, py - 9); ctx.quadraticCurveTo(px + 18, py - 15, px + 22, py - 13); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px + 12, py - 9); ctx.quadraticCurveTo(px + 15, py - 16, px + 18, py - 16); ctx.stroke();
+
+      // 빨간 머리띠
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.rect(px + 5, py - 8, 8, 3.5);
+      ctx.fill();
+
+      // 눈
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(px + 12, py - 5, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath(); ctx.arc(px + 13, py - 5, 1, 0, Math.PI * 2); ctx.fill();
+
+      ctx.restore();
+    }
+
+    // 초상화 영역 픽셀 아트 개미 그리기 헬퍼
+    function drawMiniAntForPortrait(ctx, px, py) {
+      ctx.fillStyle = '#f59e0b';
+      // Abdomen
+      ctx.beginPath(); ctx.ellipse(px - 8, py, 9, 6, 0, 0, Math.PI*2); ctx.fill();
+      // Thorax
+      ctx.beginPath(); ctx.arc(px, py, 4.5, 0, Math.PI*2); ctx.fill();
+      // Head
+      ctx.beginPath(); ctx.arc(px + 8, py - 2, 6, 0, Math.PI*2); ctx.fill();
+      // Red headband
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(px + 4, py - 6, 5, 2.5);
+    }
+
+    // 하단 HUD 렌더링 인터페이스 함수
+    function drawHUD() {
+      // 1. HUD 영역 프레임 설정
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 500, canvas.width, 100);
+
+      // 경계 분리선
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 500);
+      ctx.lineTo(canvas.width, 500);
+      ctx.stroke();
+
+      // 2. 초상화 (Portrait) 사각형 영역 렌더링 명세 반영
+      const portX = 24;
+      const portY = 510;
+      const portW = 80;
+      const portH = 80;
+
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(portX, portY, portW, portH);
+
+      // 초상화 사각형 영역에 플레이어 캐릭터 이미지 크기에 맞춰 렌더링
+      if (playerImageLoaded) {
+        ctx.drawImage(playerImage, portX, portY, portW, portH);
+      } else {
+        // 로딩 전 백업 렌더링: 미니 픽셀 개미 드로잉
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(portX, portY, portW, portH);
+        
+        ctx.save();
+        // 초상화 정중앙에 미니 개미 드로잉
+        drawMiniAntForPortrait(ctx, portX + portW / 2, portY + portH / 2);
+        ctx.restore();
+
+        // 라벨 텍스트
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('김개미 (백수)', portX + portW / 2, portY + portH - 8);
+      }
+
+      // 3. 인게임 스탯 문자 정보 렌더링 (주가 및 타이머)
+      // 현재 주가 (점수)
+      ctx.textAlign = 'left';
+      ctx.fillStyle = stockPrice >= 70000 ? '#ff3333' : '#3b82f6';
+      ctx.font = "bold 26px 'Outfit', 'Noto Sans KR', sans-serif";
+      ctx.fillText(`현재 주가 : ${stockPrice.toLocaleString()}원`, 130, 558);
+
+      // 제한 시간 타이머
+      ctx.textAlign = 'right';
+      ctx.fillStyle = gameTimer <= 8 ? '#ff3333' : '#10b981';
+      ctx.font = "bold 26px 'Outfit', 'Noto Sans KR', sans-serif";
+      ctx.fillText(`제한 시간 : ${gameTimer}초`, canvas.width - 24, 558);
+    }
+
+    // ==========================================
+    // 7. 입력 조작 및 이벤트 등록
+    // ==========================================
+    window.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        keys[e.key] = true;
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("keyup", e => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        keys[e.key] = false;
+      }
+    });
+
+    // 시작 및 재시작 클릭 트리거에 오디오 초기화(Autoplay 회피) 바인딩
+    document.getElementById("btn-start").addEventListener("click", () => {
+      startGame();
+    });
+
+    document.getElementById("btn-restart").addEventListener("click", () => {
+      startGame();
+    });
+
+    // 최초 로드 시 기본 렌더링
+    window.addEventListener("load", () => {
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawStockChartGrid();
+      
+      // 대기 화면용 기본 플레이어 렌더링 (원형 클리핑 및 외곽선 제거)
+      if (playerImageLoaded) {
+        ctx.drawImage(playerImage, player.x - player.radius, player.y - player.radius, player.radius * 2, player.radius * 2);
+      } else {
+        ctx.save();
+        drawPixelAnt(ctx, player.x, player.y, player.radius);
+        ctx.restore();
+      }
+
+      drawHUD();
+    });
+  </script>
+</body>
+</html>

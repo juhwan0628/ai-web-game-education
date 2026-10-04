@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>표창 피하기 - 에도 시대</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            color: #000000;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #info-panel {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 20px;
+        }
+
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 3px solid #000000;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: #ffffff;
+            display: block;
+        }
+
+        /* UI 레이어 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.85);
+            z-index: 10;
+        }
+
+        /* 결과 메시지 스타일 */
+        #result-message {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .success { color: #008000; } 
+        .fail { color: #ff0000; }    
+        .retry { color: #000000; }   
+
+        /* 시작 및 재시작 버튼 (빨간색 버튼) */
+        .btn {
+            background-color: #ff0000;
+            color: #ffffff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>표창 피하기</h1>
+    <div id="info-panel">
+        <div>남은 시간: <span id="timer">60</span>초</div>
+        <div>남은 목숨: <span id="lives">3</span></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+        
+        <div id="ui-layer">
+            <div id="result-message"></div>
+            <button id="start-btn" class="btn">게임 시작</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const timerEl = document.getElementById('timer');
+        const livesEl = document.getElementById('lives');
+        const uiLayer = document.getElementById('ui-layer');
+        const resultMsg = document.getElementById('result-message');
+        const startBtn = document.getElementById('start-btn');
+
+        // 게임 상태 변수
+        let gameActive = false;
+        let timeLeft = 60;
+        let lives = 3;
+        let player;
+        let projectiles = [];
+        let keys = {};
+        let gameInterval;
+        let spawnInterval;
+        let animationFrameId;
+
+        // 에도 시대 배경 그리기 함수 (외부 파일 없이 코드로 구현)
+        function drawEdoBackground() {
+            // 1. 하늘 그라데이션 (석양이 지는 밤하늘 느낌)
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#1a1a2e');
+            skyGrad.addColorStop(0.4, '#16213e');
+            skyGrad.addColorStop(0.7, '#0f3460');
+            skyGrad.addColorStop(1, '#e94560');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. 커다란 보름달 (에도 시대 감성 고조)
+            ctx.beginPath();
+            ctx.arc(680, 120, 50, 0, Math.PI * 2);
+            ctx.fillStyle = '#fffde7';
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#fffde7';
+            ctx.fill();
+            ctx.shadowBlur = 0; // 다른 그래픽을 위해 그림자 초기화
+
+            // 3. 먼 배경 산 실루엣
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.moveTo(0, 600);
+            ctx.lineTo(150, 480);
+            ctx.lineTo(300, 530);
+            ctx.lineTo(500, 430);
+            ctx.lineTo(700, 510);
+            ctx.lineTo(800, 450);
+            ctx.lineTo(800, 600);
+            ctx.closePath();
+            ctx.fill();
+
+            // 4. 에도 시대 전통 목조 건물(기와지붕 고택) 실루엣 
+            ctx.fillStyle = '#020617';
+            
+            // 건물 1 (왼쪽)
+            ctx.fillRect(0, 460, 180, 140);
+            // 기와지붕 1
+            ctx.beginPath();
+            ctx.moveTo(-20, 460);
+            ctx.quadraticCurveTo(80, 430, 200, 460);
+            ctx.lineTo(180, 475);
+            ctx.lineTo(0, 475);
+            ctx.closePath();
+            ctx.fill();
+
+            // 건물 2 (오른쪽 전통 탑/성곽 형태)
+            ctx.fillRect(600, 380, 120, 220); // 1층
+            // 1층 지붕
+            ctx.beginPath();
+            ctx.moveTo(580, 380);
+            ctx.quadraticCurveTo(660, 360, 740, 380);
+            ctx.lineTo(710, 395);
+            ctx.lineTo(610, 395);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillRect(620, 280, 80, 100);  // 2층
+            // 2층 기와지붕 (에도성 스타일)
+            ctx.beginPath();
+            ctx.moveTo(600, 280);
+            ctx.quadraticCurveTo(660, 250, 720, 280);
+            ctx.lineTo(690, 295);
+            ctx.lineTo(630, 295);
+            ctx.closePath();
+            ctx.fill();
+
+            // 5. 바닥면 (길거리)
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 560, canvas.width, 40);
+        }
+
+        // 플레이어 설정
+        class Player {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.radius = 12; 
+                this.baseSpeed = 5;
+                this.speed = 5; 
+                this.invincible = false; 
+                this.invincibleTimer = 0;
+            }
+
+            draw() {
+                if (this.invincible && Math.floor(Date.now() / 100) % 2 === 0) return;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // 닌자/사무라이 컨셉에 맞춘 올 블랙 사람 캐릭터
+                // 머리 (두건 느낌)
+                ctx.beginPath();
+                ctx.arc(0, -12, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff'; // 눈에 잘 띄도록 하얀색 라인에 검은색 채우기
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#000000';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, -12, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#111111';
+                ctx.fill();
+
+                // 몸통
+                ctx.beginPath();
+                ctx.moveTo(0, -5);
+                ctx.lineTo(0, 12);
+                ctx.lineWidth = 5;
+                ctx.strokeStyle = '#111111';
+                ctx.stroke();
+                // 팔
+                ctx.beginPath();
+                ctx.moveTo(-14, 2);
+                ctx.lineTo(14, 2);
+                ctx.lineWidth = 3.5;
+                ctx.stroke();
+                // 다리
+                ctx.beginPath();
+                ctx.moveTo(0, 12);
+                ctx.lineTo(-9, 27);
+                ctx.moveTo(0, 12);
+                ctx.lineTo(9, 27);
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            update() {
+                // 시간에 따라 사람 속도 증가 (기본 5 -> 최대 8.6)
+                this.speed = this.baseSpeed + ((60 - timeLeft) * 0.06);
+
+                if (keys['w'] || keys['W']) this.y -= this.speed;
+                if (keys['s'] || keys['S']) this.y += this.speed;
+                if (keys['a'] || keys['A']) this.x -= this.speed;
+                if (keys['d'] || keys['D']) this.x += this.speed;
+
+                if (this.x < 15) this.x = 15;
+                if (this.x > canvas.width - 15) this.x = canvas.width - 15;
+                if (this.y < 25) this.y = 25;
+                if (this.y > canvas.height - 25) this.y = canvas.height - 25;
+
+                if (this.invincible) {
+                    this.invincibleTimer--;
+                    if (this.invincibleTimer <= 0) this.invincible = false;
+                }
+            }
+        }
+
+        // 방해물 설정
+        class Projectile {
+            constructor(type) {
+                this.type = type; 
+                
+                const edge = Math.floor(Math.random() * 4);
+                if (edge === 0) { this.x = Math.random() * canvas.width; this.y = -30; }
+                else if (edge === 1) { this.x = Math.random() * canvas.width; this.y = canvas.height + 30; }
+                else if (edge === 2) { this.x = -30; this.y = Math.random() * canvas.height; }
+                else { this.x = canvas.width + 30; this.y = Math.random() * canvas.height; }
+
+                const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                const randomSpread = (Math.random() - 0.5) * 0.4; 
+                const finalAngle = angle + randomSpread;
+
+                const timePassed = 60 - timeLeft;
+                
+                if (this.type === 'shuriken') {
+                    this.baseSpeed = 3.5 + Math.random() * 2;
+                    this.speed = this.baseSpeed + (timePassed * 0.13); 
+                    this.size = 14;
+                } else {
+                    // 다른 물체 (에도 시대 컨셉: 거대한 화염 인술 구체)
+                    this.baseSpeed = 6 + Math.random() * 2;
+                    this.speed = this.baseSpeed + (timePassed * 0.16); 
+                    this.size = 20;
+                }
+
+                this.dx = Math.cos(finalAngle) * this.speed;
+                this.dy = Math.sin(finalAngle) * this.speed;
+                this.angle = 0;
+                this.rotationSpeed = 0.08 + Math.random() * 0.1;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                if (this.type === 'shuriken') {
+                    // 전통 회색 강철 표창 그리기
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    for (let i = 0; i < 4; i++) {
+                        ctx.lineTo(0, -this.size);
+                        ctx.lineTo(this.size * 0.35, -this.size * 0.35);
+                        ctx.rotate(Math.PI / 2);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fill();
+                } else {
+                    // 다른 물체: 활활 타오르는 거대한 인술 화염구
+                    let flameGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, this.size);
+                    flameGrad.addColorStop(0, '#ffffff');
+                    flameGrad.addColorStop(0.2, '#f97316');
+                    flameGrad.addColorStop(1, '#ef4444');
+                    
+                    ctx.fillStyle = flameGrad;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+                this.angle += this.rotationSpeed;
+            }
+
+            isOutOfBounds() {
+                return (this.x < -60 || this.x > canvas.width + 60 || this.y < -60 || this.y > canvas.height + 60);
+            }
+        }
+
+        // 키보드 이벤트
+        window.addEventListener('keydown', (e) => keys[e.key] = true);
+        window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+        // 버튼 클릭 연동
+        startBtn.addEventListener('click', startGame);
+
+        // 게임 시작
+        function startGame() {
+            if (gameActive) return;
+
+            player = new Player();
+            projectiles = [];
+            timeLeft = 60;
+            lives = 3;
+            keys = {};
+            gameActive = true;
+
+            timerEl.textContent = timeLeft;
+            livesEl.textContent = lives;
+            uiLayer.style.display = 'none';
+
+            // 타이머
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft--;
+                timerEl.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    endGame(true);
+                }
+            }, 1000);
+
+            // 물체 스폰 루프
+            clearInterval(spawnInterval);
+            let spawnRate = 450; 
+            
+            function spawnLoop() {
+                if (!gameActive) return;
+                
+                let type = 'shuriken';
+                
+                // [조건 유지] 남은 시간이 30초 이하일 때만 다른 물체(화염구) 출현 시작
+                if (timeLeft <= 30 && Math.random() < 0.38) {
+                    type = 'fireball';
+                }
+
+                projectiles.push(new Projectile(type));
+                
+                if (timeLeft < 40 && timeLeft >= 20) spawnRate = 250;
+                else if (timeLeft < 20) spawnRate = 130;
+
+                clearInterval(spawnInterval);
+                spawnInterval = setInterval(spawnLoop, spawnRate);
+            }
+            spawnInterval = setInterval(spawnLoop, spawnRate);
+
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(updateCanvas);
+        }
+
+        // 메인 루프
+        function updateCanvas() {
+            if (!gameActive) return;
+
+            // 배경 그리기
+            drawEdoBackground();
+
+            player.update();
+            player.draw();
+
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.update();
+                p.draw();
+
+                // 충돌 판정
+                if (!player.invincible) {
+                    const dist = Math.hypot(player.x - p.x, player.y - p.y);
+                    if (dist < player.radius + p.size * 0.75) { 
+                        lives--;
+                        livesEl.textContent = lives;
+                        projectiles.splice(i, 1);
+
+                        if (lives <= 0) {
+                            endGame(false);
+                            return;
+                        } else {
+                            player.invincible = true;
+                            player.invincibleTimer = 80; 
+                        }
+                        continue;
+                    }
+                }
+
+                if (p.isOutOfBounds()) {
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(updateCanvas);
+        }
+
+        // 게임 종료 처리
+        function endGame(isSuccess) {
+            gameActive = false;
+            clearInterval(gameInterval);
+            clearInterval(spawnInterval);
+            cancelAnimationFrame(animationFrameId);
+
+            uiLayer.style.display = 'flex';
+            startBtn.style.display = 'none'; 
+
+            if (isSuccess) {
+                resultMsg.textContent = '성공';
+                resultMsg.className = 'success';
+            } else {
+                resultMsg.textContent = '실패';
+                resultMsg.className = 'fail';
+
+                setTimeout(() => {
+                    resultMsg.textContent = '재도전';
+                    resultMsg.className = 'retry';
+                    startBtn.textContent = '다시 시작';
+                    startBtn.style.display = 'block';
+                }, 2000);
+            }
+        }
+
+        // 최초 1회 빈 화면에 에도 배경만 미리 그려두기
+        drawEdoBackground();
+    </script>
+</body>
+</html>

@@ -1,0 +1,2543 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>막아라! - AI 골키퍼 패널티킥 심리전 게임</title>
+  <style>
+    :root {
+      --bg-dark: #0b0e17;
+      --bg-card: rgba(18, 22, 35, 0.85);
+      --neon-green: #00ff66;
+      --neon-blue: #00f0ff;
+      --neon-pink: #ff0055;
+      --neon-gold: #ffcc00;
+      --text-white: #ffffff;
+      --text-gray: #a0aec0;
+      --glow-strength: 0 0 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: var(--bg-dark);
+      color: var(--text-white);
+      font-family: 'Outfit', 'Malgun Gothic', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    /* Primary Container limited to 800x600 for gameplay consistency */
+    main {
+      width: 800px;
+      height: 600px;
+      position: relative;
+      background: #0f1322;
+      border: 4px solid var(--neon-blue);
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3), inset 0 0 15px rgba(0, 240, 255, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Sound and UI bar */
+    header {
+      height: 50px;
+      background: rgba(15, 19, 34, 0.9);
+      border-bottom: 2px solid rgba(0, 240, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 10;
+    }
+
+    .logo-text {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      color: var(--neon-green);
+      text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+    }
+
+    .header-stats {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .stat-badge {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .stat-badge.gold {
+      border-color: var(--neon-gold);
+      color: var(--neon-gold);
+      text-shadow: 0 0 5px rgba(255, 204, 0, 0.4);
+    }
+
+    .audio-btn {
+      background: none;
+      border: 1px solid var(--text-gray);
+      color: var(--text-gray);
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .audio-btn:hover {
+      color: var(--neon-blue);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 5px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Screen management */
+    .screen {
+      flex: 1;
+      width: 100%;
+      height: calc(100% - 50px);
+      position: absolute;
+      top: 50px;
+      left: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+      background: radial-gradient(circle at center, #161c32 0%, #0b0e17 100%);
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* Start Screen */
+    #screen-start h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3.5rem;
+      margin: 0 0 10px 0;
+      color: var(--neon-green);
+      text-shadow: 0 0 15px rgba(0, 255, 102, 0.8);
+      text-align: center;
+      letter-spacing: 4px;
+      animation: titleGlow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes titleGlow {
+      from { text-shadow: 0 0 10px rgba(0, 255, 102, 0.6); }
+      to { text-shadow: 0 0 25px rgba(0, 255, 102, 1), 0 0 10px var(--neon-blue); }
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-gray);
+      margin-bottom: 40px;
+      text-align: center;
+      max-width: 500px;
+      line-height: 1.6;
+    }
+
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      width: 280px;
+    }
+
+    .btn {
+      background: rgba(18, 22, 35, 0.8);
+      border: 2px solid var(--neon-blue);
+      color: var(--text-white);
+      padding: 14px 24px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'Orbitron', 'Malgun Gothic', sans-serif;
+      text-align: center;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+    }
+
+    .btn:hover {
+      background: var(--neon-blue);
+      color: var(--bg-dark);
+      box-shadow: 0 0 15px var(--neon-blue);
+      transform: translateY(-2px);
+    }
+
+    .btn-green {
+      border-color: var(--neon-green);
+      box-shadow: 0 0 8px rgba(0, 255, 102, 0.2);
+    }
+
+    .btn-green:hover {
+      background: var(--neon-green);
+      box-shadow: 0 0 15px var(--neon-green);
+      border-color: var(--neon-green);
+    }
+
+    .btn-pink {
+      border-color: var(--neon-pink);
+      box-shadow: 0 0 8px rgba(255, 0, 85, 0.2);
+    }
+
+    .btn-pink:hover {
+      background: var(--neon-pink);
+      box-shadow: 0 0 15px var(--neon-pink);
+      border-color: var(--neon-pink);
+    }
+
+    /* Shop Screen */
+    .shop-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .shop-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 10px;
+    }
+
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      overflow-y: auto;
+      padding: 10px 5px;
+      flex: 1;
+    }
+
+    .shop-card {
+      background: var(--bg-card);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .shop-card.equipped {
+      border-color: var(--neon-green);
+      box-shadow: 0 0 10px rgba(0, 255, 102, 0.2);
+    }
+
+    .shop-card:hover {
+      transform: scale(1.03);
+      border-color: var(--neon-blue);
+    }
+
+    .skin-preview-canvas {
+      width: 120px;
+      height: 120px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .skin-name {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 5px;
+    }
+
+    .skin-desc {
+      font-size: 0.75rem;
+      color: var(--text-gray);
+      margin-bottom: 12px;
+      height: 32px;
+      line-height: 1.3;
+    }
+
+    .skin-price {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--neon-gold);
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+
+    .shop-card .btn {
+      width: 100%;
+      padding: 8px;
+      font-size: 0.85rem;
+    }
+
+    /* Info / Strategy Screen */
+    .info-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .info-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .kicker-card {
+      background: var(--bg-card);
+      border: 2px dashed var(--neon-blue);
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .kicker-visual-canvas {
+      width: 180px;
+      height: 180px;
+      margin-bottom: 10px;
+    }
+
+    .speech-bubble {
+      background: #ffffff;
+      color: #000000;
+      padding: 10px 15px;
+      border-radius: 12px;
+      position: relative;
+      max-width: 80%;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      font-family: 'Malgun Gothic', sans-serif;
+    }
+
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 10px 10px 0;
+      border-style: solid;
+      border-color: #ffffff transparent;
+      display: block;
+      width: 0;
+    }
+
+    .kicker-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-top: 15px;
+      color: var(--neon-pink);
+      text-shadow: 0 0 5px rgba(255, 0, 85, 0.4);
+    }
+
+    .kicker-type {
+      font-size: 0.85rem;
+      color: var(--text-gray);
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 2px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .chart-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .chart-reliability {
+      font-size: 0.8rem;
+      color: var(--neon-gold);
+    }
+
+    .bar-chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .chart-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bar-label {
+      width: 60px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--neon-blue);
+      width: 0%;
+      transition: width 1s cubic-bezier(0.1, 0.8, 0.3, 1);
+      box-shadow: 0 0 8px var(--neon-blue);
+    }
+
+    .bar-fill.left {
+      background: var(--neon-pink);
+      box-shadow: 0 0 8px var(--neon-pink);
+    }
+
+    .bar-fill.center {
+      background: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green);
+    }
+
+    .bar-fill.right {
+      background: var(--neon-blue);
+      box-shadow: 0 0 8px var(--neon-blue);
+    }
+
+    .bar-value {
+      width: 40px;
+      font-size: 0.85rem;
+      font-family: 'Orbitron', sans-serif;
+      text-align: right;
+    }
+
+    .stage-notice-box {
+      font-size: 0.8rem;
+      background: rgba(255, 204, 0, 0.05);
+      border: 1px solid var(--neon-gold);
+      padding: 10px;
+      border-radius: 6px;
+      color: #ffe680;
+      line-height: 1.4;
+    }
+
+    /* Play Screen */
+    .play-layout {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .game-stats-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 35px;
+      padding: 0 5px;
+    }
+
+    .game-hud-item {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .game-hud-item.hp {
+      color: var(--neon-pink);
+      text-shadow: 0 0 5px rgba(255, 0, 85, 0.4);
+    }
+
+    #game-canvas {
+      flex: 1;
+      width: 100%;
+      background: #060913;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.05);
+      cursor: crosshair;
+    }
+
+    /* Screen shake effect */
+    @keyframes screenShake {
+      0% { transform: translate(0, 0); }
+      10% { transform: translate(-5px, -5px); }
+      20% { transform: translate(5px, 5px); }
+      30% { transform: translate(-5px, 5px); }
+      40% { transform: translate(5px, -5px); }
+      50% { transform: translate(-5px, -5px); }
+      60% { transform: translate(5px, 5px); }
+      70% { transform: translate(-5px, 5px); }
+      80% { transform: translate(5px, -5px); }
+      90% { transform: translate(-5px, -5px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .shake-anim {
+      animation: screenShake 0.4s ease-out;
+    }
+
+    .play-controls-overlay {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      z-index: 5;
+    }
+
+    .zone-btn {
+      background: rgba(11, 14, 23, 0.85);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-white);
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .zone-btn:hover {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 8px var(--neon-blue);
+    }
+
+    .zone-btn.active {
+      background: var(--neon-blue);
+      color: var(--bg-dark);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px var(--neon-blue);
+    }
+
+    /* Key bindings tip overlay */
+    .keyboard-tip {
+      position: absolute;
+      top: 50px;
+      right: 15px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--text-gray);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* How to Play Overlay */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 14, 23, 0.95);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      box-sizing: border-box;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border: 2px solid var(--neon-blue);
+      border-radius: 12px;
+      padding: 30px;
+      width: 100%;
+      max-width: 550px;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.2);
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.8rem;
+      color: var(--neon-blue);
+      margin-bottom: 20px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 10px;
+    }
+
+    .modal-body {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-gray);
+      margin-bottom: 25px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .modal-body h3 {
+      color: var(--text-white);
+      margin-top: 15px;
+      margin-bottom: 5px;
+    }
+
+    .modal-body ul {
+      padding-left: 20px;
+      margin-top: 5px;
+    }
+
+    .modal-body li {
+      margin-bottom: 6px;
+    }
+
+    /* Result Overlay Screens */
+    .result-screen-content {
+      text-align: center;
+      max-width: 480px;
+    }
+
+    .result-icon {
+      font-size: 4rem;
+      margin-bottom: 15px;
+    }
+
+    .result-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .result-title.clear {
+      color: var(--neon-green);
+      text-shadow: 0 0 12px rgba(0, 255, 102, 0.4);
+    }
+
+    .result-title.over {
+      color: var(--neon-pink);
+      text-shadow: 0 0 12px rgba(255, 0, 85, 0.4);
+    }
+
+    .result-desc {
+      font-size: 1rem;
+      color: var(--text-gray);
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .stats-table {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      margin-bottom: 30px;
+      padding: 15px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 0.95rem;
+    }
+
+    .stats-row:not(:last-child) {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stats-row .value {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+    }
+
+    .stats-row .value.highlight {
+      color: var(--neon-gold);
+    }
+
+    .result-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <main id="game-container">
+    <!-- Top HUD / Settings Bar -->
+    <header>
+      <div class="logo-text">막아라!</div>
+      <div class="header-stats">
+        <div class="stat-badge gold">
+          <span>💰</span><span id="header-gold">0</span>
+        </div>
+        <button id="audio-toggle" class="audio-btn">🔇 Sound Off</button>
+      </div>
+    </header>
+
+    <!-- 1. Start Screen -->
+    <section id="screen-start" class="screen active">
+      <h1>막아라!</h1>
+      <p class="subtitle">
+        하위 리그의 꼴찌 팀 'FC 막아라'에 오신 데이터 분석가님, 환영합니다!<br>
+        삐뚤빼뚤 2D 밈 스타일의 상대 공격수들의 은밀한 슛팅 데이터를 분석하고 완벽하게 선방해 보세요!
+      </p>
+      
+      <!-- Goofy Title Goalie Preview Canvas -->
+      <canvas id="title-preview-canvas" width="180" height="120" style="margin-bottom: 25px;"></canvas>
+
+      <div class="menu-buttons">
+        <button id="btn-start-game" class="btn btn-green">시작하기</button>
+        <button id="btn-open-shop" class="btn">골키퍼 상점</button>
+        <button id="btn-open-tutorial" class="btn">게임 설명</button>
+      </div>
+    </section>
+
+    <!-- 2. Shop Screen -->
+    <section id="screen-shop" class="screen">
+      <div class="shop-container">
+        <div class="shop-header">
+          <h2>🤖 골키퍼 피팅룸 (상점)</h2>
+          <button id="btn-close-shop" class="btn" style="padding: 6px 15px; font-size: 0.9rem;">나가기</button>
+        </div>
+        <div class="shop-grid" id="shop-items-container">
+          <!-- Shop Cards rendered dynamically via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Kicker Info (Strategy analysis) Screen -->
+    <section id="screen-info" class="screen">
+      <div class="info-container">
+        <div class="shop-header" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+          <h2 id="info-stage-title" style="font-family: 'Orbitron', sans-serif;">STAGE 1 / SHOT 1</h2>
+          <button id="btn-skip-tutorial" class="btn btn-pink" style="padding: 5px 12px; font-size: 0.85rem; display: none;">튜토리얼 스킵</button>
+        </div>
+        
+        <div class="info-layout">
+          <!-- Kicker Profile -->
+          <div class="kicker-card">
+            <div class="speech-bubble" id="kicker-speech">난 무조건 왼쪽으로 찰 거야 ㅋ</div>
+            <canvas class="kicker-visual-canvas" id="kicker-info-canvas"></canvas>
+            <div class="kicker-name" id="kicker-name">좌측 맹공러</div>
+            <div class="kicker-type" id="kicker-description">특징: 정직한 파워 슛터</div>
+          </div>
+
+          <!-- Kicker Statistics Chart -->
+          <div class="chart-card">
+            <div>
+              <div class="chart-title">
+                <span>슛 방향 경향성 분석</span>
+                <span class="chart-reliability" id="info-reliability">분석 신뢰도: 100%</span>
+              </div>
+              <div class="bar-chart-container">
+                <div class="chart-bar-row">
+                  <span class="bar-label">LEFT</span>
+                  <div class="bar-track"><div class="bar-fill left" id="bar-left" style="width: 0%"></div></div>
+                  <span class="bar-value" id="val-left">0%</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="bar-label">CENTER</span>
+                  <div class="bar-track"><div class="bar-fill center" id="bar-center" style="width: 0%"></div></div>
+                  <span class="bar-value" id="val-center">0%</span>
+                </div>
+                <div class="chart-bar-row">
+                  <span class="bar-label">RIGHT</span>
+                  <div class="bar-track"><div class="bar-fill right" id="bar-right" style="width: 0%"></div></div>
+                  <span class="bar-value" id="val-right">0%</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="stage-notice-box" id="info-tips">
+              💡 LV 1에서는 분석가 정보가 100% 일치합니다. 방향과 타이밍을 익히세요!
+            </div>
+            
+            <button id="btn-start-kick" class="btn btn-green" style="margin-top: 15px;">막으러 가기! (Ready)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Play Screen -->
+    <section id="screen-play" class="screen" style="padding: 10px;">
+      <div class="play-layout">
+        <div class="game-stats-bar">
+          <div class="game-hud-item" id="hud-stage">STAGE 1</div>
+          <div class="game-hud-item" id="hud-shot">SHOT 1/10</div>
+          <div class="game-hud-item" id="hud-score">SCORE: 0</div>
+          <div class="game-hud-item hp" id="hud-hp">❤️❤️❤️</div>
+        </div>
+        
+        <div class="keyboard-tip">키보드 조작: [A] 왼쪽 / [S] 중앙 / [D] 오른쪽 또는 마우스/터치 클릭</div>
+        
+        <canvas id="game-canvas" width="780" height="460"></canvas>
+        
+        <div class="play-controls-overlay">
+          <button id="btn-zone-left" class="zone-btn">LEFT (A)</button>
+          <button id="btn-zone-center" class="zone-btn">CENTER (S)</button>
+          <button id="btn-zone-right" class="zone-btn">RIGHT (D)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Game Over Screen -->
+    <section id="screen-gameover" class="screen">
+      <div class="result-screen-content">
+        <div class="result-icon">😭</div>
+        <h2 class="result-title over">GAME OVER</h2>
+        <p class="result-desc" id="gameover-reason">
+          상대의 화려한 슛에 수비망이 무너졌습니다.<br>
+          경향성 데이터를 더 신중히 읽어보세요!
+        </p>
+
+        <div class="stats-table">
+          <div class="stats-row">
+            <span>최종 점수</span>
+            <span class="value" id="over-score">0점</span>
+          </div>
+          <div class="stats-row">
+            <span>도달한 슛</span>
+            <span class="value" id="over-shots">1/10</span>
+          </div>
+          <div class="stats-row">
+            <span>획득한 골드</span>
+            <span class="value highlight" id="over-gold">+0G</span>
+          </div>
+        </div>
+
+        <div class="result-buttons">
+          <button id="btn-retry-over" class="btn btn-green">재도전</button>
+          <button id="btn-shop-over" class="btn">상점으로</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Game Clear Screen -->
+    <section id="screen-gameclear" class="screen">
+      <div class="result-screen-content">
+        <div class="result-icon">🏆</div>
+        <h2 class="result-title clear">VICTORY CLEAR!</h2>
+        <p class="result-desc" id="gameclear-desc">
+          축하합니다! 완벽한 데이터 분석으로 모든 슛을 방어하고<br>
+          FC 막아라를 우승으로 이끌었습니다!
+        </p>
+
+        <div class="stats-table">
+          <div class="stats-row">
+            <span>최종 점수</span>
+            <span class="value" id="clear-score">0점</span>
+          </div>
+          <div class="stats-row">
+            <span>무실점 보너스 (Clean Sheet)</span>
+            <span class="value" id="clear-cleansheet">미달성 (HP 감소 있음)</span>
+          </div>
+          <div class="stats-row">
+            <span>획득한 골드 (보너스 포함)</span>
+            <span class="value highlight" id="clear-gold">+0G</span>
+          </div>
+        </div>
+
+        <div class="result-buttons">
+          <button id="btn-restart-clear" class="btn btn-green">처음부터 플레이</button>
+          <button id="btn-shop-clear" class="btn">상점에서 쇼핑</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- How To Play Modal Overlay -->
+    <div id="modal-tutorial" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-title">🎮 게임 규칙 및 조작법</div>
+        <div class="modal-body">
+          <h3>📖 스토리</h3>
+          <p>
+            하위 리그 꼴찌 팀 'FC 막아라'의 새로운 전력분석가가 되었습니다!<br>
+            골대 뒤에서 상대의 슛 방향 습관(경향성) 데이터를 실시간으로 전송받아 인공지능 골키퍼 '넘버원'에게 전달해야 합니다.
+          </p>
+          <h3>🕹️ 기본 조작법</h3>
+          <ul>
+            <li><strong>방향 선택</strong>: 마우스/터치로 경기장의 좌 / 중 / 우 방향을 클릭하거나, 키보드의 <strong>[A] (좌), [S] (중), [D] (우)</strong> 혹은 방향키를 사용합니다.</li>
+            <li><strong>방어 방법</strong>: 키커가 달리며 공을 차기 전, 화면에 나타나는 <strong>녹색 링(타이밍 게이지)</strong>이 공 크기에 완벽히 겹쳤을 때 방어 방향을 입력하면 선방 성공률이 극대화됩니다!</li>
+          </ul>
+          <h3>🔥 난이도 설계 (3가지 스테이지)</h3>
+          <ul>
+            <li><strong>STAGE 1 (LV 1)</strong>: 느리고 정직한 슛. 분석 데이터 신뢰도 100%.</li>
+            <li><strong>STAGE 2 (LV 2)</strong>: 빨라지는 슛. 궤적이 휘거나 바운드되는 변화구 슛 발생. 분석가 정보에 거짓(페이크)이 섞이기 시작함.</li>
+            <li><strong>STAGE 3 (LV 3)</strong>: 거대한 드래곤 슛, 불꽃 마구 등 화려한 슈팅. 키커의 페이크 모션과 매우 빠른 슛 속도.</li>
+          </ul>
+          <h3>💰 상점 및 커스텀</h3>
+          <p>
+            슛 선방 시 100점 획득 및 골드 지급. 실점 없이 우승할 경우 **무실점(클린 시트) 특별 수당**을 지급합니다. 상점에서 다양한 코믹 병맛 골키퍼 스킨을 구매하고 장착해 보세요!
+          </p>
+        </div>
+        <button id="btn-close-tutorial" class="btn btn-pink" style="display: block; margin: 0 auto; width: 150px;">닫기</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ==========================================
+       1. SOUND SYNTHESIZER ENGINE (Web Audio API)
+       ========================================== */
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.bgmInterval = null;
+        this.bgmType = null; // 'lofi' or 'edm'
+        this.isMuted = true; // Start muted to satisfy browser autoplay guidelines
+        this.tempo = 120;
+
+        // Load the background music MP3 from the assets folder
+        this.fileBgm = new Audio('assets/audio/-1-scene-emotion-style_060426.mp3');
+        this.fileBgm.loop = true;
+        this.fileBgm.volume = 0.35;
+      }
+
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setMute(muted) {
+        this.isMuted = muted;
+        if (muted) {
+          this.stopBgm();
+        } else {
+          this.init();
+          if (this.bgmType === 'lofi') {
+            this.playLofiBgm();
+          } else if (this.bgmType === 'edm') {
+            this.playEdmBgm();
+          }
+        }
+      }
+
+      playLofiBgm() {
+        this.bgmType = 'lofi';
+        this.stopBgm();
+        if (this.isMuted) return;
+        this.init();
+
+        let step = 0;
+        const notes = [130.81, 146.83, 164.81, 196.00]; // C3, D3, E3, G3
+        const chords = [
+          [261.63, 329.63, 392.00, 493.88], // Cmaj7
+          [293.66, 349.23, 440.00, 587.33], // Dm7
+          [329.63, 392.00, 493.88, 659.25], // Em7
+          [392.00, 493.88, 587.33, 783.99]  // G7
+        ];
+
+        this.bgmInterval = setInterval(() => {
+          if (!this.ctx || this.ctx.state === 'suspended') return;
+          const t = this.ctx.currentTime;
+          
+          // Soft triangle bass notes
+          if (step % 4 === 0) {
+            const bass = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            bass.type = 'triangle';
+            bass.frequency.setValueAtTime(notes[Math.floor(step / 4) % notes.length] / 2, t);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+            bass.connect(gain);
+            gain.connect(this.ctx.destination);
+            bass.start(t);
+            bass.stop(t + 0.8);
+          }
+
+          // Arpeggiated soft chords
+          if (step % 8 === 2) {
+            const chord = chords[Math.floor(step / 8) % chords.length];
+            chord.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, t + idx * 0.06);
+              gain.gain.setValueAtTime(0.03, t + idx * 0.06);
+              gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 1.2);
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              osc.start(t + idx * 0.06);
+              osc.stop(t + idx * 0.06 + 1.3);
+            });
+          }
+
+          // Soft noise ticks for hats
+          if (step % 2 === 1) {
+            this.playNoiseHat(t, 0.01);
+          }
+
+          step = (step + 1) % 16;
+        }, 320); // Steady tempo
+      }
+
+      playEdmBgm() {
+        this.bgmType = 'edm';
+        this.stopBgm();
+        if (this.isMuted) return;
+        this.init();
+
+        // Play the MP3 file instead of synthesized synthwave
+        this.fileBgm.currentTime = 0;
+        this.fileBgm.play().catch(e => console.log("BGM file play blocked", e));
+      }
+
+      stopBgm() {
+        if (this.bgmInterval) {
+          clearInterval(this.bgmInterval);
+          this.bgmInterval = null;
+        }
+        if (this.fileBgm) {
+          this.fileBgm.pause();
+        }
+      }
+
+      playNoiseHat(time, vol) {
+        const bufferSize = this.ctx.sampleRate * 0.02; // short sound
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 6500;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(vol, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.015);
+
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        source.start(time);
+      }
+
+      playKickSynth(time, vol = 0.25) {
+        const t = time || this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, t);
+        osc.frequency.exponentialRampToValueAtTime(45, t + 0.09);
+
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.15);
+      }
+
+      playSaveSynth() {
+        if (this.isMuted) return;
+        this.init();
+        const t = this.ctx.currentTime;
+        // Ching! Triple crystal ringing chime
+        const freqs = [880, 1109, 1318, 1760];
+        freqs.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.04, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4 + (i * 0.05));
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.5 + (i * 0.05));
+        });
+      }
+
+      playGoalSynth() {
+        if (this.isMuted) return;
+        this.init();
+        const t = this.ctx.currentTime;
+
+        // Whistle sound
+        const whistle = this.ctx.createOscillator();
+        const whistleGain = this.ctx.createGain();
+        whistle.type = 'sine';
+        whistle.frequency.setValueAtTime(1300, t);
+        whistle.frequency.linearRampToValueAtTime(1600, t + 0.15);
+        whistle.frequency.linearRampToValueAtTime(1300, t + 0.3);
+        whistleGain.gain.setValueAtTime(0.08, t);
+        whistleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+        whistle.connect(whistleGain);
+        whistleGain.connect(this.ctx.destination);
+        whistle.start(t);
+        whistle.stop(t + 0.5);
+
+        // Crowd sigh (noise sweep)
+        const bufferSize = this.ctx.sampleRate * 1.0;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(700, t);
+        filter.frequency.exponentialRampToValueAtTime(180, t + 0.8);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(t);
+      }
+
+      speak(text) {
+        if (this.isMuted) return;
+        this.init();
+        
+        // Robot electronic voice synthesis using speech API or fallback synthetics
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel(); // kill existing speech queue
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'en-US';
+          utterance.pitch = 0.55;
+          utterance.rate = 1.05;
+          const voices = window.speechSynthesis.getVoices();
+          const robotVoice = voices.find(v => v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('robot') || v.name.toLowerCase().includes('microsoft david'));
+          if (robotVoice) utterance.voice = robotVoice;
+          window.speechSynthesis.speak(utterance);
+        } else {
+          // Synthetic robotic beep
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(120, t);
+          osc.frequency.setValueAtTime(180, t + 0.1);
+          gain.gain.setValueAtTime(0.05, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.3);
+        }
+      }
+    }
+
+    const audio = new AudioEngine();
+
+    /* ==========================================
+       2. GRAPHICS & RENDER ENGINE (Wobbly MS Paint Style)
+       ========================================== */
+    
+    // Draw lines with custom multi-segment wobble for hand-drawn MS Paint aesthetic
+    function drawWobblyLine(ctx, x1, y1, x2, y2, wobble = 3.5) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      const steps = 4;
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const targetX = x1 + (x2 - x1) * t;
+        const targetY = y1 + (y2 - y1) * t;
+        const wx = (i === steps) ? 0 : (Math.random() - 0.5) * wobble;
+        const wy = (i === steps) ? 0 : (Math.random() - 0.5) * wobble;
+        ctx.lineTo(targetX + wx, targetY + wy);
+      }
+      ctx.stroke();
+    }
+
+    // Draw circles with wobbly outlines
+    function drawWobblyCircle(ctx, cx, cy, r, wobble = 2.5) {
+      ctx.beginPath();
+      const points = 10;
+      for (let i = 0; i <= points; i++) {
+        const angle = (i * Math.PI * 2) / points;
+        const w = (Math.random() - 0.5) * wobble;
+        const x = cx + Math.cos(angle) * (r + w);
+        const y = cy + Math.sin(angle) * (r + w);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // Render Goalkeeper programmatically depending on the unlocked skin and pose
+    function drawGoalkeeper(ctx, x, y, state, direction, skin, scale = 1.0) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      // Core styles based on skins
+      let strokeColor = '#ffffff';
+      let fillStyle = '#ffffff';
+      let shadowGlow = null;
+      let bodyHeight = 50;
+      let bodyWidth = 30;
+      let muscleSkin = false;
+      let catSkin = false;
+
+      if (skin === 'gold') {
+        strokeColor = '#ffcc00';
+        fillStyle = '#ffe680';
+        ctx.shadowColor = '#ffcc00';
+        ctx.shadowBlur = 12;
+      } else if (skin === 'neon') {
+        strokeColor = '#00f0ff';
+        fillStyle = 'rgba(0, 240, 255, 0.2)';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 15;
+      } else if (skin === 'swole') {
+        strokeColor = '#e2e8f0';
+        fillStyle = '#4a5568';
+        muscleSkin = true;
+      } else if (skin === 'cat') {
+        strokeColor = '#ffb3d9';
+        fillStyle = '#ffe6f2';
+        catSkin = true;
+      }
+
+      ctx.strokeStyle = strokeColor;
+      ctx.fillStyle = fillStyle;
+      ctx.lineWidth = 3;
+
+      // Adjust positioning based on state
+      let headY = -50;
+      let bodyY = -35;
+      let leftHandX = -35, leftHandY = -25;
+      let rightHandX = 35, rightHandY = -25;
+      let leftFootX = -15, leftFootY = 25;
+      let rightFootX = 15, rightFootY = 25;
+      let headWobble = 2.5;
+
+      // Comical dive distortion (bone-breaking joint stretches!)
+      if (state === 'diving') {
+        headWobble = 5;
+        if (direction === 'left') {
+          headY = -30;
+          leftHandX = -65; leftHandY = -60; // Stretch arm to the maximum
+          rightHandX = 15; rightHandY = 20; // Glitchy back arm
+          leftFootX = -45; leftFootY = 30;
+          rightFootX = 5; rightFootY = -15;
+        } else if (direction === 'right') {
+          headY = -30;
+          leftHandX = -15; leftHandY = 20;
+          rightHandX = 65; rightHandY = -60;
+          leftFootX = -5; leftFootY = -15;
+          rightFootX = 45; rightFootY = 30;
+        } else {
+          // Center jump jump
+          headY = -70;
+          leftHandX = -40; leftHandY = -90;
+          rightHandX = 40; rightHandY = -90;
+          leftFootX = -20; leftFootY = 40;
+          rightFootX = 20; rightFootY = 40;
+        }
+      }
+
+      // Draw Cat Tail & Ears
+      if (catSkin) {
+        // Tail
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.quadraticCurveTo(30, -20, 25, -45);
+        ctx.stroke();
+        
+        // Ears
+        ctx.fillStyle = fillStyle;
+        ctx.beginPath();
+        // Left Ear
+        ctx.moveTo(-15, headY - 10);
+        ctx.lineTo(-25, headY - 30);
+        ctx.lineTo(-5, headY - 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Right Ear
+        ctx.beginPath();
+        ctx.moveTo(15, headY - 10);
+        ctx.lineTo(25, headY - 30);
+        ctx.lineTo(5, headY - 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Draw Head
+      drawWobblyCircle(ctx, 0, headY, 18, headWobble);
+
+      // Googly eyes (uneven sizes for B-grade meme feel)
+      ctx.fillStyle = '#ffffff';
+      drawWobblyCircle(ctx, -6, headY - 4, 4, 1);
+      drawWobblyCircle(ctx, 6, headY - 3, 6, 1);
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(-6, headY - 4, 1.5, 0, Math.PI * 2);
+      ctx.arc(6, headY - 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Goofy mouth
+      ctx.fillStyle = fillStyle;
+      ctx.beginPath();
+      if (state === 'diving') {
+        // O-shaped panic mouth
+        ctx.arc(0, headY + 7, 5, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // Crooked silly smile
+        ctx.moveTo(-8, headY + 5);
+        ctx.quadraticCurveTo(0, headY + 11, 8, headY + 6);
+        ctx.stroke();
+      }
+
+      // Draw Body
+      if (muscleSkin) {
+        // Swole body drawing
+        ctx.beginPath();
+        ctx.moveTo(-35, headY + 12);
+        ctx.lineTo(35, headY + 12);
+        ctx.lineTo(25, headY + 60);
+        ctx.lineTo(-25, headY + 60);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Giant shoulder balls
+        drawWobblyCircle(ctx, -35, headY + 18, 14, 2);
+        drawWobblyCircle(ctx, 35, headY + 18, 14, 2);
+      } else {
+        // Regular stick body
+        drawWobblyLine(ctx, 0, headY + 18, 0, 10, 2);
+      }
+
+      // Draw Limbs
+      // Left Arm
+      drawWobblyLine(ctx, muscleSkin ? -35 : 0, headY + 22, leftHandX, leftHandY, 3);
+      // Right Arm
+      drawWobblyLine(ctx, muscleSkin ? 35 : 0, headY + 22, rightHandX, rightHandY, 3);
+
+      if (catSkin) {
+        // Draw paws
+        drawWobblyCircle(ctx, leftHandX, leftHandY, 5, 1);
+        drawWobblyCircle(ctx, rightHandX, rightHandY, 5, 1);
+      }
+
+      // Left Leg
+      drawWobblyLine(ctx, 0, 10, leftFootX, leftFootY, 3);
+      // Right Leg
+      drawWobblyLine(ctx, 0, 10, rightFootX, rightFootY, 3);
+
+      // Cyber Neon Visor overlay
+      if (skin === 'neon') {
+        ctx.strokeStyle = '#ff0055';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-15, headY - 3);
+        ctx.lineTo(15, headY - 1);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.restore();
+    }
+
+    // Render Kicker (NPC)
+    function drawKicker(ctx, x, y, frame, type) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3.5;
+
+      // Draw run-up frame oscillations
+      let runOffset = Math.sin(frame * 0.2) * 6;
+      let angle = Math.cos(frame * 0.15) * 0.1;
+
+      ctx.rotate(angle);
+
+      // Kicker Head
+      drawWobblyCircle(ctx, 0, -55 + runOffset, 16, 2.5);
+      
+      // Face
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      // Eyes
+      ctx.arc(-5, -57 + runOffset, 2, 0, Math.PI*2);
+      ctx.arc(5, -57 + runOffset, 2, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Angry mouth/Cocky grin
+      ctx.beginPath();
+      ctx.moveTo(-6, -46 + runOffset);
+      ctx.quadraticCurveTo(0, -42 + runOffset, 6, -48 + runOffset);
+      ctx.stroke();
+
+      // Kicker Body
+      if (type === 'boss') {
+        // Red outline, flame eyes
+        ctx.strokeStyle = '#ff0055';
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 10;
+        
+        // Draw boss crown
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.moveTo(-15, -72 + runOffset);
+        ctx.lineTo(-7, -85 + runOffset);
+        ctx.lineTo(0, -75 + runOffset);
+        ctx.lineTo(7, -85 + runOffset);
+        ctx.lineTo(15, -72 + runOffset);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Torso
+      drawWobblyLine(ctx, 0, -39 + runOffset, 0, 5 + runOffset, 2);
+
+      // Arms swing
+      drawWobblyLine(ctx, 0, -35 + runOffset, -22, -15 + runOffset + Math.sin(frame * 0.2) * 12, 3);
+      drawWobblyLine(ctx, 0, -35 + runOffset, 22, -15 + runOffset - Math.sin(frame * 0.2) * 12, 3);
+
+      // Running legs
+      drawWobblyLine(ctx, 0, 5 + runOffset, -15, 30 + Math.sin(frame * 0.2) * 15, 3);
+      drawWobblyLine(ctx, 0, 5 + runOffset, 15, 30 - Math.sin(frame * 0.2) * 15, 3);
+
+      ctx.restore();
+    }
+
+    // Render Preview skins for the shop
+    function renderShopPreviews() {
+      const skins = ['default', 'gold', 'neon', 'swole', 'cat'];
+      skins.forEach(skin => {
+        const canv = document.getElementById(`preview-canvas-${skin}`);
+        if (!canv) return;
+        const c = canv.getContext('2d');
+        c.clearRect(0, 0, canv.width, canv.height);
+        
+        // Render simple preview of goalie
+        drawGoalkeeper(c, canv.width / 2, canv.height / 2 + 10, 'idle', 'none', skin, 1.05);
+      });
+    }
+
+    // Title preview goofy goalie floating animation
+    const titleCanvas = document.getElementById('title-preview-canvas');
+    const titleCtx = titleCanvas.getContext('2d');
+    let titleFrame = 0;
+    function animateTitle() {
+      titleCtx.clearRect(0, 0, titleCanvas.width, titleCanvas.height);
+      const floatY = Math.sin(titleFrame * 0.05) * 8;
+      const angle = Math.sin(titleFrame * 0.03) * 0.08;
+      
+      titleCtx.save();
+      titleCtx.translate(titleCanvas.width/2, titleCanvas.height/2 + floatY + 5);
+      titleCtx.rotate(angle);
+      
+      // Draw a cute preview keeper saving
+      drawGoalkeeper(titleCtx, 0, 0, 'diving', 'right', 'default', 0.9);
+      titleCtx.restore();
+
+      titleFrame++;
+      requestAnimationFrame(animateTitle);
+    }
+    animateTitle();
+
+    /* ==========================================
+       3. SHOP & STATE PERSISTENCE LOGIC
+       ========================================== */
+    const SKINS_DATA = [
+      { id: 'default', name: '기본 넘버원', desc: '아무 기능도 없는 조금 모자란 골키퍼.', price: 0 },
+      { id: 'gold', name: '골든 넘버원', desc: '무실점 우승 챔피언만 가질 수 있다는 황금 슈트.', price: 200 },
+      { id: 'neon', name: '사이버 네온', desc: 'RGB 전자기장 장막을 형성하는 해커 스타일.', price: 400 },
+      { id: 'swole', name: '마동석 골키퍼', desc: '팔이 너무 굵어 머리가 작아 보이는 근육 덩어리.', price: 600 },
+      { id: 'cat', name: '냥코 골키퍼', desc: '민첩한 냥발 펀치로 슛을 쳐내는 마스코트 고양이.', price: 800 }
+    ];
+
+    let playerStats = {
+      score: 0,
+      gold: 50, // Default starting gold
+      unlockedSkins: ['default'],
+      currentSkin: 'default'
+    };
+
+    // Load stats from LocalStorage
+    function loadStats() {
+      const saved = localStorage.getItem('block_it_stats');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          playerStats = { ...playerStats, ...parsed };
+        } catch (e) {
+          console.error("Error loading stats", e);
+        }
+      }
+      updateUIStats();
+    }
+
+    // Save stats to LocalStorage
+    function saveStats() {
+      localStorage.setItem('block_it_stats', JSON.stringify(playerStats));
+      updateUIStats();
+    }
+
+    function updateUIStats() {
+      document.getElementById('header-gold').innerText = playerStats.gold;
+      document.getElementById('header-gold').parentElement.style.animation = 'none';
+      void document.getElementById('header-gold').offsetHeight; // Trigger reflow
+    }
+
+    // Build the shop grid elements dynamically
+    function buildShopGrid() {
+      const container = document.getElementById('shop-items-container');
+      container.innerHTML = '';
+      
+      SKINS_DATA.forEach(skin => {
+        const isUnlocked = playerStats.unlockedSkins.includes(skin.id);
+        const isEquipped = playerStats.currentSkin === skin.id;
+        
+        const card = document.createElement('div');
+        card.className = `shop-card ${isEquipped ? 'equipped' : ''}`;
+        
+        let buttonHtml = '';
+        if (isEquipped) {
+          buttonHtml = `<button class="btn btn-green" disabled>장착됨</button>`;
+        } else if (isUnlocked) {
+          buttonHtml = `<button class="btn btn-pink" onclick="equipSkin('${skin.id}')">장착하기</button>`;
+        } else {
+          buttonHtml = `<button class="btn" onclick="buySkin('${skin.id}', ${skin.price})">구매 (${skin.price}G)</button>`;
+        }
+
+        card.innerHTML = `
+          <canvas class="skin-preview-canvas" id="preview-canvas-${skin.id}" width="120" height="120"></canvas>
+          <div class="skin-name">${skin.name}</div>
+          <div class="skin-desc">${skin.desc}</div>
+          <div class="skin-price">${isUnlocked ? '보유함' : `💰 ${skin.price} Gold`}</div>
+          ${buttonHtml}
+        `;
+        container.appendChild(card);
+      });
+      renderShopPreviews();
+    }
+
+    window.buySkin = function(id, price) {
+      if (playerStats.gold >= price) {
+        playerStats.gold -= price;
+        playerStats.unlockedSkins.push(id);
+        playerStats.currentSkin = id;
+        saveStats();
+        buildShopGrid();
+        audio.playSaveSynth();
+        audio.speak("Gear unlocked!");
+      } else {
+        audio.speak("Insufficient gold.");
+        // Shake gold badge in red
+        const badge = document.querySelector('.stat-badge.gold');
+        badge.style.animation = 'screenShake 0.3s';
+        setTimeout(() => badge.style.animation = 'none', 300);
+      }
+    };
+
+    window.equipSkin = function(id) {
+      if (playerStats.unlockedSkins.includes(id)) {
+        playerStats.currentSkin = id;
+        saveStats();
+        buildShopGrid();
+        audio.playSaveSynth();
+      }
+    };
+
+    /* ==========================================
+       4. GAME STATE & KICKERS LEVEL DATA
+       ========================================== */
+    const KICKERS_DATABASE = [
+      // --- STAGE 1 (LV 1: 100% Reliability, Straight Slow Shots) ---
+      {
+        name: "좌측 맹공러",
+        desc: "초심자 코스. 좌측 슛팅 확률이 80%에 달하는 극단적인 키커.",
+        prob: { left: 80, center: 10, right: 10 },
+        speech: "난 무조건 왼쪽으로 강하게 찬다! 날 막을 수 있을까?",
+        accuracy: "신뢰도 100% (정직함)",
+        type: "normal"
+      },
+      {
+        name: "중앙 고집불통",
+        desc: "골키퍼의 빈틈을 보지 않고 정중앙만 노리는 단순무식형.",
+        prob: { left: 10, center: 80, right: 10 },
+        speech: "정공법으로 묵직하게 골대 정가운데로 뚫어버려야지!",
+        accuracy: "신뢰도 100% (정직함)",
+        type: "normal"
+      },
+      {
+        name: "우측 저격수",
+        desc: "골대 오른쪽 하단 구석을 칼같이 노리는 슈팅 머신.",
+        prob: { left: 10, center: 10, right: 80 },
+        speech: "오른쪽 구석은 키가 작은 넘버원 골키퍼가 닿기 어렵겠지?",
+        accuracy: "신뢰도 100% (정직함)",
+        type: "normal"
+      },
+      // --- STAGE 2 (LV 2: 70% Reliability, Curve & Bounce Shots) ---
+      {
+        name: "심리전의 마술사",
+        desc: "좌/우 대칭 확률. 킥하기 전에 방향을 바꾸는 변칙 슛터.",
+        prob: { left: 45, center: 10, right: 45 },
+        speech: "정보창에는 좌우 균등하지만 과연 진짜일까? 훼이크다!",
+        accuracy: "신뢰도 70% (가끔 바꿈)",
+        type: "normal"
+      },
+      {
+        name: "양대윤 디자이너의 폭탄",
+        desc: "그림판 브러시로 회전 궤적을 뿜어내는 가속 회전 슈터.",
+        prob: { left: 60, center: 20, right: 20 },
+        speech: "공이 급격하게 회전하며 휠 것이다! 분석을 믿을테냐?",
+        accuracy: "신뢰도 70% (궤적 커브)",
+        type: "normal"
+      },
+      {
+        name: "바운드 개구리",
+        desc: "바닥에 튕겨 궤적이 통통 튀는 불규칙 바운더.",
+        prob: { left: 20, center: 60, right: 20 },
+        speech: "통통 튀며 날아가는 슛은 잡기가 여간 성가신 게 아닐걸!",
+        accuracy: "신뢰도 70% (바운드)",
+        type: "normal"
+      },
+      {
+        name: "거짓말쟁이 사기꾼",
+        desc: "정보 분석가 데이터를 고의로 교란시키는 역정보 스파이.",
+        prob: { left: 15, center: 15, right: 70 }, 
+        speech: "내가 제일 자신있는 방향은 오른쪽이야. (실제로는 왼쪽 선호)",
+        accuracy: "신뢰도 50% (정보 반대 가능성)",
+        type: "normal"
+      },
+      // --- STAGE 3 (LV 3: Bosses, Extremely Fast, Fire/Dragon/Lightning Shots) ---
+      {
+        name: "불꽃 마구 키커",
+        desc: "불꽃 궤적을 생성하며 광속으로 골대로 직격하는 거인.",
+        prob: { left: 70, center: 10, right: 20 },
+        speech: "그림판 파이어 블라스트! 반응 속도 한계에 도전해라!",
+        accuracy: "신뢰도 60% (매우 빠름)",
+        type: "boss"
+      },
+      {
+        name: "드래곤 킥 마스터",
+        desc: "용(Dragon)을 감싸고 구불구불 시야를 가리며 몰아치는 대마구.",
+        prob: { left: 15, center: 70, right: 15 },
+        speech: "초록 용이 나를 승리로 이끌 것이다! 보스의 위엄을 봐라!",
+        accuracy: "신뢰도 60% (드래곤 시야 가림)",
+        type: "boss"
+      },
+      {
+        name: "뇌신 (최종 보스)",
+        desc: "경기장에 낙뢰를 떨구고, 중간에 모션을 한 번 멈추는 최종 병기.",
+        prob: { left: 33, center: 34, right: 33 },
+        speech: "승부차기 10번째 슛. 뇌전의 심판을 받아라. 막을테면 막아봐!",
+        accuracy: "신뢰도 33% (예측 불가)",
+        type: "boss"
+      }
+    ];
+
+    let gameState = {
+      score: 0,
+      goldEarned: 0,
+      hp: 3,
+      shotIndex: 0, // 0 to 9 (10 shots total)
+      currentStage: 1, // 1, 2, or 3
+      cleanSheet: true,
+      
+      // Running state of current penalty
+      currentKicker: null,
+      lockedDirection: null, // 'left', 'center', 'right'
+      actualDirection: null,
+      timing: 'late', // 'early', 'perfect', 'late'
+      timingScore: 0, // distance to sweet spot
+      isInteractive: false,
+      isKickStarted: false,
+      ballTarget: { x: 400, y: 160 },
+      isTutorialActive: true
+    };
+
+    /* ==========================================
+       5. GAME LOOP & ANIMATION CANVAS
+       ========================================== */
+    const playCanvas = document.getElementById('game-canvas');
+    const playCtx = playCanvas.getContext('2d');
+    
+    let playFrame = 0;
+    let kickerRunTime = 0;
+    let ballFlightTime = 0;
+    let playAnimationId = null;
+
+    // Ball/Goal physics coordinates
+    const POST_LEFT = 170;
+    const POST_RIGHT = 610;
+    const POST_TOP = 150;
+    const PENALTY_SPOT = { x: 390, y: 390 };
+    
+    let ballPos = { x: 390, y: 390 };
+    let ballRadius = 14;
+    let ballScale = 1.0;
+    let ballTarget = { x: 390, y: 150 };
+    
+    // Goalkeeper positioning
+    let goaliePos = { x: 390, y: 220 };
+    let targetGoaliePos = { x: 390, y: 220 };
+    let goalieState = 'idle'; // 'idle', 'diving'
+    let goalieDir = 'none';
+    let isSavedResult = false;
+
+    // Particle system
+    let particles = [];
+    let saveSplashText = "";
+    let saveSplashTimer = 0;
+    let saveSplashPos = { x: 400, y: 150 };
+
+    let screenShakeAmt = 0;
+
+    // Reset loop variables for a single penalty shot
+    function resetPenaltyState() {
+      const kicker = KICKERS_DATABASE[gameState.shotIndex];
+      gameState.currentKicker = kicker;
+      
+      // Determine Kicker actual shot target direction based on probabilities
+      const rand = Math.random() * 100;
+      let targetDir = 'left';
+      if (rand <= kicker.prob.left) {
+        targetDir = 'left';
+      } else if (rand <= kicker.prob.left + kicker.prob.center) {
+        targetDir = 'center';
+      } else {
+        targetDir = 'right';
+      }
+      
+      // Modifiers for LV 2 Liar Kicker (specifically reverses the probability habit sometimes)
+      if (kicker.name.includes("거짓말쟁이") && Math.random() > 0.5) {
+        // Reverse left/right targets
+        targetDir = targetDir === 'right' ? 'left' : 'right';
+      }
+
+      gameState.actualDirection = targetDir;
+      gameState.lockedDirection = null;
+      gameState.timing = 'late';
+      gameState.isKickStarted = false;
+      gameState.isInteractive = true;
+      
+      // Coordinates target mappings
+      if (targetDir === 'left') {
+        ballTarget = { x: 230 + (Math.random() - 0.5) * 30, y: 150 + Math.random() * 30 };
+      } else if (targetDir === 'center') {
+        ballTarget = { x: 390 + (Math.random() - 0.5) * 30, y: 150 + Math.random() * 30 };
+      } else {
+        ballTarget = { x: 550 + (Math.random() - 0.5) * 30, y: 150 + Math.random() * 30 };
+      }
+
+      ballPos = { x: 390, y: 390 };
+      ballScale = 1.0;
+      
+      goaliePos = { x: 390, y: 220 };
+      targetGoaliePos = { x: 390, y: 220 };
+      goalieState = 'idle';
+      goalieDir = 'none';
+      isSavedResult = false;
+      
+      kickerRunTime = 0;
+      ballFlightTime = 0;
+      particles = [];
+      saveSplashText = "";
+      saveSplashTimer = 0;
+      screenShakeAmt = 0;
+
+      // Update HUD
+      document.getElementById('hud-stage').innerText = `STAGE ${gameState.currentStage}`;
+      document.getElementById('hud-shot').innerText = `SHOT ${gameState.shotIndex + 1}/10`;
+      document.getElementById('hud-score').innerText = `SCORE: ${gameState.score}`;
+      
+      // Update HP hearts display
+      let hearts = "";
+      for (let i = 0; i < 3; i++) {
+        hearts += i < gameState.hp ? "❤️" : "🖤";
+      }
+      document.getElementById('hud-hp').innerText = hearts;
+
+      // Remove button lockouts
+      document.querySelectorAll('.zone-btn').forEach(btn => btn.classList.remove('active'));
+    }
+
+    function determineShotResult(lockedDir, timing) {
+      if (lockedDir === null || timing === 'late') return false;
+      const actualDir = gameState.actualDirection;
+      
+      if (lockedDir === actualDir) {
+        if (timing === 'perfect') return true;
+        if (timing === 'early') {
+          // Adjust save probabilities by stage to be very rewarding if they guess right
+          let saveChance = 0.5;
+          if (gameState.currentStage === 1) saveChance = 1.0;       // Tutorial is 100% lenient
+          else if (gameState.currentStage === 2) saveChance = 0.85;  // Stage 2 is 85% lenient
+          else if (gameState.currentStage === 3) saveChance = 0.70;  // Boss stage is 70% lenient
+          return Math.random() < saveChance;
+        }
+      }
+      return false;
+    }
+
+    function adjustBallTarget(isSaved, lockedDir) {
+      const actualDir = gameState.actualDirection;
+      if (isSaved) {
+        // Fly directly to goalie hands
+        if (lockedDir === 'left') {
+          ballTarget = { x: 235, y: 195 };
+        } else if (lockedDir === 'right') {
+          ballTarget = { x: 545, y: 195 };
+        } else {
+          ballTarget = { x: 390, y: 165 };
+        }
+      } else {
+        // Conceded goal
+        if (lockedDir === actualDir) {
+          // Guessed right but missed (early or random fail): make ball fly to extreme top corners
+          if (lockedDir === 'left') {
+            ballTarget = { x: 175, y: 135 }; // extreme top-left corner
+          } else if (lockedDir === 'right') {
+            ballTarget = { x: 605, y: 135 }; // extreme top-right corner
+          } else {
+            // Stayed center: fly to top corners
+            ballTarget = { x: Math.random() > 0.5 ? 260 : 520, y: 135 };
+          }
+        } else {
+          // Guessed wrong: keep default targets generated in resetPenaltyState
+          if (actualDir === 'left') {
+            ballTarget = { x: 230 + (Math.random() - 0.5) * 20, y: 150 + Math.random() * 20 };
+          } else if (actualDir === 'center') {
+            ballTarget = { x: 390 + (Math.random() - 0.5) * 20, y: 150 + Math.random() * 20 };
+          } else {
+            ballTarget = { x: 550 + (Math.random() - 0.5) * 20, y: 150 + Math.random() * 20 };
+          }
+        }
+      }
+    }
+
+    // Interactive direction lock
+    function selectDefenseDirection(dir) {
+      if (!gameState.isInteractive) return;
+      
+      gameState.lockedDirection = dir;
+      goalieDir = dir;
+      goalieState = 'diving';
+
+      // Highlight selected overlay button
+      document.querySelectorAll('.zone-btn').forEach(btn => btn.classList.remove('active'));
+      const mapping = { 'left': 'btn-zone-left', 'center': 'btn-zone-center', 'right': 'btn-zone-right' };
+      if (document.getElementById(mapping[dir])) {
+        document.getElementById(mapping[dir]).classList.add('active');
+      }
+
+      // Check Timing window
+      if (!gameState.isKickStarted) {
+        gameState.timing = 'early';
+      } else {
+        const diff = 1200 - kickerRunTime;
+        if (diff >= 0 && diff <= 300) {
+          gameState.timing = 'perfect';
+        } else if (diff > 300) {
+          gameState.timing = 'early';
+        } else {
+          gameState.timing = 'late';
+        }
+      }
+
+      // Evaluate result and adjust ball flight trajectory
+      isSavedResult = determineShotResult(dir, gameState.timing);
+      adjustBallTarget(isSavedResult, dir);
+
+      // Animate Goalkeeper dive position target
+      if (dir === 'left') {
+        targetGoaliePos = { x: 230, y: 200 };
+      } else if (dir === 'right') {
+        targetGoaliePos = { x: 550, y: 200 };
+      } else {
+        targetGoaliePos = { x: 390, y: 155 };
+      }
+
+      // Play soft whoosh chime sound on lock
+      audio.playKickSynth(audio.ctx.currentTime, 0.05);
+
+      // Prevent further locks in this penalty kick
+      gameState.isInteractive = false;
+    }
+
+    // Register UI & Key listeners
+    document.getElementById('btn-zone-left').addEventListener('click', () => selectDefenseDirection('left'));
+    document.getElementById('btn-zone-center').addEventListener('click', () => selectDefenseDirection('center'));
+    document.getElementById('btn-zone-right').addEventListener('click', () => selectDefenseDirection('right'));
+
+    // Keyboard handlers
+    window.addEventListener('keydown', (e) => {
+      if (document.getElementById('screen-play').classList.contains('active')) {
+        if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
+          selectDefenseDirection('left');
+        } else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
+          selectDefenseDirection('center');
+        } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+          selectDefenseDirection('right');
+        }
+      }
+    });
+
+    // Custom particles
+    function spawnParticles(x, y, count, color) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 8;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          color: color,
+          alpha: 1.0,
+          size: 3 + Math.random() * 5,
+          decay: 0.02 + Math.random() * 0.03
+        });
+      }
+    }
+
+    // Main Canvas Render loop
+    function updatePlayFrame() {
+      playFrame++;
+
+      // Smoothly interpolate goalkeeper position
+      goaliePos.x += (targetGoaliePos.x - goaliePos.x) * 0.16;
+      goaliePos.y += (targetGoaliePos.y - goaliePos.y) * 0.16;
+
+      // Handle screen shake decay
+      if (screenShakeAmt > 0) {
+        screenShakeAmt *= 0.9;
+        if (screenShakeAmt < 0.5) screenShakeAmt = 0;
+      }
+      const shakeX = (Math.random() - 0.5) * screenShakeAmt;
+      const shakeY = (Math.random() - 0.5) * screenShakeAmt;
+
+      // Clear Canvas
+      playCtx.clearRect(0, 0, playCanvas.width, playCanvas.height);
+      
+      playCtx.save();
+      playCtx.translate(shakeX, shakeY);
+
+      // 1. Draw Field Background (Cyber Tron Neon Design)
+      playCtx.fillStyle = '#060913';
+      playCtx.fillRect(0, 0, playCanvas.width, playCanvas.height);
+
+      // Cyber grass grid lines
+      playCtx.strokeStyle = 'rgba(0, 255, 102, 0.08)';
+      playCtx.lineWidth = 1;
+      for (let i = 0; i < playCanvas.width; i += 40) {
+        playCtx.beginPath();
+        playCtx.moveTo(i, 0);
+        playCtx.lineTo(i, playCanvas.height);
+        playCtx.stroke();
+      }
+      for (let j = 0; j < playCanvas.height; j += 30) {
+        playCtx.beginPath();
+        playCtx.moveTo(0, j);
+        playCtx.lineTo(playCanvas.width, j);
+        playCtx.stroke();
+      }
+
+      // 2. Draw Stadium Goal Post (Neon wobbly drawing)
+      playCtx.strokeStyle = varColor('--neon-blue');
+      playCtx.lineWidth = 6;
+      playCtx.shadowColor = varColor('--neon-blue');
+      playCtx.shadowBlur = 12;
+
+      // Draw goal outline: posts & crossbar
+      drawWobblyLine(playCtx, POST_LEFT, POST_TOP, POST_LEFT, 290, 4);  // Left post
+      drawWobblyLine(playCtx, POST_RIGHT, POST_TOP, POST_RIGHT, 290, 4); // Right post
+      drawWobblyLine(playCtx, POST_LEFT, POST_TOP, POST_RIGHT, POST_TOP, 5); // Crossbar
+
+      // Goal nets (poorly drawn crooked mesh lines)
+      playCtx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+      playCtx.lineWidth = 1.5;
+      playCtx.shadowBlur = 0;
+      const meshSize = 25;
+      for (let nx = POST_LEFT; nx <= POST_RIGHT; nx += meshSize) {
+        // Vertical lines with wobble
+        drawWobblyLine(playCtx, nx, POST_TOP, nx, 290, 2);
+      }
+      for (let ny = POST_TOP; ny <= 290; ny += meshSize) {
+        // Horizontal lines with wobble
+        drawWobblyLine(playCtx, POST_LEFT, ny, POST_RIGHT, ny, 2);
+      }
+
+      // Ground Penalty Box Neon green line
+      playCtx.strokeStyle = varColor('--neon-green');
+      playCtx.lineWidth = 3.5;
+      playCtx.shadowColor = varColor('--neon-green');
+      playCtx.shadowBlur = 8;
+      // Slanted penalty box lines (3D depth simulation)
+      drawWobblyLine(playCtx, 60, 450, 720, 450, 4);
+      drawWobblyLine(playCtx, 60, 450, POST_LEFT - 30, 290, 3);
+      drawWobblyLine(playCtx, 720, 450, POST_RIGHT + 30, 290, 3);
+      
+      // Penalty Spot
+      drawWobblyCircle(playCtx, 390, 390, 5, 1);
+
+      // Reset shadows for figures
+      playCtx.shadowBlur = 0;
+
+      // 3. Draw Goalkeeper
+      drawGoalkeeper(playCtx, goaliePos.x, goaliePos.y, goalieState, goalieDir, playerStats.currentSkin, 1.0);
+
+      // 4. Draw Kicker
+      if (gameState.shotIndex < 10) {
+        const kickerX = 390 + (gameState.isKickStarted ? 0 : Math.sin(playFrame * 0.05) * 4);
+        const kickerY = 380;
+        
+        // Hide kicker once he kicked and ran out of screen
+        if (kickerRunTime < 1350) {
+          drawKicker(playCtx, kickerX, kickerY, playFrame, gameState.currentKicker.type);
+        }
+      }
+
+      // 5. Shot Timing Circle (Visual Aid Ring shrinking)
+      if (gameState.isKickStarted && kickerRunTime <= 1200 && gameState.lockedDirection === null) {
+        // Schrink ring towards penalty spot
+        const totalDuration = 1200;
+        const progress = kickerRunTime / totalDuration;
+        const initialRadius = 100;
+        const targetRadius = 14;
+        const currentRingRadius = initialRadius - (initialRadius - targetRadius) * progress;
+
+        // Sweet timing window color
+        const diff = 1200 - kickerRunTime;
+        if (diff <= 300 && diff >= 0) {
+          playCtx.strokeStyle = varColor('--neon-green');
+          playCtx.shadowColor = varColor('--neon-green');
+          playCtx.shadowBlur = 10;
+        } else {
+          playCtx.strokeStyle = varColor('--neon-pink');
+          playCtx.shadowColor = varColor('--neon-pink');
+          playCtx.shadowBlur = 4;
+        }
+        playCtx.lineWidth = 3;
+        playCtx.beginPath();
+        playCtx.arc(390, 390, currentRingRadius, 0, Math.PI * 2);
+        playCtx.stroke();
+        playCtx.shadowBlur = 0;
+      }
+
+      // 6. Draw Flying Ball & Trail Effects
+      if (kickerRunTime >= 1200) {
+        const flyDuration = getBallFlightDuration();
+        const t = Math.min(ballFlightTime / flyDuration, 1.0);
+        
+        // Linear Interpolate coordinates to target
+        ballPos.x = PENALTY_SPOT.x + (ballTarget.x - PENALTY_SPOT.x) * t;
+        
+        // Simulate curving paths or bounces for LV 2 Spin/Bounce kicks
+        if (gameState.currentKicker.name.includes("폭탄")) {
+          // Curving spin path
+          const curveHeight = Math.sin(t * Math.PI) * 75;
+          ballPos.x += (gameState.actualDirection === 'left' ? -curveHeight : curveHeight);
+        } else if (gameState.currentKicker.name.includes("개구리")) {
+          // Bounce track
+          const bounceHeight = Math.abs(Math.sin(t * Math.PI * 2.5)) * 40 * (1 - t);
+          ballPos.y = PENALTY_SPOT.y - (PENALTY_SPOT.y - ballTarget.y) * t - bounceHeight;
+        } else {
+          // Standard flight height curve
+          ballPos.y = PENALTY_SPOT.y - (PENALTY_SPOT.y - ballTarget.y) * t;
+        }
+
+        if (!gameState.currentKicker.name.includes("개구리")) {
+          // Standard height interpolation
+          ballPos.y = PENALTY_SPOT.y - (PENALTY_SPOT.y - ballTarget.y) * t;
+        }
+
+        // Scale ball size down to simulate 3D flight depth
+        ballScale = 1.0 - (0.45 * t);
+        const radius = ballRadius * ballScale;
+
+        // Particle Trails based on Boss Magic
+        if (gameState.currentKicker.type === 'boss') {
+          if (gameState.currentKicker.name.includes("불꽃")) {
+            // Blazing Flame trail particles
+            spawnParticles(ballPos.x, ballPos.y, 2, '#ff5500');
+            spawnParticles(ballPos.x, ballPos.y, 1, '#ffcc00');
+          } else if (gameState.currentKicker.name.includes("드래곤")) {
+            // Dragon green toxic particles
+            spawnParticles(ballPos.x, ballPos.y, 2, '#00ff66');
+            // Draw a wobbly dragon face over ball
+            playCtx.strokeStyle = '#00ff66';
+            playCtx.fillStyle = '#0f3a1d';
+            playCtx.lineWidth = 2;
+            playCtx.beginPath();
+            playCtx.arc(ballPos.x, ballPos.y - 10, radius * 1.5, 0, Math.PI * 2);
+            playCtx.fill();
+            playCtx.stroke();
+            // Goofy dragon horns
+            drawWobblyLine(playCtx, ballPos.x - 5, ballPos.y - 18, ballPos.x - 12, ballPos.y - 25, 2);
+            drawWobblyLine(playCtx, ballPos.x + 5, ballPos.y - 18, ballPos.x + 12, ballPos.y - 25, 2);
+          } else if (gameState.currentKicker.name.includes("뇌신")) {
+            // Electric lightning particles
+            spawnParticles(ballPos.x, ballPos.y, 2, '#00f0ff');
+            if (playFrame % 4 === 0) {
+              // Lightning strikes on ball
+              playCtx.strokeStyle = '#ffffff';
+              playCtx.lineWidth = 1.5;
+              playCtx.beginPath();
+              playCtx.moveTo(ballPos.x, 0);
+              playCtx.lineTo(ballPos.x + (Math.random() - 0.5) * 30, ballPos.y / 2);
+              playCtx.lineTo(ballPos.x, ballPos.y);
+              playCtx.stroke();
+            }
+          }
+        } else {
+          // Standard ball simple dot trail
+          if (playFrame % 2 === 0) {
+            spawnParticles(ballPos.x, ballPos.y, 1, '#a0aec0');
+          }
+        }
+
+        // Draw Soccer ball itself (wobbly with crooked hexagons)
+        playCtx.save();
+        playCtx.translate(ballPos.x, ballPos.y);
+        playCtx.rotate(playFrame * 0.15); // spin ball
+        
+        playCtx.strokeStyle = '#ffffff';
+        playCtx.fillStyle = '#060913';
+        playCtx.lineWidth = 2;
+        drawWobblyCircle(playCtx, 0, 0, radius, 1.5);
+        playCtx.fill();
+        
+        // Crooked patches
+        playCtx.strokeStyle = '#ffffff';
+        playCtx.lineWidth = 1;
+        drawWobblyLine(playCtx, 0, 0, 0, -radius, 1);
+        drawWobblyLine(playCtx, 0, 0, -radius * 0.86, radius * 0.5, 1);
+        drawWobblyLine(playCtx, 0, 0, radius * 0.86, radius * 0.5, 1);
+
+        playCtx.restore();
+      }
+
+      // 7. Update & Draw Particles
+      particles.forEach((p, idx) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) {
+          particles.splice(idx, 1);
+        } else {
+          playCtx.save();
+          playCtx.globalAlpha = p.alpha;
+          playCtx.fillStyle = p.color;
+          playCtx.beginPath();
+          playCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          playCtx.fill();
+          playCtx.restore();
+        }
+      });
+
+      // 8. Visual Text splash notifications ("쾅!", "GREAT SAVE!", "GOAL!")
+      if (saveSplashTimer > 0) {
+        saveSplashTimer--;
+        
+        playCtx.save();
+        playCtx.font = "bold 45px 'Orbitron', 'Malgun Gothic', Impact, sans-serif";
+        playCtx.textAlign = "center";
+        
+        let color = '#ff0055';
+        if (saveSplashText.includes("SAVE") || saveSplashText.includes("쾅")) {
+          color = '#00ff66';
+          playCtx.shadowColor = '#00ff66';
+          playCtx.shadowBlur = 12;
+        } else {
+          playCtx.shadowColor = '#ff0055';
+          playCtx.shadowBlur = 12;
+        }
+
+        playCtx.fillStyle = color;
+        playCtx.strokeStyle = '#ffffff';
+        playCtx.lineWidth = 3;
+        
+        // Add bubble float effect
+        const textY = saveSplashPos.y - (45 - saveSplashTimer) * 0.8;
+        playCtx.strokeText(saveSplashText, saveSplashPos.x, textY);
+        playCtx.fillText(saveSplashText, saveSplashPos.x, textY);
+        playCtx.restore();
+      }
+
+      playCtx.restore();
+
+      // State timelines
+      if (gameState.isKickStarted) {
+        if (kickerRunTime < 1200) {
+          const prevRunTime = kickerRunTime;
+          // Increment run-up time
+          kickerRunTime += 16.67; // approx 60fps frame rate
+          
+          // LV 3 Boss Kicker stops brief moment for fake run
+          if (gameState.currentKicker.name.includes("뇌신") && kickerRunTime > 600 && kickerRunTime < 800) {
+            // Fake stutter step! Freeze run time addition briefly
+            kickerRunTime -= 10; 
+          }
+
+          // Trigger point-of-kick calculations EXACTLY at 1200ms crossing!
+          if (prevRunTime < 1200 && kickerRunTime >= 1200) {
+            if (gameState.lockedDirection === null) {
+              gameState.timing = 'late';
+              isSavedResult = false;
+              adjustBallTarget(false, null);
+            }
+          }
+        } else {
+          // Ball in flight
+          const flyDuration = getBallFlightDuration();
+          if (ballFlightTime < flyDuration) {
+            ballFlightTime += 16.67;
+          } else {
+            // Reached target -> evaluate shootout result!
+            evaluateShotResult();
+            gameState.isKickStarted = false; // end loop trigger
+          }
+        }
+      }
+
+      playAnimationId = requestAnimationFrame(updatePlayFrame);
+    }
+
+    // Speed configurations
+    function getBallFlightDuration() {
+      if (gameState.currentStage === 1) return 800; // slow
+      if (gameState.currentStage === 2) return 550; // normal
+      return 350; // LV 3 Boss (fast!)
+    }
+
+    // Helper color fetch
+    function varColor(cssVar) {
+      return getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    }
+
+    // Game Logic Shoot Evaluation
+    function evaluateShotResult() {
+      let isSaved = isSavedResult;
+
+      if (isSaved) {
+        // --- SAVE SUCCESSFUL ---
+        gameState.score += 100;
+        playerStats.gold += 20; // 20 gold per save
+        saveStats();
+        
+        // Visual splash effects
+        screenShakeAmt = 15;
+        saveSplashText = Math.random() > 0.4 ? "GREAT SAVE!" : "쾅! 선방!!";
+        saveSplashPos = { x: ballPos.x, y: ballPos.y - 10 };
+        saveSplashTimer = 45;
+        spawnParticles(ballPos.x, ballPos.y, 25, '#00ff66');
+
+        // Play chime SFX and robotic voice lines
+        audio.playSaveSynth();
+        setTimeout(() => {
+          audio.speak("Great save!");
+        }, 100);
+
+      } else {
+        // --- GOAL CONCEDED ---
+        gameState.hp -= 1;
+        gameState.cleanSheet = false;
+        
+        screenShakeAmt = 5;
+        saveSplashText = "GOAL!!";
+        saveSplashPos = { x: 390, y: 140 };
+        saveSplashTimer = 45;
+        spawnParticles(ballPos.x, ballPos.y, 20, '#ff0055');
+
+        // Whistle & crowd sigh
+        audio.playGoalSynth();
+      }
+
+      // Check lives immediately or loop transition
+      setTimeout(() => {
+        handlePostShotStage();
+      }, 2000);
+    }
+
+    // Handle next stage/kick loop
+    function handlePostShotStage() {
+      gameState.shotIndex += 1;
+      
+      // Determine stage transitions based on total 10 kicks limit
+      if (gameState.shotIndex >= 3 && gameState.shotIndex < 7) {
+        gameState.currentStage = 2;
+      } else if (gameState.shotIndex >= 7) {
+        gameState.currentStage = 3;
+      }
+
+      // Verify game over conditions
+      if (gameState.hp <= 0) {
+        endGame(false);
+      } else if (gameState.shotIndex >= 10) {
+        endGame(true);
+      } else {
+        // Transition back to info board
+        showScreen('screen-info');
+        initializeKickerInfo();
+      }
+    }
+
+    // Set stage kicker charts and speech data
+    function initializeKickerInfo() {
+      audio.stopBgm();
+      audio.playLofiBgm();
+
+      const kicker = KICKERS_DATABASE[gameState.shotIndex];
+      document.getElementById('info-stage-title').innerText = `STAGE ${gameState.currentStage} / SHOT ${gameState.shotIndex + 1}`;
+      document.getElementById('kicker-name').innerText = kicker.name;
+      document.getElementById('kicker-description').innerText = kicker.desc;
+      document.getElementById('kicker-speech').innerText = kicker.speech;
+      document.getElementById('info-reliability').innerText = `정보 신뢰도: ${kicker.accuracy}`;
+      
+      // Toggle tutorial skip button for first shot
+      if (gameState.shotIndex === 0) {
+        document.getElementById('btn-skip-tutorial').style.display = 'block';
+      } else {
+        document.getElementById('btn-skip-tutorial').style.display = 'none';
+      }
+
+      // Set tips guidelines
+      const tipsBox = document.getElementById('info-tips');
+      if (gameState.currentStage === 1) {
+        tipsBox.innerText = `💡 팁: 1단계는 데이터가 100% 일치합니다. 침착하게 분석 방향과 타이밍 기회를 파악하세요!`;
+      } else if (gameState.currentStage === 2) {
+        tipsBox.innerText = `⚠️ 경고: 2단계부터는 선수의 정보에 거짓말이 포함됩니다! 바운드나 휘어지는 커브 슛이 궤적에 섞입니다!`;
+      } else {
+        tipsBox.innerText = `🔥 보스 경고: 거대하고 무시무시한 마구가 날아옵니다! 타이밍 게이지를 눈여겨보고 최적의 다이빙 타이밍을 찾으세요!`;
+      }
+
+      // Redraw kicker representation in the info panel
+      const infoCanv = document.getElementById('kicker-info-canvas');
+      const c = infoCanv.getContext('2d');
+      c.clearRect(0, 0, infoCanv.width, infoCanv.height);
+      drawKicker(c, infoCanv.width / 2, infoCanv.height / 2 + 30, 0, kicker.type);
+
+      // Trigger statistical chart bars width transition
+      setTimeout(() => {
+        document.getElementById('bar-left').style.width = `${kicker.prob.left}%`;
+        document.getElementById('bar-center').style.width = `${kicker.prob.center}%`;
+        document.getElementById('bar-right').style.width = `${kicker.prob.right}%`;
+
+        document.getElementById('val-left').innerText = `${kicker.prob.left}%`;
+        document.getElementById('val-center').innerText = `${kicker.prob.center}%`;
+        document.getElementById('val-right').innerText = `${kicker.prob.right}%`;
+      }, 100);
+    }
+
+    // Trigger runup kick
+    function startStrikerKick() {
+      showScreen('screen-play');
+      resetPenaltyState();
+      
+      // Swap bgms
+      audio.stopBgm();
+      audio.playEdmBgm();
+
+      // Small delay before kicker starts running
+      setTimeout(() => {
+        gameState.isKickStarted = true;
+        audio.playKickSynth(audio.ctx.currentTime, 0.15); // play runner step synth
+      }, 1000);
+    }
+
+    document.getElementById('btn-start-kick').addEventListener('click', startStrikerKick);
+
+    /* ==========================================
+       6. GAME NAVIGATION & ENDINGS
+       ========================================== */
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(scr => scr.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+
+      if (screenId === 'screen-play') {
+        if (!playAnimationId) {
+          playAnimationId = requestAnimationFrame(updatePlayFrame);
+        }
+      } else {
+        if (playAnimationId) {
+          cancelAnimationFrame(playAnimationId);
+          playAnimationId = null;
+        }
+      }
+    }
+
+    function endGame(victory) {
+      audio.stopBgm();
+
+      if (victory) {
+        // Calculate victory clean sheet gold bonus
+        let bonus = 0;
+        let cleansheetText = "미달성";
+        if (gameState.cleanSheet) {
+          bonus = 150;
+          cleansheetText = "달성 (+150G 보너스 지급!)";
+        }
+        
+        const finalGold = (gameState.score / 10) + bonus;
+        playerStats.gold += finalGold;
+        saveStats();
+
+        document.getElementById('clear-score').innerText = `${gameState.score}점`;
+        document.getElementById('clear-cleansheet').innerText = cleansheetText;
+        document.getElementById('clear-gold').innerText = `+${finalGold}G`;
+        
+        showScreen('screen-gameclear');
+        audio.speak("Victory is yours! Match ended.");
+      } else {
+        // Game Over
+        const finalGold = Math.floor(gameState.score / 20);
+        playerStats.gold += finalGold;
+        saveStats();
+
+        document.getElementById('over-score').innerText = `${gameState.score}점`;
+        document.getElementById('over-shots').innerText = `${gameState.shotIndex} / 10`;
+        document.getElementById('over-gold').innerText = `+${finalGold}G`;
+
+        showScreen('screen-gameover');
+        audio.speak("Game over.");
+      }
+    }
+
+    function startNewGame() {
+      gameState.score = 0;
+      gameState.hp = 3;
+      gameState.shotIndex = 0;
+      gameState.currentStage = 1;
+      gameState.cleanSheet = true;
+      
+      showScreen('screen-info');
+      initializeKickerInfo();
+      audio.speak("Match start!");
+    }
+
+    // Skip Tutorial Stage 1 immediately
+    document.getElementById('btn-skip-tutorial').addEventListener('click', () => {
+      gameState.shotIndex = 3;
+      gameState.currentStage = 2;
+      initializeKickerInfo();
+    });
+
+    // Sound Manager Volume Toggle listener
+    const audioBtn = document.getElementById('audio-toggle');
+    audioBtn.addEventListener('click', () => {
+      audio.init();
+      const nextState = !audio.isMuted;
+      audio.setMute(nextState);
+      audioBtn.innerText = nextState ? '🔇 Sound Off' : '🔊 Sound On';
+      audioBtn.style.color = nextState ? 'var(--text-gray)' : 'var(--neon-green)';
+      audioBtn.style.borderColor = nextState ? 'var(--text-gray)' : 'var(--neon-green)';
+    });
+
+    // Page Buttons bindings
+    document.getElementById('btn-start-game').addEventListener('click', startNewGame);
+    
+    document.getElementById('btn-open-shop').addEventListener('click', () => {
+      showScreen('screen-shop');
+      buildShopGrid();
+    });
+    
+    document.getElementById('btn-close-shop').addEventListener('click', () => {
+      showScreen('screen-start');
+    });
+
+    document.getElementById('btn-open-tutorial').addEventListener('click', () => {
+      document.getElementById('modal-tutorial').classList.add('active');
+    });
+    
+    document.getElementById('btn-close-tutorial').addEventListener('click', () => {
+      document.getElementById('modal-tutorial').classList.remove('active');
+    });
+
+    document.getElementById('btn-retry-over').addEventListener('click', startNewGame);
+    document.getElementById('btn-shop-over').addEventListener('click', () => {
+      showScreen('screen-shop');
+      buildShopGrid();
+    });
+
+    document.getElementById('btn-restart-clear').addEventListener('click', startNewGame);
+    document.getElementById('btn-shop-clear').addEventListener('click', () => {
+      showScreen('screen-shop');
+      buildShopGrid();
+    });
+
+    // Initialize UI on load
+    loadStats();
+    audio.playLofiBgm();
+  </script>
+</body>
+</html>

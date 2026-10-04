@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Rhythm Game</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            background-color: #111;
+            border: 4px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        #scoreBoard {
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">SCORE: <span id="score">0</span> | <span id="judgment" style="color: #ffeb3b;">READY</span></div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const judgmentEl = document.getElementById("judgment");
+
+// 게임 설정
+const LANE_COUNT = 4;
+const LANE_WIDTH = canvas.width / LANE_COUNT;
+const JUDGE_LINE_Y = 500; // 판정선 위치
+const NOTE_SPEED = 5;     // 노트가 내려오는 속도
+const KEYS = ['d', 'f', 'j', 'k'];
+const LANE_COLORS = ['#ff4757', '#1e90ff', '#1e90ff', '#ff4757'];
+
+let score = 0;
+let notes = [];
+let keyState = [false, false, false, false];
+
+// 노트 생성 타이머 (예시: 일정 간격으로 무작위 라인에 노트 생성)
+setInterval(() => {
+    const randomLane = Math.floor(Math.random() * LANE_COUNT);
+    notes.push({
+        lane: randomLane,
+        y: 0,
+        width: LANE_WIDTH - 10,
+        height: 20
+    });
+}, 600); // 0.6초마다 노트 생성
+
+// 키 입력 이벤트 리스너
+window.addEventListener('keydown', (e) => {
+    const keyIndex = KEYS.indexOf(e.key.toLowerCase());
+    if (keyIndex !== -1 && !keyState[keyIndex]) {
+        keyState[keyIndex] = true;
+        checkHit(keyIndex);
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    const keyIndex = KEYS.indexOf(e.key.toLowerCase());
+    if (keyIndex !== -1) {
+        keyState[keyIndex] = false;
+    }
+});
+
+// 판정 체크 함수
+function checkHit(laneIndex) {
+    let hitDetected = false;
+    
+    for (let i = 0; i < notes.length; i++) {
+        const note = notes[i];
+        if (note.lane === laneIndex) {
+            // 노트의 중심과 판정선 사이의 거리 계산
+            const distance = Math.abs(note.y - JUDGE_LINE_Y);
+
+            if (distance < 30) { // Perfect 범위
+                judgmentEl.innerText = "PERFECT!";
+                judgmentEl.style.color = "#00ffcc";
+                score += 100;
+                notes.splice(i, 1);
+                hitDetected = true;
+                break;
+            } else if (distance < 60) { // Good 범위
+                judgmentEl.innerText = "GOOD";
+                judgmentEl.style.color = "#4ff060";
+                score += 50;
+                notes.splice(i, 1);
+                hitDetected = true;
+                break;
+            }
+        }
+    }
+    
+    if (!hitDetected) {
+        // 노트를 못 맞추고 허공에 키를 누른 경우 (선택 사항)
+    }
+    scoreEl.innerText = score;
+}
+
+// 게임 루프 (애니메이션)
+function update() {
+    // 화면 비우기
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 레인 가이드라인 그리기
+    for (let i = 0; i < LANE_COUNT; i++) {
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(i * LANE_WIDTH, 0);
+        ctx.lineTo(i * LANE_WIDTH, canvas.height);
+        ctx.stroke();
+
+        // 키 입력 시 레인 하이라이트 효과
+        if (keyState[i]) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+            ctx.fillRect(i * LANE_WIDTH, 0, LANE_WIDTH, canvas.height);
+        }
+    }
+
+    // 2. 판정선 그리기
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, JUDGE_LINE_Y);
+    ctx.lineTo(canvas.width, JUDGE_LINE_Y);
+    ctx.stroke();
+
+    // 3. 노트 업데이트 및 그리기
+    for (let i = notes.length - 1; i >= 0; i--) {
+        const note = notes[i];
+        note.y += NOTE_SPEED; // 노트 하강
+
+        // 판정선을 지나쳐 화면 밖으로 나간 경우 (MISS)
+        if (note.y > canvas.height) {
+            notes.splice(i, 1);
+            judgmentEl.innerText = "MISS";
+            judgmentEl.style.color = "#ff4757";
+            continue;
+        }
+
+        // 노트 렌더링
+        ctx.fillStyle = LANE_COLORS[note.lane];
+        ctx.fillRect(
+            note.lane * LANE_WIDTH + 5, 
+            note.y - note.height / 2, 
+            note.width, 
+            note.height
+        );
+    }
+
+    // 하단에 조작키 표시
+    for(let i=0; i<LANE_COUNT; i++) {
+        ctx.fillStyle = "#888";
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(KEYS[i].toUpperCase(), i * LANE_WIDTH + LANE_WIDTH/2, canvas.height - 20);
+    }
+
+    requestAnimationFrame(update);
+}
+
+// 게임 시작
+update();
+</script>
+</body>
+</html>
