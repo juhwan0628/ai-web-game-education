@@ -1,13 +1,136 @@
 # AI Web Game Education
 
-Two-iteration computer education project: a teaching-practicum web-game class and a later SPEC-driven redesign in an AI Education course.
+생성형 AI를 활용한 웹게임 제작 수업을 실제 교실에서 운영하고, 그 경험을 바탕으로 수업 구조와 협업 방식을 다시 설계한 컴퓨터교육 프로젝트입니다.
 
-## Structure
+이 프로젝트는 두 번의 수업 설계·운영을 하나의 흐름으로 묶습니다.
 
-- practicum/: first classroom iteration
-- university-course/: redesigned SPEC-driven iteration
-- docs/: project evolution and architecture notes
+- **Iteration 01 — 교생실습:** 고등학교 1학년 학생들이 Gemini를 활용해 조별 웹게임을 제작
+- **Iteration 02 — 인공지능교육 교과목:** 첫 수업에서 확인한 한계를 바탕으로 SPEC 중심 협업 방식으로 재설계
 
-## Focus
+핵심은 단순히 "AI로 게임을 만들었다"가 아니라, **생성형 AI를 학생들의 기획·협업·검증 활동에 어떻게 넣을 것인지 설계하고 실제 결과물까지 만들어낸 과정**입니다.
 
-The project explores how students can plan, generate, test, and revise browser games with generative AI, and how the workflow can evolve from free-form prompting to specification-driven collaboration.
+## 프로젝트 흐름
+
+### 1. 교생실습 — Prompt-based Web Game Class
+
+고등학교 1학년 3개 학급에서 생성형 AI를 활용한 웹게임 제작 수업을 운영했습니다.
+
+학생들은 조별로 다음 과정을 반복했습니다.
+
+1. 게임 목표와 규칙 정의
+2. AI가 이해할 수 있도록 요구사항 구체화
+3. Gemini를 이용해 HTML/CSS/JavaScript 게임 생성
+4. 브라우저에서 직접 실행
+5. 기대한 동작과 실제 동작 비교
+6. 프롬프트를 수정해 결과 개선
+7. 팀별 결과물 공유
+
+이 과정에서 총 **18개의 실제 학생 웹게임**이 만들어졌으며, 이 저장소의 `practicum/`에서 결과물을 확인할 수 있습니다.
+
+### 2. 수업 운영 후 발견한 한계
+
+첫 번째 수업은 빠르게 결과물을 만들고 학생들의 흥미를 유도하는 데는 효과적이었지만, 몇 가지 한계가 있었습니다.
+
+- 요구사항이 대부분 대화형 프롬프트 안에만 존재함
+- 한 명이 AI 코딩 도구를 조작하면서 팀 활동이 특정 역할에 집중될 수 있음
+- 이미지와 오디오를 별도 작업물로 관리하기 어려움
+- 단일 HTML 구조는 간단하지만 확장성이 낮음
+- 제출물 검수와 배포에 교사의 수작업이 많이 필요함
+
+이 문제를 두 번째 iteration에서 수업 구조 자체를 다시 설계하는 방향으로 개선했습니다.
+
+### 3. 인공지능교육 교과목 — SPEC-driven AI Collaboration
+
+성균관대학교 컴퓨터교육과 인공지능교육 교과목에서 첫 번째 수업을 확장해 다시 설계했습니다.
+
+가장 큰 변화는 **프롬프트 중심 제작에서 SPEC 중심 협업으로 전환한 것**입니다.
+
+| 교생실습 | 개선된 수업 |
+|---|---|
+| 자유 프롬프트 중심 | `SPEC.md` 중심 |
+| 단일 HTML | 프로젝트 폴더 |
+| 코드 생성 중심 | 코드 + 이미지 + 오디오 |
+| 한 명이 AI 도구를 주로 조작 | 역할별 병렬 작업 |
+| 수동 제출 정리 | 검수·반영 자동화 |
+
+학생들은 먼저 게임의 규칙과 요구사항을 문서로 합의하고, 이후 역할을 나눠 각 작업을 진행했습니다.
+
+- **개발:** 게임 로직과 통합
+- **비주얼:** 캐릭터·배경 이미지 제작
+- **사운드:** BGM·효과음 제작
+
+각 팀은 `README.md`, `SPEC.md`, `index.html`, 이미지·오디오 에셋을 포함한 하나의 프로젝트 폴더를 완성했습니다.
+
+실제 팀별 결과물은 `university-course/teams/`에서 확인할 수 있습니다.
+
+## 실제 결과물
+
+이 저장소에는 수업 설계 문서만이 아니라 **학생들이 실제로 만든 게임 결과물도 함께 포함**되어 있습니다.
+
+- 교생실습: 3개 학급 × 6개 조, 총 18개 웹게임
+- 인공지능교육 수업: SPEC 기반 팀 프로젝트
+- 각 팀의 실제 코드, 이미지, 오디오, README, SPEC
+
+학생 이름 등 포트폴리오 공개에 불필요한 개인정보는 익명화했습니다.
+
+## 기술 및 운영 요소
+
+단순 수업 자료를 넘어 실제 운영을 위한 도구와 자동화도 함께 구현했습니다.
+
+- 정적 HTML/CSS/JavaScript 기반 수업 허브
+- hash routing 기반 단계별 수업 화면
+- 교사용 활동 타이머
+- README / SPEC 템플릿
+- 팀 결과물 메타데이터 관리
+- Node.js 기반 제출물 구조 검수
+- 외부 URL·CDN·fetch 등 금지 조건 자동 검사
+- 제출 zip 자동 해제 및 팀 폴더 반영
+- Oracle Cloud + nginx 배포
+
+특히 두 번째 iteration에서는 제출 결과를 일일이 수작업으로 배포하지 않도록 `check-submissions.mjs`, `import-submissions.mjs`를 구현했습니다.
+
+## 저장소 구조
+
+```text
+ai-web-game-education/
+├── README.md
+├── index.html
+├── practicum/
+│   ├── index.html
+│   ├── class6/
+│   ├── class7/
+│   ├── class8/
+│   └── examples/
+├── university-course/
+│   ├── index.html
+│   ├── assets/
+│   ├── data/
+│   ├── scripts/
+│   ├── templates/
+│   └── teams/
+└── docs/
+    └── evolution.md
+```
+
+## 프로젝트에서 중요하게 본 점
+
+이 프로젝트에서 생성형 AI 자체보다 더 중요하게 본 것은 **AI를 사용할 때 사람이 어떤 구조를 만들어야 하는가**였습니다.
+
+첫 번째 수업에서는 학생들이 자연어로 요구사항을 표현하고 AI 결과물을 검증하는 경험에 집중했습니다.
+
+두 번째 수업에서는 여기서 더 나아가:
+
+- 요구사항을 문서화하고
+- 역할을 나누고
+- 여러 형태의 AI 결과물을 통합하고
+- 결과를 SPEC 기준으로 검증하도록
+
+수업 구조를 발전시켰습니다.
+
+즉, 이 프로젝트는 AI가 코드를 대신 작성하는 수업이 아니라, **학생이 AI를 하나의 제작 도구로 활용하면서 기획·협업·검증 과정을 경험하도록 설계한 수업 프로젝트**입니다.
+
+## 데모
+
+- 통합 프로젝트: https://juhwan.ing/ai-web-game-education/
+- 교생실습 버전: https://juhwan.ing/ai-web-game-education/practicum/
+- SPEC 중심 개선 버전: https://juhwan.ing/ai-web-game-education/university-course/
